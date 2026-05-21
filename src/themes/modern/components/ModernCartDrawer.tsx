@@ -38,9 +38,13 @@ export default function ModernCartDrawer({
     }
 
     closeCart();
-    if (username) {
-      // 🚀 CRITICAL FIX: Routes to the exact checkout layout we built
-      navigate(`/pro/${username}/checkout`);
+    // CORRECT NAVIGATION LOGIC
+    if (username === "") {
+      // Custom Domain
+      navigate(`/checkout`);
+    } else if (username) {
+      // Platform Path (username already includes "pro/...")
+      navigate(`/${username}/checkout`); 
     } else {
       alert("Checkout unavailable. Missing portfolio data.");
     }

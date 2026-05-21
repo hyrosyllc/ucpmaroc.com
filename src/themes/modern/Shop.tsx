@@ -97,20 +97,24 @@ const calculateTotalPrice = (
   const cleanBasePrice = parseFloat(
     (basePrice || "0").toString().replace(/[^0-9.]/g, "")
   );
-  let total = isNaN(cleanBasePrice) ? 0 : cleanBasePrice;
+  
+  let hasVariantPrice = false;
+  let variantTotal = 0;
 
   Object.values(variants).forEach((option) => {
     if (option && option.price) {
       const optionPrice = parseFloat(
         option.price.toString().replace(/[^0-9.]/g, "")
       );
-      if (!isNaN(optionPrice)) {
-        total += optionPrice;
+      if (!isNaN(optionPrice) && optionPrice > 0) {
+        hasVariantPrice = true;
+        variantTotal += optionPrice;
       }
     }
   });
 
-  return (total * qty).toFixed(2);
+  const baseToUse = hasVariantPrice ? variantTotal : (isNaN(cleanBasePrice) ? 0 : cleanBasePrice);
+  return (baseToUse * qty).toFixed(2);
 };
 
 // 🚀 SUB-COMPONENT: INLINE SPOTLIGHT CHECKOUT (For the 'spotlight' variant)
@@ -179,13 +183,13 @@ const SpotlightCheckout = ({
       }
     }
 
-    if (actionType === "form_order" && product.formId) {
+    if (actionType === "form_order" && (product.formId || product.form_id)) {
       setIsLoadingForm(true);
       setStep("form");
       const { data } = await supabase
         .from("forms")
         .select("*")
-        .eq("id", product.formId)
+        .eq("id", product.formId || product.form_id)
         .single();
       if (data) setFormTemplate(data);
       setIsLoadingForm(false);

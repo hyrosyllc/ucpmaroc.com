@@ -155,7 +155,7 @@ function App() {
           <Layout isCustomDomain={isCustomDomain}>
             <Suspense
               fallback={
-                <div className="h-screen flex items-center justify-center bg-neutral-950">
+                <div className="h-screen flex items-center justify-center bg-background">
                   <Loader2 className="animate-spin w-10 h-10 text-primary" />
                 </div>
               }

@@ -2066,6 +2066,35 @@ const PortfolioBuilderPage = () => {
                         </ToggleGroup>
                       </div>
                     </div>
+
+                    {/* 🚀 NEW: LOADING SCREEN CONFIGURATION */}
+                    <div className="space-y-5 pt-8 border-t">
+                      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        <Loader2 size={14} className="animate-spin" /> Loading Screen
+                      </div>
+                      <div className="space-y-4 bg-background p-4 rounded-2xl border shadow-sm">
+                        <div className="space-y-3">
+                          <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Loader Style</Label>
+                          <Select value={themeConfig.loaderStyle || "skeleton"} onValueChange={(val) => updateThemeConfig({ loaderStyle: val })}>
+                            <SelectTrigger className="h-12 bg-background rounded-2xl shadow-sm border border-border">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="skeleton" className="py-2.5 font-medium">Skeleton (Native & Clean)</SelectItem>
+                              <SelectItem value="spinner" className="py-2.5 font-medium">Classic Spinner</SelectItem>
+                              <SelectItem value="pulse" className="py-2.5 font-medium">Brand Pulse (Modern)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        {(themeConfig.loaderStyle === "spinner" || themeConfig.loaderStyle === "pulse") && (
+                          <div className="space-y-2 pt-2 border-t border-border">
+                            <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">Custom Loading Text (Optional)</Label>
+                            <Input placeholder="e.g. Loading amazing things..." value={themeConfig.loaderText || ""} onChange={(e) => updateThemeConfig({ loaderText: e.target.value })} className="h-10 rounded-xl bg-muted/50 border-transparent focus-visible:border-primary" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

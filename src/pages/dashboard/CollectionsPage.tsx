@@ -148,13 +148,17 @@ export default function CollectionsPage() {
     const filePath = `${actorId}/collections/${fileName}`;
 
     const { error } = await supabase.storage
-      .from("portfolio-media")
-      .upload(filePath, file);
+      .from("portfolio-assets")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
 
     if (!error) {
       const {
         data: { publicUrl },
-      } = supabase.storage.from("portfolio-media").getPublicUrl(filePath);
+      } = supabase.storage.from("portfolio-assets").getPublicUrl(filePath);
       setFormData({ ...formData, image: publicUrl });
     } else {
       alert("Failed to upload image.");

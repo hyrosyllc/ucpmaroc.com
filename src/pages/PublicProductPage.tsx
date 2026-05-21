@@ -34,6 +34,7 @@ export default function PublicProductPage() {
 
   // ✅ Tracks the correct store URL prefix
   const [resolvedPublicSlug, setResolvedPublicSlug] = useState<string>("");
+  const [portfolioId, setPortfolioId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,11 @@ export default function PublicProductPage() {
     address: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dynamic Form State
+  const [formTemplate, setFormTemplate] = useState<any>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [isLoadingForm, setIsLoadingForm] = useState(false);
 
   useEffect(() => {
     const fetchProductAndTheme = async () => {
@@ -107,6 +113,7 @@ export default function PublicProductPage() {
 
       setTheme(currentTheme);
       setResolvedPublicSlug(currentPublicSlug);
+      setPortfolioId(currentPortfolioId);
 
       // 2. FETCH EXACT PRODUCT (WITH STORE SEPARATION LOGIC)
       let productQuery = supabase
@@ -141,6 +148,14 @@ export default function PublicProductPage() {
           });
         }
         setSelectedVariants(initialVariants);
+
+        // Fetch dynamic form if applicable
+        if (productData.action_type === 'form_order' && productData.form_id) {
+          setIsLoadingForm(true);
+          const { data: fData } = await supabase.from('forms').select('*').eq('id', productData.form_id).maybeSingle();
+          if (fData) setFormTemplate(fData);
+          setIsLoadingForm(false);
+        }
       }
       setLoading(false);
     };
@@ -148,13 +163,15 @@ export default function PublicProductPage() {
     fetchProductAndTheme();
   }, [slug, productSlug]);
 
-  const currentPrice = product
-    ? product.price +
-      Object.values(selectedVariants).reduce(
-        (sum, val: any) => sum + (Number(val.price) || 0),
-        0
-      )
-    : 0;
+  let currentPrice = product?.price || 0;
+  if (product && selectedVariants) {
+    const variantPrices = Object.values(selectedVariants)
+      .map((val: any) => Number(val.price))
+      .filter((p) => !isNaN(p) && p > 0);
+    if (variantPrices.length > 0) {
+      currentPrice = variantPrices.reduce((sum, p) => sum + p, 0);
+    }
+  }
 
   const handleMainAction = () => {
     const actionType = product.action_type || "cart";
@@ -174,7 +191,8 @@ export default function PublicProductPage() {
         price: currentPrice,
         image: product.images?.[0],
         quantity,
-        variant: variantString || undefined,
+        variant: variantString || "default",
+        storeId: portfolioId || undefined,
       });
       return;
     }
@@ -182,17 +200,18 @@ export default function PublicProductPage() {
     setStep("form");
   };
 
-  const handleConfirmOrder = async () => {
-    if (!clientInfo.name || !clientInfo.phone) {
-      alert("Please provide your name and phone number.");
-      return;
+  const handleConfirmOrder = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    if (!formTemplate) {
+      if (!clientInfo.name || !clientInfo.phone) {
+        alert("Please provide your name and phone number.");
+        return;
+      }
     }
 
     setIsSubmitting(true);
     const actionType = product.action_type;
-    const variantText = Object.entries(selectedVariants)
-      .map(([key, val]) => `${key}: ${val.label}`)
-      .join(", ");
 
     if (actionType === "whatsapp") {
       const message = `*NEW ORDER REQUEST* 🛍️\n------------------\n*Product:* ${
@@ -219,16 +238,38 @@ export default function PublicProductPage() {
     }
 
     if (actionType === "form_order") {
+      const getFieldVal = (keywords: string[]) => {
+        const key = Object.keys(formValues).find((k) =>
+          keywords.some((keyword) => k.toLowerCase().includes(keyword))
+        );
+        return key ? formValues[key] : "";
+      };
+
+      const finalName = formTemplate ? getFieldVal(["name", "first", "last"]) : clientInfo.name;
+      const finalPhone = formTemplate ? getFieldVal(["phone", "tel", "mobile"]) : clientInfo.phone;
+      const finalAddress = formTemplate ? getFieldVal(["address", "shipping", "street", "city", "zip"]) : clientInfo.address;
+
+      let notesText = "";
+      if (formTemplate) {
+        notesText = Object.entries(formValues).map(([k, v]) => {
+          const fieldDef = formTemplate.fields?.find((f: any) => f.id === k);
+          const label = fieldDef ? fieldDef.label : k;
+          return `${label}: ${v}`;
+        }).join("\n");
+      }
+
       const { error: orderError } = await supabase.from("pro_orders").insert({
         actor_id: product.actor_id,
-        customer_name: clientInfo.name,
-        customer_phone: clientInfo.phone,
-        customer_address: clientInfo.address,
+        portfolio_id: portfolioId,
+        customer_name: finalName || "Anonymous Buyer",
+        customer_phone: finalPhone || "No Phone",
+        customer_address: finalAddress || "No Address Provided",
         product_name: product.title,
         product_price: currentPrice,
         quantity: quantity,
         variants: selectedVariants,
         status: "pending",
+        notes: notesText || undefined
       });
 
       if (orderError) {
@@ -280,6 +321,10 @@ export default function PublicProductPage() {
     isSubmitting,
     handleMainAction,
     handleConfirmOrder,
+    formTemplate,
+    formValues,
+    setFormValues,
+    isLoadingForm,
   };
 
   return (

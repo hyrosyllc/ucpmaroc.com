@@ -9,9 +9,11 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Loader2, Lock, ShoppingBag, CheckCircle2 } from "lucide-react";
+import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 // 🚀 Initialize Stripe outside the render cycle so it doesn't recreate on every state change
 const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
@@ -22,22 +24,43 @@ const stripePromise = loadStripe(
 const StripeCheckoutForm = ({
   amount,
   portfolioId,
+  actorId,
   items,
   onComplete,
+  formTemplate,
+  formValues,
+  setFormValues,
+  isLoadingForm,
 }: any) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements || !name || !email) return;
+    if (!stripe || !elements) return;
 
     setIsProcessing(true);
     setErrorMessage("");
+    
+    const getFieldVal = (keywords: string[]) => {
+      const key = Object.keys(formValues).find((k) =>
+        keywords.some((keyword) => k.toLowerCase().includes(keyword))
+      );
+      return key ? formValues[key] : "";
+    };
+
+    const name = formTemplate ? getFieldVal(["name", "first", "last"]) : formValues.name;
+    const email = formTemplate ? getFieldVal(["email", "mail"]) : formValues.email;
+    const phone = formTemplate ? getFieldVal(["phone", "tel", "mobile"]) : "";
+    const address = formTemplate ? getFieldVal(["address", "shipping", "street", "city", "zip"]) : "";
+
+    if (!name || !email) {
+       setErrorMessage("Name and email are required for payment processing.");
+       setIsProcessing(false);
+       return;
+    }
 
     // 1. Confirm the payment with Stripe
     const { error, paymentIntent } = await stripe.confirmPayment({
@@ -45,7 +68,7 @@ const StripeCheckoutForm = ({
       redirect: "if_required", // Do not automatically redirect; we need to save the order first
       confirmParams: {
         payment_method_data: {
-          billing_details: { name, email },
+          billing_details: { name, email, phone: phone || undefined },
         },
       },
     });
@@ -58,14 +81,27 @@ const StripeCheckoutForm = ({
 
     // 2. If successful, record the order in Supabase
     if (paymentIntent && paymentIntent.status === "succeeded") {
+      let notesText = "";
+      if (formTemplate) {
+        notesText = Object.entries(formValues).map(([k, v]) => {
+          const fieldDef = formTemplate.fields?.find((f: any) => f.id === k);
+          const label = fieldDef ? fieldDef.label : k;
+          return `${label}: ${v}`;
+        }).join("\n");
+      }
+      
       const { error: dbError } = await supabase.from("pro_orders").insert({
+        actor_id: actorId,
         portfolio_id: portfolioId,
         customer_email: email,
         customer_name: name,
+        customer_phone: phone || "No Phone",
+        customer_address: address || "No Address Provided",
         amount_cents: amount * 100,
         status: "paid",
         items: items,
         stripe_payment_intent_id: paymentIntent.id,
+        notes: notesText || undefined
       });
 
       if (dbError) {
@@ -77,35 +113,92 @@ const StripeCheckoutForm = ({
     }
   };
 
+  const getFieldIcon = (type: string) => {
+    switch (type) {
+      case "email": return <Mail size={14} />;
+      case "tel": return <Phone size={14} />;
+      case "textarea": return <MessageSquare size={14} />;
+      case "date": return <Calendar size={14} />;
+      default: return <User size={14} />;
+    }
+  };
+
+  const parseOptions = (optString?: string) => {
+    if (!optString) return [];
+    return optString.split(",").map((s) => s.trim()).filter(Boolean);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
-        <div>
-          <label className="text-sm font-medium mb-1 block text-foreground">
-            Full Name
-          </label>
-          <Input
-            required
-            placeholder="Jane Doe"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="bg-background"
-          />
+      {isLoadingForm ? (
+        <div className="flex items-center justify-center py-6"><Loader2 className="animate-spin text-primary" /></div>
+      ) : formTemplate?.fields ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {formTemplate.fields.filter((f: any) => f.enabled !== false).map((field: any, idx: number) => {
+            const isHalf = field.width === "half";
+            const fieldOptions = parseOptions(field.options);
+            return (
+              <div key={idx} className={cn("space-y-2", isHalf ? "col-span-1" : "col-span-1 sm:col-span-2")}>
+                <label className="text-sm font-medium mb-1 block text-foreground flex items-center gap-1.5">
+                   {field.label} {field.required && <span className="text-primary">*</span>}
+                </label>
+                {field.type === "textarea" ? (
+                  <Textarea required={field.required} placeholder={field.placeholder} className="bg-background min-h-[100px] resize-none rounded-xl p-4 focus:border-primary/50" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                ) : field.type === "select" ? (
+                  <select required={field.required} className="w-full bg-background border border-border text-foreground h-10 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
+                    <option value="" disabled>Select...</option>
+                    {fieldOptions.map((opt: string, i: number) => (
+                      <option key={i} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : field.type === "radio" ? (
+                  <div className="flex flex-col gap-2 pt-1">
+                    {fieldOptions.map((opt: string, i: number) => (
+                      <label key={i} className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl border border-border bg-background hover:bg-muted/50 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
+                        <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border group-hover:border-primary">
+                          <input type="radio" name={field.id} value={opt} required={field.required} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                          <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
+                        </div>
+                        <span className="text-foreground text-sm font-medium">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className={cn("bg-background h-10 rounded-md focus:border-primary/50", field.type === "date" && "[color-scheme:dark]")} value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                )}
+              </div>
+            );
+          })}
         </div>
-        <div>
-          <label className="text-sm font-medium mb-1 block text-foreground">
-            Email Address
-          </label>
-          <Input
-            required
-            type="email"
-            placeholder="jane@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="bg-background"
-          />
+      ) : (
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-1 block text-foreground">
+              Full Name
+            </label>
+            <Input
+              required
+              placeholder="Jane Doe"
+              value={formValues.name || ""}
+              onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
+              className="bg-background"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block text-foreground">
+              Email Address
+            </label>
+            <Input
+              required
+              type="email"
+              placeholder="jane@example.com"
+              value={formValues.email || ""}
+              onChange={(e) => setFormValues({ ...formValues, email: e.target.value })}
+              className="bg-background"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="pt-4 border-t border-border">
         <label className="text-sm font-medium mb-3 block text-foreground">
@@ -147,6 +240,9 @@ const PublicCheckoutPage = () => {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [formTemplate, setFormTemplate] = useState<any>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [isLoadingForm, setIsLoadingForm] = useState(false);
 
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -186,7 +282,22 @@ const PublicCheckoutPage = () => {
       }
     };
 
-    if (total > 0 && !isSuccess) initializeCheckout();
+    const fetchForm = async () => {
+      if (items.length > 0) {
+        setIsLoadingForm(true);
+        const { data: prod } = await supabase.from('pro_products').select('form_id').eq('id', items[0].id).maybeSingle();
+        if (prod?.form_id) {
+          const { data: f } = await supabase.from('forms').select('*').eq('id', prod.form_id).maybeSingle();
+          if (f) setFormTemplate(f);
+        }
+        setIsLoadingForm(false);
+      }
+    };
+
+    if (total > 0 && !isSuccess) {
+      initializeCheckout();
+      fetchForm();
+    }
   }, [items, total, portfolio.id, portfolio.public_slug, navigate, isSuccess]);
 
   const handleSuccess = () => {
@@ -293,8 +404,13 @@ const PublicCheckoutPage = () => {
               <StripeCheckoutForm
                 amount={total}
                 portfolioId={portfolio.id}
+                actorId={portfolio.actor_id}
                 items={items}
                 onComplete={handleSuccess}
+                formTemplate={formTemplate}
+                formValues={formValues}
+                setFormValues={setFormValues}
+                isLoadingForm={isLoadingForm}
               />
             </Elements>
           )}

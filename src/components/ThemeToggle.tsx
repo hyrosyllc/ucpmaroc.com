@@ -13,7 +13,7 @@ const getInitialTheme = (): "dark" | "light" => {
     }
   }
   // Otherwise, default to dark.
-  return "light";
+  return "dark";
 };
 
 const ThemeToggle: React.FC = () => {

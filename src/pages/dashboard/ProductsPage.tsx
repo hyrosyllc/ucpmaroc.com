@@ -24,6 +24,9 @@ import {
   ExternalLink,
   Settings,
   AlertTriangle,
+  Copy,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import SiteFilter from "../../components/dashboard/SiteFilter";
 import FormManager from "../../components/builder/FormManager";
@@ -75,6 +78,7 @@ export default function ProductsPage() {
   const [savedForms, setSavedForms] = useState<any[]>([]);
   const [globalCartForms, setGlobalCartForms] = useState<Record<string, string | null>>({});
   const [portfolios, setPortfolios] = useState<{ id: string; public_slug: string; site_name?: string }[]>([]);
+  const [localDirectForm, setLocalDirectForm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
@@ -198,6 +202,7 @@ export default function ProductsPage() {
     setFormData(initialData);
     setInitialDataString(JSON.stringify(initialData));
     setOptionInputs({});
+    setLocalDirectForm(initialActionType === "form_order" ? initialFormId : "");
     setView("form");
   };
 
@@ -219,6 +224,57 @@ export default function ProductsPage() {
       return;
     const { error } = await supabase.from("pro_products").delete().eq("id", id);
     if (!error) fetchProducts();
+  };
+
+  const handleDuplicate = async (product: Product) => {
+    if (!actorId) return;
+    const payload = {
+      actor_id: actorId,
+      title: `${product.title} (Copy)`,
+      description: product.description,
+      product_type: product.product_type,
+      status: "draft",
+      price: product.price,
+      compare_at_price: product.compare_at_price,
+      track_inventory: product.track_inventory,
+      stock_count: product.stock_count,
+      sku: product.sku,
+      images: product.images,
+      options: product.options,
+      requires_shipping: product.requires_shipping,
+      weight: product.weight,
+      category: product.category,
+      action_type: product.action_type,
+      checkout_url: product.checkout_url,
+      whatsapp_number: product.whatsapp_number,
+      collection_id: product.collection_id || null,
+      portfolio_id: product.portfolio_id || null,
+      form_id: product.form_id || null,
+      slug: generateSlug(`${product.title} Copy ${Math.floor(Math.random() * 10000)}`),
+    };
+
+    const { error } = await supabase.from("pro_products").insert([payload]);
+    if (error) {
+      console.error("Error duplicating product:", error);
+      alert("Failed to duplicate product.");
+    } else {
+      fetchProducts();
+    }
+  };
+
+  const handleToggleStatus = async (product: Product) => {
+    const newStatus = product.status === "active" ? "draft" : "active";
+    const { error } = await supabase
+      .from("pro_products")
+      .update({ status: newStatus })
+      .eq("id", product.id);
+
+    if (error) {
+      console.error("Error updating status:", error);
+      alert("Failed to update status.");
+    } else {
+      setProducts(products.map(p => p.id === product.id ? { ...p, status: newStatus } : p));
+    }
   };
 
   const handleSave = async () => {
@@ -861,6 +917,8 @@ export default function ProductsPage() {
                         if (newActionType === "cart") {
                           const siteKey = formData.portfolio_id || "global";
                           newFormId = globalCartForms[siteKey] || "";
+                        } else if (newActionType === "form_order") {
+                          newFormId = localDirectForm;
                         }
                         setFormData({
                           ...formData,
@@ -912,14 +970,16 @@ export default function ProductsPage() {
                       <select
                         className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
                         value={formData.form_id || ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const newFormId = e.target.value;
                           setFormData({
                             ...formData,
-                            form_id: e.target.value,
-                          })
-                        }
+                            form_id: newFormId,
+                          });
+                          setLocalDirectForm(newFormId);
+                        }}
                       >
-                        <option value="">Default Form (Name & Phone)</option>
+                        <option value="">-- Select a Checkout Form --</option>
                         {savedForms.filter(f => !formData.portfolio_id || f.portfolio_id === formData.portfolio_id).map((f) => (
                           <option key={f.id} value={f.id}>
                             {f.name}
@@ -948,14 +1008,19 @@ export default function ProductsPage() {
                         <select
                           className="flex h-10 w-full items-center justify-between rounded-md border border-amber-500/30 bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/50"
                           value={formData.form_id || ""}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              form_id: e.target.value,
-                            })
-                          }
+                          onChange={(e) => {
+                            const newFormId = e.target.value;
+                        if (window.confirm("⚠️ WARNING: This will replace the global checkout form for ALL 'Add to Cart' products on this site. Are you sure you want to change it?")) {
+                          setFormData({
+                            ...formData,
+                            form_id: newFormId,
+                          });
+                          const siteKey = formData.portfolio_id || "global";
+                          setGlobalCartForms(prev => ({ ...prev, [siteKey]: newFormId }));
+                        }
+                          }}
                         >
-                          <option value="">Default Cart Form (Name & Email)</option>
+                          <option value="">-- Select a Global Cart Form --</option>
                           {savedForms.filter(f => !formData.portfolio_id || f.portfolio_id === formData.portfolio_id).map((f) => (
                             <option key={f.id} value={f.id}>
                               {f.name}
@@ -1191,7 +1256,7 @@ export default function ProductsPage() {
                       {product.product_type}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1201,6 +1266,22 @@ export default function ProductsPage() {
                           <a href={productUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="w-4 h-4" />
                           </a>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleStatus(product)}
+                          title={product.status === "active" ? "Set to Draft" : "Set to Active"}
+                        >
+                          {product.status === "active" ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDuplicate(product)}
+                          title="Duplicate"
+                        >
+                          <Copy className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"

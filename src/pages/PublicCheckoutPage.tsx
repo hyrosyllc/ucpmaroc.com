@@ -9,7 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User } from "lucide-react";
+import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User, AlertCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -129,95 +129,110 @@ const StripeCheckoutForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {isLoadingForm ? (
-        <div className="flex items-center justify-center py-6"><Loader2 className="animate-spin text-primary" /></div>
-      ) : formTemplate?.fields ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {formTemplate.fields.filter((f: any) => f.enabled !== false).map((field: any, idx: number) => {
-            const isHalf = field.width === "half";
-            const fieldOptions = parseOptions(field.options);
-            return (
-              <div key={idx} className={cn("space-y-2", isHalf ? "col-span-1" : "col-span-1 sm:col-span-2")}>
-                <label className="text-sm font-medium mb-1 block text-foreground flex items-center gap-1.5">
-                   {field.label} {field.required && <span className="text-primary">*</span>}
-                </label>
-                {field.type === "textarea" ? (
-                  <Textarea required={field.required} placeholder={field.placeholder} className="bg-background min-h-[100px] resize-none rounded-xl p-4 focus:border-primary/50" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
-                ) : field.type === "select" ? (
-                  <select required={field.required} className="w-full bg-background border border-border text-foreground h-10 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
-                    <option value="" disabled>Select...</option>
-                    {fieldOptions.map((opt: string, i: number) => (
-                      <option key={i} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : field.type === "radio" ? (
-                  <div className="flex flex-col gap-2 pt-1">
-                    {fieldOptions.map((opt: string, i: number) => (
-                      <label key={i} className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl border border-border bg-background hover:bg-muted/50 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
-                        <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border group-hover:border-primary">
-                          <input type="radio" name={field.id} value={opt} required={field.required} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
-                          <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
-                        </div>
-                        <span className="text-foreground text-sm font-medium">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className={cn("bg-background h-10 rounded-md focus:border-primary/50", field.type === "date" && "[color-scheme:dark]")} value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
-                )}
-              </div>
-            );
-          })}
+    <form onSubmit={handleSubmit} className="space-y-10 animate-in fade-in duration-500">
+      
+      {/* CONTACT INFO SECTION */}
+      <div className="space-y-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Contact Information</h2>
+          <p className="text-sm text-muted-foreground mt-1">We'll use this to send your order updates and receipt.</p>
         </div>
-      ) : (
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium mb-1 block text-foreground">
-              Full Name
-            </label>
-            <Input
-              required
-              placeholder="Jane Doe"
-              value={formValues.name || ""}
-              onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
-              className="bg-background"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block text-foreground">
-              Email Address
-            </label>
-            <Input
-              required
-              type="email"
-              placeholder="jane@example.com"
-              value={formValues.email || ""}
-              onChange={(e) => setFormValues({ ...formValues, email: e.target.value })}
-              className="bg-background"
-            />
-          </div>
-        </div>
-      )}
 
-      <div className="pt-4 border-t border-border">
-        <label className="text-sm font-medium mb-3 block text-foreground">
-          Payment Details
-        </label>
-        {/* Renders the secure credit card / Apple Pay input */}
-        <PaymentElement />
+        {isLoadingForm ? (
+          <div className="flex items-center justify-center py-6"><Loader2 className="animate-spin text-primary" /></div>
+        ) : formTemplate?.fields ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
+            {formTemplate.fields.filter((f: any) => f.enabled !== false).map((field: any, idx: number) => {
+              const isHalf = field.width === "half";
+              const fieldOptions = parseOptions(field.options);
+              return (
+                <div key={idx} className={cn("space-y-2", isHalf ? "col-span-1" : "col-span-1 sm:col-span-2")}>
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-1.5 ml-1">
+                     {field.label} {field.required && <span className="text-primary">*</span>}
+                  </label>
+                  {field.type === "textarea" ? (
+                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-background min-h-[100px] resize-none rounded-xl p-4 border-border/60 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary/50 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                  ) : field.type === "select" ? (
+                    <select required={field.required} className="w-full bg-background border border-border/60 text-foreground h-12 rounded-xl px-3 text-sm appearance-none outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary/50 transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
+                      <option value="" disabled>Select...</option>
+                      {fieldOptions.map((opt: string, i: number) => (
+                        <option key={i} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : field.type === "radio" ? (
+                    <div className="flex flex-col gap-2 pt-1">
+                      {fieldOptions.map((opt: string, i: number) => (
+                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border border-border/60 bg-background shadow-sm hover:bg-muted/50 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
+                          <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/80 group-hover:border-primary bg-background">
+                            <input type="radio" name={field.id} value={opt} required={field.required} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                            <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
+                          </div>
+                          <span className="text-foreground text-sm font-medium">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className={cn("bg-background h-12 rounded-xl border-border/60 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all", field.type === "date" && "[color-scheme:dark]")} value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1 text-foreground">
+                Full Name
+              </label>
+              <Input
+                required
+                placeholder="Jane Doe"
+                value={formValues.name || ""}
+                onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
+                className="bg-background h-12 rounded-xl border-border/60 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold ml-1 text-foreground">
+                Email Address
+              </label>
+              <Input
+                required
+                type="email"
+                placeholder="jane@example.com"
+                value={formValues.email || ""}
+                onChange={(e) => setFormValues({ ...formValues, email: e.target.value })}
+                className="bg-background h-12 rounded-xl border-border/60 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* PAYMENT SECURE SECTION */}
+      <div className="space-y-6 pt-8 border-t border-border/40">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Payment</h2>
+          <p className="text-sm text-muted-foreground mt-1">All transactions are secure and encrypted.</p>
+        </div>
+        <div className="p-5 rounded-2xl border border-border/60 bg-muted/10 shadow-sm">
+          <PaymentElement />
+        </div>
+      </div>
+
+      {/* ERROR HANDLER */}
       {errorMessage && (
-        <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-sm border border-destructive/20">
-          {errorMessage}
+        <div className="p-4 bg-destructive/10 text-destructive rounded-xl text-sm border border-destructive/20 flex items-start gap-3 animate-in fade-in duration-300">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <span className="font-medium leading-relaxed">{errorMessage}</span>
         </div>
       )}
 
+      {/* SUBMIT */}
       <Button
         type="submit"
         disabled={!stripe || isProcessing}
-        className="w-full h-12 font-bold text-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-opacity"
+        className="w-full h-14 font-black tracking-wide text-lg rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
       >
         {isProcessing ? (
           <Loader2 className="animate-spin mr-2" />
@@ -244,6 +259,17 @@ const PublicCheckoutPage = () => {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoadingForm, setIsLoadingForm] = useState(false);
 
+  const MAIN_DOMAINS = [
+    "ucpmaroc.com",
+    "www.ucpmaroc.com",
+    "localhost",
+    "127.0.0.1",
+    "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
+  ];
+  const isCustomDomain = !MAIN_DOMAINS.some((domain) => window.location.hostname.includes(domain));
+  const shopUrl = isCustomDomain ? '/shop' : `/pro/${portfolio.public_slug}/shop`;
+  const homeUrl = isCustomDomain ? '/' : `/pro/${portfolio.public_slug}`;
+
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
     0
@@ -252,7 +278,7 @@ const PublicCheckoutPage = () => {
   useEffect(() => {
     // If cart is empty, bounce them back to the shop
     if (items.length === 0 && !isSuccess) {
-      navigate(`/pro/${portfolio.public_slug}/shop`);
+      navigate(shopUrl);
       return;
     }
 
@@ -308,7 +334,7 @@ const PublicCheckoutPage = () => {
   // --- SUCCESS VIEW ---
   if (isSuccess) {
     return (
-      <div className="max-w-md mx-auto mt-12 text-center space-y-6 animate-in fade-in zoom-in duration-500">
+      <div className="max-w-md mx-auto mt-12 pt-12 md:pt-20 px-4 md:px-8 text-center space-y-6 animate-in fade-in zoom-in duration-500">
         <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
           <CheckCircle2
             size={40}
@@ -325,7 +351,7 @@ const PublicCheckoutPage = () => {
           </p>
         </div>
         <Button
-          onClick={() => navigate(`/pro/${portfolio.public_slug}`)}
+          onClick={() => navigate(homeUrl)}
           className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90"
         >
           Return to Website
@@ -336,63 +362,16 @@ const PublicCheckoutPage = () => {
 
   // --- CHECKOUT VIEW ---
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start mt-8">
-      {/* LEFT COLUMN: ORDER SUMMARY */}
-      <div className="lg:col-span-5 order-2 lg:order-1">
-        <div className="bg-card text-card-foreground p-6 md:p-8 rounded-3xl border shadow-sm sticky top-24">
-          <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
-            <ShoppingBag size={20} /> Order Summary
-          </h2>
-
-          <div className="space-y-4 mb-6">
-            {items.map((item: CartItem) => (
-              <div
-                key={item.id}
-                className="flex justify-between items-start gap-4"
-              >
-                <div>
-                  <div className="font-semibold text-foreground">
-                    {item.title}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Qty: {item.quantity}
-                  </div>
-                </div>
-                <div className="font-medium text-foreground">
-                  ${(item.price * item.quantity).toFixed(2)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-border pt-4 space-y-2">
-            <div className="flex justify-between text-muted-foreground text-sm">
-              <span>Subtotal</span>
-              <span>${total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground text-sm">
-              <span>Taxes & Fees</span>
-              <span>Calculated at next step</span>
-            </div>
-            <div className="flex justify-between font-black text-xl pt-2 border-t border-border mt-2 text-foreground">
-              <span>Total</span>
-              <span className="text-primary">${total.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* RIGHT COLUMN: PAYMENT GATEWAY */}
-      <div className="lg:col-span-7 order-1 lg:order-2">
-        <div className="bg-card text-card-foreground p-6 md:p-8 rounded-3xl border shadow-sm">
-          <h2 className="text-2xl font-black mb-6">Secure Checkout</h2>
-
+    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-x-12 gap-y-12 items-start mt-4 md:mt-8 pt-8 md:pt-12 pb-12 px-4 md:px-8">
+      
+      {/* LEFT COLUMN: PAYMENT GATEWAY (Primary Focus) */}
+      <div className="w-full lg:w-[55%] xl:w-3/5 order-2 lg:order-1 pt-4 lg:pt-0">
           {initError ? (
             <div className="p-6 bg-destructive/10 rounded-2xl border border-destructive/20 text-center">
               <p className="text-destructive font-semibold">{initError}</p>
             </div>
           ) : !clientSecret ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
               <Loader2 className="w-8 h-8 animate-spin mb-4" />
               <p>Initializing secure connection...</p>
             </div>
@@ -414,8 +393,62 @@ const PublicCheckoutPage = () => {
               />
             </Elements>
           )}
+      </div>
+
+      {/* RIGHT COLUMN: ORDER SUMMARY (Sticky Sidebar) */}
+      <div className="w-full lg:w-[45%] xl:w-2/5 order-1 lg:order-2 bg-muted/20 lg:bg-transparent rounded-3xl lg:rounded-none p-6 lg:p-0 lg:border-l lg:border-border/40 lg:pl-12 sticky top-24">
+        
+        <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-foreground">
+          Order Summary
+        </h2>
+
+        <div className="space-y-5 mb-8">
+          {items.map((item: CartItem) => (
+            <div
+              key={item.id}
+              className="flex items-center gap-4"
+            >
+              <div className="relative w-16 h-16 rounded-xl border border-border/50 bg-background flex items-center justify-center shrink-0">
+                 {item.image ? (
+                    <img src={item.image} className="w-full h-full object-cover rounded-xl" alt={item.title} />
+                 ) : (
+                    <ShoppingBag className="w-6 h-6 text-muted-foreground opacity-30" />
+                 )}
+                 <span className="absolute -top-2 -right-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-foreground text-[11px] font-bold text-background shadow-sm z-10">
+                    {item.quantity}
+                 </span>
+              </div>
+
+              <div className="flex-1 min-w-0 pr-4">
+                <h4 className="font-semibold text-foreground text-sm truncate">
+                  {item.title}
+                </h4>
+                {item.variant && (
+                  <p className="text-xs text-muted-foreground truncate mt-1">
+                    {item.variant}
+                  </p>
+                )}
+              </div>
+              
+              <div className="font-semibold text-foreground shrink-0 text-right">
+                ${(item.price * item.quantity).toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-border/50 pt-5 space-y-3">
+          <div className="flex justify-between text-muted-foreground text-sm font-medium">
+            <span>Subtotal</span>
+            <span>${total.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between font-black text-2xl pt-4 border-t border-border/50 mt-4 text-foreground items-end">
+            <span className="text-lg">Total</span>
+            <span className="text-primary">${total.toFixed(2)}</span>
+          </div>
         </div>
       </div>
+
     </div>
   );
 };

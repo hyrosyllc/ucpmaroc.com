@@ -43,18 +43,19 @@ const CheckoutForm = ({
     setIsProcessing(true);
     setErrorMessage("");
     
-    const getFieldVal = (keywords: string[]) => {
+    const getFieldVal = (keywords: string[], excludeKeywords: string[] = []) => {
       if (formTemplate?.fields) {
         const field = formTemplate.fields.find((f: any) =>
           keywords.some((keyword) => 
             (f.label || "").toLowerCase().includes(keyword) || 
             (f.id || "").toLowerCase().includes(keyword)
-          )
+          ) && !excludeKeywords.some((ex) => (f.label || "").toLowerCase().includes(ex))
         );
         if (field && formValues[field.id]) return formValues[field.id];
       }
       const key = Object.keys(formValues).find((k) =>
-        keywords.some((keyword) => k.toLowerCase().includes(keyword))
+        keywords.some((keyword) => k.toLowerCase().includes(keyword)) &&
+        !excludeKeywords.some((ex) => k.toLowerCase().includes(ex))
       );
       return key ? formValues[key] : "";
     };
@@ -62,7 +63,7 @@ const CheckoutForm = ({
     const name = getFieldVal(["name", "first", "last"]) || formValues.name;
     const email = getFieldVal(["email", "mail"]) || formValues.email;
     const phone = getFieldVal(["phone", "tel", "mobile"]) || "";
-    const address = getFieldVal(["address", "shipping", "street", "city", "zip"]) || "";
+    const address = getFieldVal(["address", "shipping", "street", "city", "zip"], ["email"]) || "";
 
     if (!name || !email) {
        setErrorMessage("Name and email are required for order processing.");
@@ -112,13 +113,20 @@ const CheckoutForm = ({
         const label = fieldDef ? fieldDef.label : k;
         return `${label}: ${v}`;
       }).join("\n");
+    } else {
+      notesText = `Email: ${email}`;
     }
 
     // Format for Orders Dashboard Compatibility
     const productName = items.length === 1 ? items[0].title : `Cart Order (${items.length} items)`;
     const productPrice = `$${amount.toFixed(2)}`;
     const qty = items.length === 1 ? items[0].quantity : 1;
-    const variants = items.length === 1 && items[0].variant && items[0].variant !== "default" ? { variant: items[0].variant } : {};
+    const variants = items.length === 1 
+      ? (items[0].variant && items[0].variant !== "default" ? { variant: items[0].variant } : {})
+      : items.reduce((acc: any, item: any, idx: number) => {
+          acc[`Item ${idx + 1}`] = `${item.quantity}x ${item.title} ${item.variant && item.variant !== 'default' ? `(${item.variant})` : ''}`;
+          return acc;
+        }, {});
 
     // If cart has multiple items, let's inject their summary into the notes so the seller can see what they bought!
     if (items.length > 1) {
@@ -126,10 +134,13 @@ const CheckoutForm = ({
        notesText = notesText ? `Cart Items:\n${cartSummary}\n\nForm Details:\n${notesText}` : `Cart Items:\n${cartSummary}`;
     }
     
+    if (paymentMethod === "card" && paymentIntentId) {
+      notesText += `\nPayment Intent: ${paymentIntentId}`;
+    }
+    
     const { data: dbData, error: dbError } = await supabase.from("pro_orders").insert({
       actor_id: actorId,
       portfolio_id: portfolioId,
-      customer_email: email,
       customer_name: name,
       customer_phone: phone || "No Phone",
       customer_address: address || "No Address Provided",
@@ -137,10 +148,7 @@ const CheckoutForm = ({
       product_price: productPrice,
       quantity: qty,
       variants: variants,
-      amount_cents: Math.round(amount * 100),
       status: paymentMethod === "cod" ? "pending" : "paid",
-      items: items,
-      stripe_payment_intent_id: paymentIntentId,
       notes: notesText || undefined
     }).select().single();
 
@@ -189,9 +197,9 @@ const CheckoutForm = ({
                      {field.label} {field.required && <span className="text-primary">*</span>}
                   </label>
                   {field.type === "textarea" ? (
-                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-background min-h-[100px] resize-none rounded-xl p-4 border-border/60 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary/50 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-muted/20 hover:bg-muted/40 focus:bg-background min-h-[100px] resize-none rounded-xl p-4 border-border/40 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary/50 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
                   ) : field.type === "select" ? (
-                    <select required={field.required} className="w-full bg-background border border-border/60 text-foreground h-12 rounded-xl px-3 text-sm appearance-none outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary/50 transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
+                    <select required={field.required} className="w-full bg-muted/20 hover:bg-muted/40 focus:bg-background border border-border/40 text-foreground h-12 rounded-xl px-3 text-sm appearance-none outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary/50 transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
                       <option value="" disabled>Select...</option>
                       {fieldOptions.map((opt: string, i: number) => (
                         <option key={i} value={opt}>{opt}</option>
@@ -200,8 +208,8 @@ const CheckoutForm = ({
                   ) : field.type === "radio" ? (
                     <div className="flex flex-col gap-2 pt-1">
                       {fieldOptions.map((opt: string, i: number) => (
-                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border border-border/60 bg-background shadow-sm hover:bg-muted/50 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
-                          <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/80 group-hover:border-primary bg-background">
+                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border border-border/40 bg-muted/10 shadow-sm hover:bg-muted/30 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
+                          <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 group-hover:border-primary bg-background">
                             <input type="radio" name={field.id} value={opt} required={field.required} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
                             <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
                           </div>
@@ -210,7 +218,7 @@ const CheckoutForm = ({
                       ))}
                     </div>
                   ) : (
-                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className={cn("bg-background h-12 rounded-xl border-border/60 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all", field.type === "date" && "[color-scheme:dark]")} value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
                   )}
                 </div>
               );
@@ -227,7 +235,7 @@ const CheckoutForm = ({
                 placeholder="Jane Doe"
                 value={formValues.name || ""}
                 onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
-                className="bg-background h-12 rounded-xl border-border/60 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
+                className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
               />
             </div>
             <div className="space-y-2">
@@ -240,7 +248,7 @@ const CheckoutForm = ({
                 placeholder="jane@example.com"
                 value={formValues.email || ""}
                 onChange={(e) => setFormValues({ ...formValues, email: e.target.value })}
-                className="bg-background h-12 rounded-xl border-border/60 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
+                className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
               />
             </div>
           </div>
@@ -257,15 +265,15 @@ const CheckoutForm = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <label
             className={cn(
-              "flex flex-col items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+              "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
               paymentMethod === "card"
-                ? "border-primary bg-primary/5"
-                : "border-border/60 bg-background hover:border-primary/50"
+                ? "border-primary bg-primary/5 shadow-md"
+                : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
             )}
             onClick={() => setPaymentMethod("card")}
           >
             <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/80 bg-background">
+              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
                 <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
               </div>
               <span className="font-semibold text-foreground">Credit Card</span>
@@ -275,15 +283,15 @@ const CheckoutForm = ({
 
           <label
             className={cn(
-              "flex flex-col items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+              "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
               paymentMethod === "cod"
-                ? "border-primary bg-primary/5"
-                : "border-border/60 bg-background hover:border-primary/50"
+                ? "border-primary bg-primary/5 shadow-md"
+                : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
             )}
             onClick={() => setPaymentMethod("cod")}
           >
             <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/80 bg-background">
+              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
                 <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
               </div>
               <span className="font-semibold text-foreground">Cash on Delivery</span>
@@ -293,13 +301,13 @@ const CheckoutForm = ({
         </div>
 
         {paymentMethod === "card" && (
-          <div className="p-5 rounded-2xl border border-border/60 bg-muted/10 shadow-sm animate-in fade-in zoom-in-95">
+          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
             <PaymentElement />
           </div>
         )}
         
         {paymentMethod === "cod" && (
-          <div className="p-5 rounded-2xl border border-border/60 bg-muted/10 shadow-sm animate-in fade-in zoom-in-95">
+          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
             <p className="text-sm text-foreground">You will pay for your order upon delivery. No payment details required now.</p>
           </div>
         )}
@@ -317,7 +325,7 @@ const CheckoutForm = ({
       <Button
         type="submit"
         disabled={(paymentMethod === "card" && (!stripe || !elements)) || isProcessing}
-        className="w-full h-14 font-black tracking-wide text-lg rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
+        className="w-full h-14 font-bold tracking-wide text-lg rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.01] transition-all bg-primary text-primary-foreground hover:brightness-110"
       >
         {isProcessing ? (
           <Loader2 className="animate-spin mr-2" />
@@ -459,7 +467,7 @@ const PublicCheckoutPage = () => {
       </div>
 
       {/* RIGHT COLUMN: ORDER SUMMARY (Sticky Sidebar) */}
-      <div className="w-full lg:w-[45%] xl:w-2/5 order-1 lg:order-2 bg-muted/20 lg:bg-transparent rounded-3xl lg:rounded-none p-6 lg:p-0 lg:border-l lg:border-border/40 lg:pl-12 sticky top-24">
+      <div className="w-full lg:w-[45%] xl:w-2/5 order-1 lg:order-2 bg-card/50 backdrop-blur-xl border border-border/40 shadow-2xl rounded-[2rem] p-6 md:p-10 sticky top-24">
         
         <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-foreground">
           Order Summary
@@ -471,7 +479,7 @@ const PublicCheckoutPage = () => {
               key={item.id}
               className="flex items-center gap-4"
             >
-              <div className="relative w-16 h-16 rounded-xl border border-border/50 bg-background flex items-center justify-center shrink-0">
+              <div className="relative w-16 h-16 rounded-xl border border-border/40 bg-muted/30 flex items-center justify-center shrink-0 shadow-sm">
                  {item.image ? (
                     <img src={item.image} className="w-full h-full object-cover rounded-xl" alt={item.title} />
                  ) : (

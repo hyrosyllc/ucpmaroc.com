@@ -101,6 +101,7 @@ interface ProOrder {
   status: OrderStatus;
   notes: string | null;
   portfolio_id?: string;
+  items?: any[];
 }
 
 const OrdersPage = () => {
@@ -307,7 +308,10 @@ const OrdersPage = () => {
   const formatOrderId = (id: string) =>
     `#ORD-${id.substring(0, 6).toUpperCase()}`;
 
-  const parseVariants = (variants: Record<string, any>) => {
+  const parseVariants = (variants: Record<string, any>, items?: any[]) => {
+    if (items && items.length > 0) {
+      return items.map((item: any) => `${item.quantity}x ${item.title}${item.variant && item.variant !== 'default' ? ` (${item.variant})` : ''}`).join(' • ');
+    }
     if (!variants || Object.keys(variants).length === 0) return null;
     return Object.entries(variants)
       .map(([key, val]) => `${key}: ${val?.label || val}`)
@@ -318,7 +322,7 @@ const OrdersPage = () => {
     if (!notes) return [];
     return notes
       .split("\n")
-      .filter((line) => line.includes(":"))
+      .filter((line) => line.includes(":") && !line.trim().startsWith("Cart Items:") && !line.trim().startsWith("Form Details:"))
       .map((line) => {
         const [key, ...rest] = line.split(":");
         return { key: key.trim(), value: rest.join(":").trim() };
@@ -434,7 +438,7 @@ const OrdersPage = () => {
           `"${(coreExtra.zip || "").replace(/"/g, '""')}"`,
           `"${(coreExtra.country || "").replace(/"/g, '""')}"`,
           `"${(o.product_name || "").replace(/"/g, '""')}"`,
-          `"${(parseVariants(o.variants) || "").replace(/"/g, '""')}"`,
+          `"${(parseVariants(o.variants, o.items) || "").replace(/"/g, '""')}"`,
           o.quantity,
           `"${(o.product_price || "").replace(/"/g, '""')}"`,
           ...customValues,
@@ -716,7 +720,7 @@ const OrdersPage = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredOrders.map((order) => {
-                    const variantsStr = parseVariants(order.variants);
+                    const variantsStr = parseVariants(order.variants, order.items);
                     const StatusIcon = STATUS_MAP[order.status]?.icon || Clock;
                     const isSelected = selectedOrderIds.has(order.id);
 
@@ -776,9 +780,11 @@ const OrdersPage = () => {
 
                         <TableCell className="py-4 align-top">
                           <div className="font-bold text-foreground flex items-center gap-2">
-                            <span className="text-muted-foreground font-mono bg-muted px-1.5 rounded">
-                              {order.quantity}x
-                            </span>{" "}
+                            {!order.items || order.items.length <= 1 ? (
+                              <span className="text-muted-foreground font-mono bg-muted px-1.5 rounded">
+                                {order.quantity}x
+                              </span>
+                            ) : null}
                             {order.product_name}
                           </div>
                           {variantsStr && (
@@ -866,25 +872,68 @@ const OrdersPage = () => {
                   <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
                     <ShoppingBag size={14} /> Order Summary
                   </h4>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="font-bold text-foreground text-lg">
-                        {selectedOrder.product_name}
-                      </div>
-                      <div className="text-muted-foreground font-medium mt-1 text-sm">
-                        Qty: {selectedOrder.quantity}
-                      </div>
-                      {parseVariants(selectedOrder.variants) && (
-                        <div className="text-muted-foreground font-medium mt-2 text-sm flex items-center gap-1.5 bg-muted w-max px-2 py-1 rounded-md">
-                          <Tag size={12} />{" "}
-                          {parseVariants(selectedOrder.variants)}
+
+                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    <div className="space-y-4">
+                      {selectedOrder.items.map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-start justify-between gap-4 pb-4 border-b border-border/50 last:border-0 last:pb-0">
+                          <div className="flex gap-3 items-start">
+                            {item.image ? (
+                              <div className="w-12 h-12 rounded-lg border bg-muted overflow-hidden shrink-0">
+                                <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg border bg-muted flex items-center justify-center shrink-0">
+                                <Package className="w-5 h-5 text-muted-foreground opacity-50" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-bold text-foreground leading-tight">
+                                {item.title}
+                              </div>
+                              <div className="text-muted-foreground font-medium mt-0.5 text-xs">
+                                Qty: {item.quantity}
+                              </div>
+                              {item.variant && item.variant !== "default" && (
+                                <div className="text-muted-foreground font-medium mt-1 text-[10px] flex items-center gap-1 bg-muted w-max px-2 py-0.5 rounded-md">
+                                  <Tag size={10} /> {item.variant}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-sm font-black font-mono text-foreground mt-0.5">
+                            ${(item.price * item.quantity).toFixed(2)}
+                          </div>
                         </div>
-                      )}
+                      ))}
+                      <div className="pt-2 flex justify-between items-center">
+                        <span className="font-bold text-muted-foreground text-sm uppercase tracking-widest">Total</span>
+                        <div className="text-xl font-black font-mono text-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
+                          {selectedOrder.product_price}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xl font-black font-mono text-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
-                      {selectedOrder.product_price}
+                  ) : (
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="font-bold text-foreground text-lg">
+                          {selectedOrder.product_name}
+                        </div>
+                        <div className="text-muted-foreground font-medium mt-1 text-sm">
+                          Qty: {selectedOrder.quantity}
+                        </div>
+                        {parseVariants(selectedOrder.variants, selectedOrder.items) && (
+                          <div className="text-muted-foreground font-medium mt-2 text-sm flex items-center gap-1.5 bg-muted w-max px-2 py-1 rounded-md">
+                            <Tag size={12} />{" "}
+                            {parseVariants(selectedOrder.variants, selectedOrder.items)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xl font-black font-mono text-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
+                        {selectedOrder.product_price}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* 2. Customer Information (Now completely handles Email, City, Zip, Country!) */}

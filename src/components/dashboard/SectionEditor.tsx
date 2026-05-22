@@ -1551,11 +1551,17 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   useEffect(() => {
     const fetchActorProducts = async () => {
       if (!actorId) return;
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from("pro_products")
         .select("id, title, status")
-        .eq("actor_id", actorId)
-        .order("created_at", { ascending: false });
+        .eq("actor_id", actorId);
+
+      if (portfolioId) {
+        query = query.or(`portfolio_id.eq.${portfolioId},portfolio_id.is.null`);
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false });
 
       if (!error && data) setAvailableProducts(data);
     };
@@ -1563,7 +1569,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     if (section?.type === "dynamic_store") {
       fetchActorProducts();
     }
-  }, [actorId, section?.type]);
+  }, [actorId, section?.type, portfolioId]);
 
   if (!section) return null;
   // =========================================================

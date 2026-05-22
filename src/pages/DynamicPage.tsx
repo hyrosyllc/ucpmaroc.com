@@ -4,11 +4,13 @@ import { useParams, useOutletContext } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/supabaseClient";
 import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   THEME_REGISTRY,
   DEFAULT_THEME,
   resolveThemeComponent,
 } from "../themes/registry";
+import { CustomLoader } from "./PortfolioHome";
 
 export default function DynamicPage() {
   const { pageSlug } = useParams();
@@ -32,11 +34,7 @@ export default function DynamicPage() {
   });
 
   if (isLoading)
-    return (
-      <div className="py-24 flex justify-center">
-        <Loader2 className="animate-spin text-primary" />
-      </div>
-    );
+    return <CustomLoader themeConfig={portfolio?.theme_config} type="page" />;
 
   if (!pageData)
     return <div className="py-24 text-center text-white">Page not found.</div>;

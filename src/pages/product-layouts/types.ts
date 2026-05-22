@@ -21,7 +21,11 @@ export interface ProductLayoutProps {
   >;
   isSubmitting: boolean;
   handleMainAction: () => void;
-  handleConfirmOrder: () => void;
+  handleConfirmOrder: (e?: React.FormEvent) => void;
+  formTemplate?: any;
+  formValues?: Record<string, string>;
+  setFormValues?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  isLoadingForm?: boolean;
 }
 export interface ShopLayoutProps {
   username: string;

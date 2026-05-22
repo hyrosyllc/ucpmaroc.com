@@ -30,9 +30,11 @@ const MAIN_DOMAINS = [
 const ProductCard = ({
   product,
   isPreview,
+  portfolioId,
 }: {
   product: any;
   isPreview: boolean;
+  portfolioId: string | null;
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,6 +84,8 @@ const ProductCard = ({
         price: product.price,
         image: product.images?.[0] || product.image,
         quantity: 1,
+        variant: "default",
+        storeId: portfolioId || undefined,
       });
     }
   };
@@ -150,9 +154,11 @@ const ProductCard = ({
 const SpotlightLayout = ({
   product,
   isPreview,
+  portfolioId,
 }: {
   product: any;
   isPreview: boolean;
+  portfolioId: string | null;
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -194,6 +200,8 @@ const SpotlightLayout = ({
         price: product.price,
         image: product.images?.[0] || product.image,
         quantity: 1,
+        variant: "default",
+        storeId: portfolioId || undefined,
       });
     }
   };
@@ -283,6 +291,7 @@ const SpotlightLayout = ({
 export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [portfolioId, setPortfolioId] = useState<string | null>(null);
 
   const variant = data.variant || "grid";
   const selectedIds = data.selectedProductIds || [];
@@ -367,6 +376,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
       }
 
       const { data: prods, error } = await query;
+      setPortfolioId(currentPortfolioId);
       if (!error && prods) setProducts(prods);
       setLoading(false);
     };
@@ -431,7 +441,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
             {variant === "grid" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                 {products.map((p) => (
-                  <ProductCard key={p.id} product={p} isPreview={isPreview} />
+                  <ProductCard key={p.id} product={p} isPreview={isPreview} portfolioId={portfolioId} />
                 ))}
               </div>
             )}
@@ -456,7 +466,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
                     isPreview={isPreview}
                   />
                 </div>
-                <SpotlightLayout product={products[0]} isPreview={isPreview} />
+                <SpotlightLayout product={products[0]} isPreview={isPreview} portfolioId={portfolioId} />
               </div>
             )}
 
@@ -467,7 +477,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
                     key={p.id}
                     className="min-w-[280px] md:min-w-[350px] snap-center"
                   >
-                    <ProductCard product={p} isPreview={isPreview} />
+                    <ProductCard product={p} isPreview={isPreview} portfolioId={portfolioId} />
                   </div>
                 ))}
               </div>

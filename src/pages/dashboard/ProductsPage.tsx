@@ -19,7 +19,17 @@ import {
   Image as ImageIcon,
   X,
   UploadCloud,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Settings,
+  AlertTriangle,
+  Copy,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import SiteFilter from "../../components/dashboard/SiteFilter";
+import FormManager from "../../components/builder/FormManager";
 
 // --- INTERFACES ---
 interface ProductOptionValue {
@@ -52,6 +62,8 @@ interface Product {
   checkout_url?: string;
   whatsapp_number?: string;
   collection_id?: string;
+  portfolio_id?: string | null;
+  form_id?: string | null;
   slug?: string;
 }
 
@@ -63,14 +75,21 @@ export default function ProductsPage() {
   const [collections, setCollections] = useState<
     { id: string; title: string }[]
   >([]);
+  const [savedForms, setSavedForms] = useState<any[]>([]);
+  const [globalCartForms, setGlobalCartForms] = useState<Record<string, string | null>>({});
+  const [portfolios, setPortfolios] = useState<{ id: string; public_slug: string; site_name?: string }[]>([]);
+  const [localDirectForm, setLocalDirectForm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isFormManagerOpen, setIsFormManagerOpen] = useState(false);
 
   const [view, setView] = useState<"list" | "form">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Product>>({});
+  const [initialDataString, setInitialDataString] = useState<string>("{}");
   const [optionInputs, setOptionInputs] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,8 +114,30 @@ export default function ProductsPage() {
       .eq("actor_id", actorId)
       .order("created_at", { ascending: false });
 
-    if (!error && data) setProducts(data);
+    if (!error && data) {
+      setProducts(data);
+      const cartForms: Record<string, string | null> = {};
+      data.forEach(p => {
+        if (p.action_type === "cart" && p.form_id) {
+          const siteKey = p.portfolio_id || "global";
+          if (!cartForms[siteKey]) cartForms[siteKey] = p.form_id;
+        }
+      });
+      setGlobalCartForms(cartForms);
+    }
+
     setIsLoading(false);
+  }, [actorId]);
+
+  const fetchForms = useCallback(() => {
+    if (!actorId) return;
+    supabase
+      .from("forms")
+      .select("id, name, type, portfolio_id")
+      .eq("type", "checkout")
+      .then(({ data }) => {
+        if (data) setSavedForms(data);
+      });
   }, [actorId]);
 
   useEffect(() => {
@@ -111,12 +152,31 @@ export default function ProductsPage() {
         .then(({ data }) => {
           if (data) setCollections(data);
         });
+
+        supabase
+          .from("portfolios")
+          .select("id, public_slug, site_name")
+          .eq("actor_id", actorId)
+          .then(({ data }) => {
+            if (data) setPortfolios(data);
+          });
+
+        fetchForms();
     }
-  }, [fetchProducts, actorId]);
+  }, [fetchProducts, actorId, fetchForms]);
 
   const initForm = (prod?: Product) => {
     setEditingId(prod?.id || null);
-    setFormData({
+    
+    const initialActionType = prod?.action_type || "cart";
+    const initialPortfolioId = prod?.portfolio_id || "";
+    let initialFormId = prod?.form_id || "";
+    if (!prod && initialActionType === "cart") {
+      const siteKey = initialPortfolioId || "global";
+      initialFormId = globalCartForms[siteKey] || "";
+    }
+
+    const initialData = {
       title: prod?.title || "",
       description: prod?.description || "",
       price: prod?.price || 0,
@@ -131,21 +191,90 @@ export default function ProductsPage() {
       requires_shipping: prod?.requires_shipping ?? true,
       weight: prod?.weight ?? 0,
       category: prod?.category || "",
-      action_type: prod?.action_type || "cart",
+      action_type: initialActionType,
       checkout_url: prod?.checkout_url || "",
       whatsapp_number: prod?.whatsapp_number || "",
       collection_id: prod?.collection_id || "",
+      portfolio_id: initialPortfolioId,
+      form_id: initialFormId,
       slug: prod?.slug || "",
-    });
+    };
+    setFormData(initialData);
+    setInitialDataString(JSON.stringify(initialData));
     setOptionInputs({});
+    setLocalDirectForm(initialActionType === "form_order" ? initialFormId : "");
     setView("form");
   };
+
+  const isDirty = view === "form" && JSON.stringify(formData) !== initialDataString;
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this product?"))
       return;
     const { error } = await supabase.from("pro_products").delete().eq("id", id);
     if (!error) fetchProducts();
+  };
+
+  const handleDuplicate = async (product: Product) => {
+    if (!actorId) return;
+    const payload = {
+      actor_id: actorId,
+      title: `${product.title} (Copy)`,
+      description: product.description,
+      product_type: product.product_type,
+      status: "draft",
+      price: product.price,
+      compare_at_price: product.compare_at_price,
+      track_inventory: product.track_inventory,
+      stock_count: product.stock_count,
+      sku: product.sku,
+      images: product.images,
+      options: product.options,
+      requires_shipping: product.requires_shipping,
+      weight: product.weight,
+      category: product.category,
+      action_type: product.action_type,
+      checkout_url: product.checkout_url,
+      whatsapp_number: product.whatsapp_number,
+      collection_id: product.collection_id || null,
+      portfolio_id: product.portfolio_id || null,
+      form_id: product.form_id || null,
+      slug: generateSlug(`${product.title} Copy ${Math.floor(Math.random() * 10000)}`),
+    };
+
+    const { error } = await supabase.from("pro_products").insert([payload]);
+    if (error) {
+      console.error("Error duplicating product:", error);
+      alert("Failed to duplicate product.");
+    } else {
+      fetchProducts();
+    }
+  };
+
+  const handleToggleStatus = async (product: Product) => {
+    const newStatus = product.status === "active" ? "draft" : "active";
+    const { error } = await supabase
+      .from("pro_products")
+      .update({ status: newStatus })
+      .eq("id", product.id);
+
+    if (error) {
+      console.error("Error updating status:", error);
+      alert("Failed to update status.");
+    } else {
+      setProducts(products.map(p => p.id === product.id ? { ...p, status: newStatus } : p));
+    }
   };
 
   const handleSave = async () => {
@@ -176,6 +305,8 @@ export default function ProductsPage() {
       checkout_url: formData.checkout_url,
       whatsapp_number: formData.whatsapp_number,
       collection_id: formData.collection_id || null, // Null if empty so FK doesn't break
+      portfolio_id: formData.portfolio_id || null,
+      form_id: (formData.action_type === "cart" || formData.action_type === "form_order") ? (formData.form_id || null) : null,
       slug: formData.slug || generateSlug(formData.title),
     };
 
@@ -193,9 +324,20 @@ export default function ProductsPage() {
       error = insertErr;
     }
 
+    // Always sync the form_id across all cart items for this portfolio, even if it's being reset to null
+    if (!error && payload.action_type === "cart") {
+      let query = supabase.from("pro_products")
+        .update({ form_id: payload.form_id })
+        .eq("actor_id", actorId)
+        .eq("action_type", "cart");
+      if (payload.portfolio_id) query = query.eq("portfolio_id", payload.portfolio_id);
+      else query = query.is("portfolio_id", null);
+      await query;
+    }
+
     if (error) {
       console.error("Error saving product:", error);
-      alert("Failed to save product. Ensure the URL slug is unique.");
+      alert(`Failed to save product.\n\nError: ${error.message}\n\n(If it mentions a missing column like 'form_id' or 'portfolio_id', make sure to add them to your pro_products table in Supabase!)`);
     } else {
       setView("list");
       fetchProducts();
@@ -214,17 +356,21 @@ export default function ProductsPage() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${actorId}/products/${fileName}`;
 
       const { error } = await supabase.storage
-        .from("portfolio-media")
-        .upload(filePath, file);
+        .from("portfolio-assets")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: file.type,
+        });
 
       if (!error) {
         const {
           data: { publicUrl },
-        } = supabase.storage.from("portfolio-media").getPublicUrl(filePath);
+        } = supabase.storage.from("portfolio-assets").getPublicUrl(filePath);
         newImages.push(publicUrl);
       }
     }
@@ -236,6 +382,25 @@ export default function ProductsPage() {
 
   const removeImage = (index: number) => {
     const newImages = (formData.images || []).filter((_, i) => i !== index);
+    setFormData({ ...formData, images: newImages });
+  };
+
+  // --- IMAGE RE-ORDERING ---
+  const moveImageLeft = (index: number) => {
+    if (index === 0) return;
+    const newImages = [...(formData.images || [])];
+    const temp = newImages[index];
+    newImages[index] = newImages[index - 1];
+    newImages[index - 1] = temp;
+    setFormData({ ...formData, images: newImages });
+  };
+
+  const moveImageRight = (index: number) => {
+    const newImages = [...(formData.images || [])];
+    if (index === newImages.length - 1) return;
+    const temp = newImages[index];
+    newImages[index] = newImages[index + 1];
+    newImages[index + 1] = temp;
     setFormData({ ...formData, images: newImages });
   };
 
@@ -301,6 +466,13 @@ export default function ProductsPage() {
     }
   };
 
+  const handleBack = () => {
+    if (isDirty && !window.confirm("You have unsaved changes. Are you sure you want to discard them?")) {
+      return;
+    }
+    setView("list");
+  };
+
   if (!actorId) return null;
 
   return (
@@ -313,9 +485,16 @@ export default function ProductsPage() {
           </p>
         </div>
         {view === "list" && (
-          <Button onClick={() => initForm()} className="shadow-sm">
-            <Plus className="w-4 h-4 mr-2" /> Add Product
-          </Button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <SiteFilter
+              sites={portfolios.map(p => ({ id: p.id, site_name: p.site_name || p.public_slug }))}
+              selectedSiteId={selectedSiteId}
+              onChange={setSelectedSiteId}
+            />
+            <Button onClick={() => initForm()} className="shadow-sm">
+              <Plus className="w-4 h-4 mr-2" /> Add Product
+            </Button>
+          </div>
         )}
       </div>
 
@@ -328,7 +507,7 @@ export default function ProductsPage() {
           <div className="flex items-center justify-between mb-6">
             <Button
               variant="ghost"
-              onClick={() => setView("list")}
+              onClick={handleBack}
               className="-ml-4 text-muted-foreground"
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
@@ -336,7 +515,7 @@ export default function ProductsPage() {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => setView("list")}
+                onClick={handleBack}
                 disabled={isSaving}
               >
                 Discard
@@ -391,19 +570,29 @@ export default function ProductsPage() {
                       {formData.images?.map((img, idx) => (
                         <div
                           key={idx}
-                          className="relative aspect-square rounded-md overflow-hidden border group"
+                          className="relative aspect-square rounded-md overflow-hidden border group bg-black"
                         >
                           <img
                             src={img}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity"
                             alt={`Product ${idx}`}
                           />
-                          <button
-                            onClick={() => removeImage(idx)}
-                            className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
-                          >
-                            <X size={14} />
-                          </button>
+                          {/* Overlay Controls */}
+                          <div className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {idx > 0 && (
+                              <button type="button" onClick={() => moveImageLeft(idx)} className="bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded p-1.5 transition-colors">
+                                <ChevronLeft size={16} />
+                              </button>
+                            )}
+                            <button type="button" onClick={() => removeImage(idx)} className="bg-red-500/80 hover:bg-red-500 backdrop-blur-sm text-white rounded p-1.5 transition-colors">
+                              <X size={16} />
+                            </button>
+                            {idx < (formData.images?.length || 0) - 1 && (
+                              <button type="button" onClick={() => moveImageRight(idx)} className="bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white rounded p-1.5 transition-colors">
+                                <ChevronRight size={16} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -722,12 +911,21 @@ export default function ProductsPage() {
                     <select
                       className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
                       value={formData.action_type}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const newActionType = e.target.value;
+                        let newFormId = formData.form_id;
+                        if (newActionType === "cart") {
+                          const siteKey = formData.portfolio_id || "global";
+                          newFormId = globalCartForms[siteKey] || "";
+                        } else if (newActionType === "form_order") {
+                          newFormId = localDirectForm;
+                        }
                         setFormData({
                           ...formData,
-                          action_type: e.target.value,
-                        })
-                      }
+                          action_type: newActionType,
+                          form_id: newFormId,
+                        });
+                      }}
                     >
                       <option value="cart">Standard Add to Cart</option>
                       <option value="whatsapp">Order via WhatsApp</option>
@@ -755,6 +953,88 @@ export default function ProductsPage() {
                     </div>
                   )}
 
+                  {formData.action_type === "form_order" && (
+                    <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-center justify-between">
+                        <Label>Select Checkout Form (Direct Order)</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] border-dashed"
+                          onClick={() => setIsFormManagerOpen(true)}
+                        >
+                          <Settings className="w-3 h-3 mr-1" /> Manage Forms
+                        </Button>
+                      </div>
+                      <select
+                        className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
+                        value={formData.form_id || ""}
+                        onChange={(e) => {
+                          const newFormId = e.target.value;
+                          setFormData({
+                            ...formData,
+                            form_id: newFormId,
+                          });
+                          setLocalDirectForm(newFormId);
+                        }}
+                      >
+                        <option value="">-- Select a Checkout Form --</option>
+                        {savedForms.filter(f => !formData.portfolio_id || f.portfolio_id === formData.portfolio_id).map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-muted-foreground">Attach a custom form from your library to collect specific details.</p>
+                    </div>
+                  )}
+
+                                    {formData.action_type === "cart" && (
+                    <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-amber-600 dark:text-amber-500 font-bold flex items-center gap-1.5"><AlertTriangle size={14} /> Global Cart Checkout Form</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] border-dashed"
+                          onClick={() => setIsFormManagerOpen(true)}
+                        >
+                          <Settings className="w-3 h-3 mr-1" /> Manage Forms
+                        </Button>
+                      </div>
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-3">
+                        <select
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-amber-500/30 bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/50"
+                          value={formData.form_id || ""}
+                          onChange={(e) => {
+                            const newFormId = e.target.value;
+                        if (window.confirm("⚠️ WARNING: This will replace the global checkout form for ALL 'Add to Cart' products on this site. Are you sure you want to change it?")) {
+                          setFormData({
+                            ...formData,
+                            form_id: newFormId,
+                          });
+                          const siteKey = formData.portfolio_id || "global";
+                          setGlobalCartForms(prev => ({ ...prev, [siteKey]: newFormId }));
+                        }
+                          }}
+                        >
+                          <option value="">-- Select a Global Cart Form --</option>
+                          {savedForms.filter(f => !formData.portfolio_id || f.portfolio_id === formData.portfolio_id).map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.name}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-amber-700 dark:text-amber-500 font-medium leading-relaxed">
+                          ⚠️ <strong>Warning:</strong> This form is used globally for the entire cart during checkout. Changing this selection will automatically update the checkout form for <strong>all products</strong> set to "Add to Cart" on this website.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+
                   {formData.action_type === "link" && (
                     <div className="space-y-2 pt-2">
                       <Label>External Checkout URL</Label>
@@ -781,6 +1061,34 @@ export default function ProductsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-4">
+                  <div className="space-y-2">
+                    <Label>Store / Website</Label>
+                    <select
+                      className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
+                      value={formData.portfolio_id || ""}
+                      onChange={(e) => {
+                        const newPortfolioId = e.target.value;
+                        let newFormId = formData.form_id;
+                        if (formData.action_type === "cart") {
+                          const siteKey = newPortfolioId || "global";
+                          newFormId = globalCartForms[siteKey] || "";
+                        }
+                        setFormData({
+                          ...formData,
+                          portfolio_id: newPortfolioId,
+                          form_id: newFormId,
+                        });
+                      }}
+                    >
+                      <option value="">Global (All Sites)</option>
+                      {portfolios.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.site_name || p.public_slug}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Product Type</Label>
                     <Input
@@ -845,7 +1153,7 @@ export default function ProductsPage() {
                       }
                     />
                     <p className="text-xs text-muted-foreground break-all">
-                      Link: /shop/product/
+                      Link: /pro/product/
                       <strong>{formData.slug || "product-name"}</strong>
                     </p>
                   </div>
@@ -882,7 +1190,12 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {products.map((product) => (
+                {products.filter((p) => selectedSiteId === "all" || p.portfolio_id === selectedSiteId).map((product) => {
+                  const productPortfolio = portfolios.find((p) => p.id === product.portfolio_id);
+                  const siteSlug = productPortfolio ? productPortfolio.public_slug : (portfolios[0]?.public_slug || "portfolio");
+                  const productUrl = `/pro/${siteSlug}/product/${product.slug || product.id}`;
+
+                  return (
                   <tr
                     key={product.id}
                     className="hover:bg-muted/30 transition-colors group"
@@ -943,7 +1256,33 @@ export default function ProductsPage() {
                       {product.product_type}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          title="View Product Page"
+                        >
+                          <a href={productUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleStatus(product)}
+                          title={product.status === "active" ? "Set to Draft" : "Set to Active"}
+                        >
+                          {product.status === "active" ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDuplicate(product)}
+                          title="Duplicate"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -962,12 +1301,20 @@ export default function ProductsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
         </div>
       )}
+
+      <FormManager
+        isOpen={isFormManagerOpen}
+        onClose={() => setIsFormManagerOpen(false)}
+        actorId={actorId}
+        portfolioId={formData.portfolio_id || portfolios[0]?.id || ""}
+        onFormsChange={fetchForms}
+      />
     </div>
   );
 }

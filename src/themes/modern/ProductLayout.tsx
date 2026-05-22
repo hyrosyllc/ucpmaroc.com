@@ -12,6 +12,8 @@ import {
   ArrowRight,
   ChevronRight,
   MessageCircle,
+  MessageSquare,
+  Calendar,
   FileText,
   CheckCircle2,
   ExternalLink,
@@ -19,9 +21,30 @@ import {
   Phone,
   MapPin,
   ArrowLeft,
+  ChevronLeft,
+  Tag,
+  Layers,
+  Box,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductLayoutProps } from "../../pages/product-layouts/types";
+import { Textarea } from "@/components/ui/textarea";
+
+const getFieldIcon = (type: string) => {
+  switch (type) {
+    case "email": return <Mail size={14} />;
+    case "tel": return <Phone size={14} />;
+    case "textarea": return <MessageSquare size={14} />;
+    case "date": return <Calendar size={14} />;
+    default: return <User size={14} />;
+  }
+};
+
+const parseOptions = (optString?: string) => {
+  if (!optString) return [];
+  return optString.split(",").map((s) => s.trim()).filter(Boolean);
+};
 
 export default function ModernProductLayout({
   product,
@@ -40,10 +63,20 @@ export default function ModernProductLayout({
   isSubmitting,
   handleMainAction,
   handleConfirmOrder,
+  formTemplate,
+  formValues = {},
+  setFormValues,
+  isLoadingForm,
 }: ProductLayoutProps) {
-  const images = product.images?.length
+  // AAA+ Fix: Check both array images and legacy single image string
+  const images = product?.images?.length
     ? product.images
+    : product?.image 
+    ? [product.image]
     : ["https://via.placeholder.com/600x600?text=No+Image"];
+
+  // AAA+ Fix: Safely determine if the item is sold out
+  const isOutOfStock = product?.track_inventory && product?.stock_count <= 0;
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans pt-20">
@@ -86,12 +119,27 @@ export default function ModernProductLayout({
         <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
           {/* LEFT: IMAGE GALLERY (Sticky) */}
           <div className="w-full lg:w-1/2 flex flex-col space-y-4 lg:sticky lg:top-24 lg:h-max">
-            <div className="aspect-square bg-black/50 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center relative">
+            <div className="aspect-square bg-black/50 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center relative group">
               <img
                 src={images[activeImgIndex]}
                 alt={product.title}
                 className="w-full h-full object-cover animate-in fade-in duration-500"
               />
+              {product.compare_at_price > product.price && (
+                <Badge className="absolute top-4 left-4 bg-primary text-black font-bold uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg z-10 border-none">
+                  Sale
+                </Badge>
+              )}
+              {images.length > 1 && (
+                <>
+                  <button type="button" onClick={() => setActiveImgIndex((prev) => (prev - 1 + images.length) % images.length)} className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button type="button" onClick={() => setActiveImgIndex((prev) => (prev + 1) % images.length)} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm">
+                    <ChevronRight size={20} />
+                  </button>
+                </>
+              )}
             </div>
 
             {images.length > 1 && (
@@ -152,65 +200,79 @@ export default function ModernProductLayout({
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" /> Back to Product
                 </Button>
-                <h2 className="text-3xl font-bold mb-8 text-white">
-                  Shipping Details
+                <h2 className="text-3xl font-bold mb-2 text-white">
+                  {formTemplate?.title || "Shipping Details"}
                 </h2>
+                {formTemplate?.subheadline && <p className="text-sm text-neutral-400 mb-6">{formTemplate.subheadline}</p>}
 
                 <div className="space-y-6 bg-neutral-900/50 p-6 md:p-8 rounded-2xl border border-white/10 shadow-xl">
-                  <div className="space-y-2">
-                    <Label className="text-neutral-400 uppercase tracking-wider text-xs">
-                      Full Name
-                    </Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
-                      <Input
-                        value={clientInfo.name}
-                        onChange={(e) =>
-                          setClientInfo({ ...clientInfo, name: e.target.value })
-                        }
-                        placeholder="Your Name"
-                        className="bg-black/50 border-white/10 pl-11 h-12 text-base text-white focus:border-primary/50 transition-colors"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-neutral-400 uppercase tracking-wider text-xs">
-                      Phone Number
-                    </Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
-                      <Input
-                        value={clientInfo.phone}
-                        onChange={(e) =>
-                          setClientInfo({
-                            ...clientInfo,
-                            phone: e.target.value,
-                          })
-                        }
-                        placeholder="+1 234 567 890"
-                        className="bg-black/50 border-white/10 pl-11 h-12 text-base text-white focus:border-primary/50 transition-colors"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-neutral-400 uppercase tracking-wider text-xs">
-                      Delivery Address
-                    </Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
-                      <Input
-                        value={clientInfo.address}
-                        onChange={(e) =>
-                          setClientInfo({
-                            ...clientInfo,
-                            address: e.target.value,
-                          })
-                        }
-                        placeholder="Street, City, Zip Code"
-                        className="bg-black/50 border-white/10 pl-11 h-12 text-base text-white focus:border-primary/50 transition-colors"
-                      />
-                    </div>
-                  </div>
+                  {isLoadingForm ? (
+                    <div className="py-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+                  ) : formTemplate?.fields ? (
+                    <form onSubmit={handleConfirmOrder} className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {formTemplate.fields.filter((f: any) => f.enabled !== false).map((field: any, idx: number) => {
+                          const isHalf = field.width === "half";
+                          const fieldOptions = parseOptions(field.options);
+                          return (
+                            <div key={idx} className={cn("space-y-2", isHalf ? "col-span-1" : "col-span-1 sm:col-span-2")}>
+                              <Label className="text-neutral-400 flex items-center gap-2 text-xs uppercase tracking-widest font-bold ml-1">
+                                {getFieldIcon(field.type)} {field.label} {field.required && <span className="text-primary">*</span>}
+                              </Label>
+                              {field.type === "textarea" ? (
+                                <Textarea required={field.required} placeholder={field.placeholder} className="bg-black/50 border-white/10 text-white min-h-[100px] resize-none rounded-xl p-4 focus:border-primary/50" value={formValues[field.id] || ""} onChange={(e) => setFormValues?.({ ...formValues, [field.id]: e.target.value })} />
+                              ) : field.type === "select" ? (
+                                <select required={field.required} className="w-full bg-black/50 border border-white/10 text-white h-12 rounded-xl px-4 text-sm appearance-none outline-none focus:border-primary/50" value={formValues[field.id] || ""} onChange={(e) => setFormValues?.({ ...formValues, [field.id]: e.target.value })}>
+                                  <option value="" disabled className="text-neutral-900">Select...</option>
+                                  {fieldOptions.map((opt: string, i: number) => (
+                                    <option key={i} value={opt} className="text-neutral-900">{opt}</option>
+                                  ))}
+                                </select>
+                              ) : field.type === "radio" ? (
+                                <div className="flex flex-col gap-2 pt-1">
+                                  {fieldOptions.map((opt: string, i: number) => (
+                                    <label key={i} className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
+                                      <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-white/20 group-hover:border-primary bg-white/5">
+                                        <input type="radio" name={field.id} value={opt} required={field.required} className="peer sr-only" onChange={(e) => setFormValues?.({ ...formValues, [field.id]: e.target.value })} />
+                                        <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
+                                      </div>
+                                      <span className="text-neutral-300 text-sm font-medium">{opt}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              ) : (
+                                <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className={cn("bg-black/50 border-white/10 text-white h-12 rounded-xl focus:border-primary/50", field.type === "date" && "[color-scheme:dark]")} value={formValues[field.id] || ""} onChange={(e) => setFormValues?.({ ...formValues, [field.id]: e.target.value })} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-neutral-400 uppercase tracking-wider text-xs">Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
+                          <Input value={clientInfo.name} onChange={(e) => setClientInfo({ ...clientInfo, name: e.target.value })} placeholder="Your Name" className="bg-black/50 border-white/10 pl-11 h-12 text-base text-white focus:border-primary/50 transition-colors" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-neutral-400 uppercase tracking-wider text-xs">Phone Number</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
+                          <Input value={clientInfo.phone} onChange={(e) => setClientInfo({ ...clientInfo, phone: e.target.value })} placeholder="+1 234 567 890" className="bg-black/50 border-white/10 pl-11 h-12 text-base text-white focus:border-primary/50 transition-colors" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-neutral-400 uppercase tracking-wider text-xs">Delivery Address</Label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-neutral-500" />
+                          <Input value={clientInfo.address} onChange={(e) => setClientInfo({ ...clientInfo, address: e.target.value })} placeholder="Street, City, Zip Code" className="bg-black/50 border-white/10 pl-11 h-12 text-base text-white focus:border-primary/50 transition-colors" />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="pt-6 border-t border-white/10">
                     <div className="flex justify-between items-center mb-6 bg-black/30 p-4 rounded-xl border border-white/5">
@@ -274,8 +336,9 @@ export default function ModernProductLayout({
                   )}
                 </div>
 
-                <div className="prose prose-invert max-w-none text-neutral-300 leading-relaxed mb-10">
-                  {product.description
+                {/* AAA+ Fix: Safely fallback to empty string to prevent .split() crash */}
+                <div className="prose prose-invert max-w-none text-neutral-300 leading-relaxed mb-10 whitespace-pre-wrap">
+                  {(product?.description || "")
                     .split("\n")
                     .map((line: string, i: number) => (
                       <p key={i}>{line}</p>
@@ -351,8 +414,13 @@ export default function ModernProductLayout({
                         {quantity}
                       </span>
                       <button
-                        className="text-neutral-400 hover:text-white transition-colors"
-                        onClick={() => setQuantity((q) => q + 1)}
+                        disabled={product.track_inventory && quantity >= product.stock_count}
+                        className="text-neutral-400 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        onClick={() => {
+                          // Prevent incrementing beyond stock limits
+                          if (product.track_inventory && quantity >= product.stock_count) return;
+                          setQuantity((q) => q + 1);
+                        }}
                       >
                         <Plus size={20} />
                       </button>
@@ -361,10 +429,18 @@ export default function ModernProductLayout({
 
                   <Button
                     size="lg"
-                    className="flex-1 h-14 text-lg font-bold rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all hover:scale-[1.02] bg-white text-black hover:bg-neutral-200"
+                    disabled={isOutOfStock}
+                    className={cn(
+                      "flex-1 h-14 text-lg font-bold rounded-xl transition-all hover:scale-[1.02]",
+                      isOutOfStock 
+                        ? "bg-neutral-800 text-neutral-500 cursor-not-allowed shadow-none" 
+                        : "shadow-[0_0_20px_rgba(255,255,255,0.1)] bg-white text-black hover:bg-neutral-200"
+                    )}
                     onClick={handleMainAction}
                   >
-                    {product.action_type === "link"
+                    {isOutOfStock
+                      ? "Out of Stock"
+                      : product.action_type === "link"
                       ? "Buy Now"
                       : product.action_type === "cart"
                       ? "Add to Cart"
@@ -399,6 +475,15 @@ export default function ModernProductLayout({
                     </span>
                   </div>
                 )}
+
+              {/* PRODUCT METADATA (SKU, TYPE, WEIGHT) */}
+              {(product.sku || product.product_type || (product.requires_shipping && product.weight > 0)) && (
+                <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-neutral-400 animate-in fade-in duration-500">
+                  {product.sku && <div className="flex items-center gap-2"><Tag size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">SKU:</span> <span className="text-white font-mono">{product.sku}</span></div>}
+                  {product.product_type && <div className="flex items-center gap-2"><Layers size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Type:</span> <span className="text-white capitalize">{product.product_type}</span></div>}
+                  {product.requires_shipping && product.weight > 0 && <div className="flex items-center gap-2"><Box size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Weight:</span> <span className="text-white">{product.weight} kg</span></div>}
+                </div>
+              )}
               </div>
             )}
           </div>

@@ -85,6 +85,7 @@ const Html: React.FC<BlockProps> = ({ data, isPreview }) => {
         className="border-0 bg-transparent" 
         style={iframeStyle} 
         title="Custom Sandboxed Block" 
+        loading="lazy"
       />
     );
   }
@@ -128,6 +129,7 @@ const Html: React.FC<BlockProps> = ({ data, isPreview }) => {
       className="border-0 bg-transparent"
       style={iframeStyle}
       title="Custom Sandboxed Block (CSS Only)"
+      loading="lazy"
     />
   );
 };

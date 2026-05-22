@@ -422,6 +422,7 @@ export default function FormManager({
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [isTypeSelectorOpen, setIsTypeSelectorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"setup" | "fields">("fields");
+  const [siteName, setSiteName] = useState<string>("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -431,6 +432,17 @@ export default function FormManager({
   const fetchForms = async () => {
     if (!portfolioId) return;
     setLoading(true);
+
+    // Fetch the site name for context
+    const { data: portData } = await supabase
+      .from("portfolios")
+      .select("site_name, public_slug")
+      .eq("id", portfolioId)
+      .maybeSingle();
+    if (portData) {
+      setSiteName(portData.site_name || portData.public_slug || "Unknown Site");
+    }
+
     const { data } = await supabase
       .from("forms")
       .select("*")
@@ -561,8 +573,7 @@ export default function FormManager({
                     <FileText className="text-primary" /> Form Templates
                   </SheetTitle>
                   <p className="text-sm text-muted-foreground">
-                    Create and manage forms for leads, pricing orders, and shop
-                    checkouts.
+                  Create and manage forms for <strong className="text-foreground">{siteName || "your site"}</strong>.
                   </p>
                 </SheetHeader>
               </div>

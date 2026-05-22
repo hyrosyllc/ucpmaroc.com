@@ -38,12 +38,24 @@ export default function ModernCartDrawer({
     }
 
     closeCart();
-    if (username) {
-      // 🚀 CRITICAL FIX: Routes to the exact checkout layout we built
-      navigate(`/pro/${username}/checkout`);
-    } else {
-      alert("Checkout unavailable. Missing portfolio data.");
+    
+    // Smart Routing based on current URL to guarantee it goes to the right checkout
+    const currentPath = window.location.pathname;
+    
+    if (currentPath.startsWith("/pro/")) {
+      const pathParts = currentPath.split('/');
+      const slug = pathParts[2]; // ['', 'pro', 'slug']
+      if (slug) {
+        navigate(`/pro/${slug}/checkout`);
+        return;
+      }
+    } else if (username && username.startsWith("pro/")) {
+      navigate(`/${username}/checkout`);
+      return;
     }
+    
+    // Custom Domain Fallback
+    navigate(`/checkout`);
   };
 
   return (

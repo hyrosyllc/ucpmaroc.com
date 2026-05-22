@@ -8,6 +8,7 @@ export interface CartItem {
   image?: string;
   quantity: number;
   variant?: string;
+  storeId?: string;
 }
 
 interface CartState {
@@ -34,6 +35,14 @@ export const useCartStore = create<CartState>()(
 
       addItem: (newItem) =>
         set((state) => {
+          // SECURITY: Prevent cross-store cart contamination
+          const isDifferentStore = state.items.length > 0 && state.items[0].storeId !== newItem.storeId;
+          
+          if (isDifferentStore) {
+              // Clear cart and start fresh for the new store
+              return { items: [newItem], isOpen: true }; 
+          }
+
           const existingItemIndex = state.items.findIndex(
             (item) => item.id === newItem.id && item.variant === newItem.variant
           );

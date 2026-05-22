@@ -78,6 +78,8 @@ import PublicShopPage from "./pages/PublicShopPage.tsx";
 import PaymentsPage from "./pages/dashboard/PaymentsPage.tsx";
 import PublicCheckoutPage from "./pages/PublicCheckoutPage.tsx";
 import CheckoutLayout from "./themes/modern/CheckoutLayout.tsx";
+import PublicThankYouPage from "./pages/PublicThankYouPage.tsx";
+import ThankYouLayout from "./themes/modern/ThankYouLayout.tsx";
 import StripeCallbackPage from "./pages/dashboard/StripeCallbackPage.tsx";
 import ThemeStudioPage from "./pages/dashboard/ThemeStudioPage.tsx";
 import DeveloperHubPage from "./pages/dashboard/DeveloperHubPage.tsx";
@@ -173,6 +175,12 @@ function App() {
                       path="product/:productSlug"
                       element={<PublicProductPage />}
                     />
+                    <Route path="checkout" element={<CheckoutLayout />}>
+                      <Route index element={<PublicCheckoutPage />} />
+                    </Route>
+                    <Route path="thank-you" element={<ThankYouLayout />}>
+                      <Route index element={<PublicThankYouPage />} />
+                    </Route>
                     <Route path=":pageSlug" element={<DynamicPage />} />
                   </Route>
                 ) : (
@@ -211,6 +219,9 @@ function App() {
                       />
                       <Route path="checkout" element={<CheckoutLayout />}>
                         <Route index element={<PublicCheckoutPage />} />
+                      </Route>
+                      <Route path="thank-you" element={<ThankYouLayout />}>
+                        <Route index element={<PublicThankYouPage />} />
                       </Route>
                       <Route path=":pageSlug" element={<DynamicPage />} />
                     </Route>

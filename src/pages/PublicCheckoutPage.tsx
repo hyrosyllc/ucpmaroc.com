@@ -21,7 +21,7 @@ const stripePromise = loadStripe(
 );
 
 // --- THE STRIPE FORM COMPONENT ---
-const StripeCheckoutForm = ({
+const CheckoutForm = ({
   amount,
   portfolioId,
   actorId,
@@ -36,81 +36,119 @@ const StripeCheckoutForm = ({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("card");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
-
     setIsProcessing(true);
     setErrorMessage("");
     
     const getFieldVal = (keywords: string[]) => {
+      if (formTemplate?.fields) {
+        const field = formTemplate.fields.find((f: any) =>
+          keywords.some((keyword) => 
+            (f.label || "").toLowerCase().includes(keyword) || 
+            (f.id || "").toLowerCase().includes(keyword)
+          )
+        );
+        if (field && formValues[field.id]) return formValues[field.id];
+      }
       const key = Object.keys(formValues).find((k) =>
         keywords.some((keyword) => k.toLowerCase().includes(keyword))
       );
       return key ? formValues[key] : "";
     };
 
-    const name = formTemplate ? getFieldVal(["name", "first", "last"]) : formValues.name;
-    const email = formTemplate ? getFieldVal(["email", "mail"]) : formValues.email;
-    const phone = formTemplate ? getFieldVal(["phone", "tel", "mobile"]) : "";
-    const address = formTemplate ? getFieldVal(["address", "shipping", "street", "city", "zip"]) : "";
+    const name = getFieldVal(["name", "first", "last"]) || formValues.name;
+    const email = getFieldVal(["email", "mail"]) || formValues.email;
+    const phone = getFieldVal(["phone", "tel", "mobile"]) || "";
+    const address = getFieldVal(["address", "shipping", "street", "city", "zip"]) || "";
 
     if (!name || !email) {
-       setErrorMessage("Name and email are required for payment processing.");
+       setErrorMessage("Name and email are required for order processing.");
        setIsProcessing(false);
        return;
     }
 
-    // 1. Confirm the payment with Stripe
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      redirect: "if_required", // Do not automatically redirect; we need to save the order first
-      confirmParams: {
-        payment_method_data: {
-          billing_details: { name, email, phone: phone || undefined },
-        },
-      },
-    });
+    let paymentIntentId = "cod_" + Date.now();
 
-    if (error) {
-      setErrorMessage(error.message || "Payment failed.");
-      setIsProcessing(false);
-      return;
-    }
-
-    // 2. If successful, record the order in Supabase
-    if (paymentIntent && paymentIntent.status === "succeeded") {
-      let notesText = "";
-      if (formTemplate) {
-        notesText = Object.entries(formValues).map(([k, v]) => {
-          const fieldDef = formTemplate.fields?.find((f: any) => f.id === k);
-          const label = fieldDef ? fieldDef.label : k;
-          return `${label}: ${v}`;
-        }).join("\n");
+    if (paymentMethod === "card") {
+      if (!stripe || !elements) {
+        setIsProcessing(false);
+        return;
       }
       
-      const { error: dbError } = await supabase.from("pro_orders").insert({
-        actor_id: actorId,
-        portfolio_id: portfolioId,
-        customer_email: email,
-        customer_name: name,
-        customer_phone: phone || "No Phone",
-        customer_address: address || "No Address Provided",
-        amount_cents: amount * 100,
-        status: "paid",
-        items: items,
-        stripe_payment_intent_id: paymentIntent.id,
-        notes: notesText || undefined
+      // 1. Confirm the payment with Stripe
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: "if_required", // Do not automatically redirect; we need to save the order first
+        confirmParams: {
+          payment_method_data: {
+            billing_details: { name, email, phone: phone || undefined },
+          },
+        },
       });
 
-      if (dbError) {
-        console.error("Failed to save order to DB:", dbError);
-        // Depending on your architecture, you might want to alert an admin here,
-        // but the payment HAS succeeded, so we still show the success screen to the fan.
+      if (error) {
+        setErrorMessage(error.message || "Payment failed.");
+        setIsProcessing(false);
+        return;
       }
-      onComplete(); // Trigger the success screen and clear cart
+      
+      if (paymentIntent && paymentIntent.status === "succeeded") {
+        paymentIntentId = paymentIntent.id;
+      } else {
+        setErrorMessage("Payment was not successful.");
+        setIsProcessing(false);
+        return;
+      }
     }
+
+    // 2. Record the order in Supabase
+    let notesText = "";
+    if (formTemplate) {
+      notesText = Object.entries(formValues).map(([k, v]) => {
+        const fieldDef = formTemplate.fields?.find((f: any) => f.id === k);
+        const label = fieldDef ? fieldDef.label : k;
+        return `${label}: ${v}`;
+      }).join("\n");
+    }
+
+    // Format for Orders Dashboard Compatibility
+    const productName = items.length === 1 ? items[0].title : `Cart Order (${items.length} items)`;
+    const productPrice = `$${amount.toFixed(2)}`;
+    const qty = items.length === 1 ? items[0].quantity : 1;
+    const variants = items.length === 1 && items[0].variant && items[0].variant !== "default" ? { variant: items[0].variant } : {};
+
+    // If cart has multiple items, let's inject their summary into the notes so the seller can see what they bought!
+    if (items.length > 1) {
+       const cartSummary = items.map((item: any) => `- ${item.quantity}x ${item.title} (${item.variant || 'Default'})`).join('\n');
+       notesText = notesText ? `Cart Items:\n${cartSummary}\n\nForm Details:\n${notesText}` : `Cart Items:\n${cartSummary}`;
+    }
+    
+    const { data: dbData, error: dbError } = await supabase.from("pro_orders").insert({
+      actor_id: actorId,
+      portfolio_id: portfolioId,
+      customer_email: email,
+      customer_name: name,
+      customer_phone: phone || "No Phone",
+      customer_address: address || "No Address Provided",
+      product_name: productName,
+      product_price: productPrice,
+      quantity: qty,
+      variants: variants,
+      amount_cents: Math.round(amount * 100),
+      status: paymentMethod === "cod" ? "pending" : "paid",
+      items: items,
+      stripe_payment_intent_id: paymentIntentId,
+      notes: notesText || undefined
+    }).select().single();
+
+    if (dbError) {
+      console.error("Failed to save order to DB:", dbError);
+      // Depending on your architecture, you might want to alert an admin here
+    }
+    onComplete(dbData?.id); // Trigger the success screen, pass ID, and clear cart
   };
 
   const getFieldIcon = (type: string) => {
@@ -212,12 +250,59 @@ const StripeCheckoutForm = ({
       {/* PAYMENT SECURE SECTION */}
       <div className="space-y-6 pt-8 border-t border-border/40">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Payment</h2>
-          <p className="text-sm text-muted-foreground mt-1">All transactions are secure and encrypted.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Payment Method</h2>
+          <p className="text-sm text-muted-foreground mt-1">Select how you want to pay for your order.</p>
         </div>
-        <div className="p-5 rounded-2xl border border-border/60 bg-muted/10 shadow-sm">
-          <PaymentElement />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label
+            className={cn(
+              "flex flex-col items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+              paymentMethod === "card"
+                ? "border-primary bg-primary/5"
+                : "border-border/60 bg-background hover:border-primary/50"
+            )}
+            onClick={() => setPaymentMethod("card")}
+          >
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/80 bg-background">
+                <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+              </div>
+              <span className="font-semibold text-foreground">Credit Card</span>
+            </div>
+            <p className="text-sm text-muted-foreground ml-7">Secure encrypted payment via Stripe.</p>
+          </label>
+
+          <label
+            className={cn(
+              "flex flex-col items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+              paymentMethod === "cod"
+                ? "border-primary bg-primary/5"
+                : "border-border/60 bg-background hover:border-primary/50"
+            )}
+            onClick={() => setPaymentMethod("cod")}
+          >
+            <div className="flex items-center gap-2">
+              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/80 bg-background">
+                <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+              </div>
+              <span className="font-semibold text-foreground">Cash on Delivery</span>
+            </div>
+            <p className="text-sm text-muted-foreground ml-7">Pay in cash when your order arrives.</p>
+          </label>
         </div>
+
+        {paymentMethod === "card" && (
+          <div className="p-5 rounded-2xl border border-border/60 bg-muted/10 shadow-sm animate-in fade-in zoom-in-95">
+            <PaymentElement />
+          </div>
+        )}
+        
+        {paymentMethod === "cod" && (
+          <div className="p-5 rounded-2xl border border-border/60 bg-muted/10 shadow-sm animate-in fade-in zoom-in-95">
+            <p className="text-sm text-foreground">You will pay for your order upon delivery. No payment details required now.</p>
+          </div>
+        )}
       </div>
 
       {/* ERROR HANDLER */}
@@ -231,15 +316,17 @@ const StripeCheckoutForm = ({
       {/* SUBMIT */}
       <Button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={(paymentMethod === "card" && (!stripe || !elements)) || isProcessing}
         className="w-full h-14 font-black tracking-wide text-lg rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
       >
         {isProcessing ? (
           <Loader2 className="animate-spin mr-2" />
-        ) : (
+        ) : paymentMethod === "card" ? (
           <Lock size={18} className="mr-2" />
+        ) : (
+          <CheckCircle2 size={18} className="mr-2" />
         )}
-        Pay ${amount.toFixed(2)}
+        {paymentMethod === "card" ? `Pay $${amount.toFixed(2)}` : "Place Order"}
       </Button>
     </form>
   );
@@ -326,39 +413,15 @@ const PublicCheckoutPage = () => {
     }
   }, [items, total, portfolio.id, portfolio.public_slug, navigate, isSuccess]);
 
-  const handleSuccess = () => {
-    clearCart();
+  const handleSuccess = (orderId?: string) => {
     setIsSuccess(true);
+    
+    let thankYouUrl = isCustomDomain ? '/thank-you' : `/pro/${portfolio.public_slug}/thank-you`;
+    if (orderId) {
+      thankYouUrl += `?order=${orderId}`;
+    }
+    navigate(thankYouUrl, { replace: true });
   };
-
-  // --- SUCCESS VIEW ---
-  if (isSuccess) {
-    return (
-      <div className="max-w-md mx-auto mt-12 pt-12 md:pt-20 px-4 md:px-8 text-center space-y-6 animate-in fade-in zoom-in duration-500">
-        <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
-          <CheckCircle2
-            size={40}
-            className="text-green-600 dark:text-green-400"
-          />
-        </div>
-        <div>
-          <h1 className="text-3xl font-black text-foreground">
-            Payment Successful!
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Your receipt has been sent to your email. The seller has been
-            notified of your order.
-          </p>
-        </div>
-        <Button
-          onClick={() => navigate(homeUrl)}
-          className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          Return to Website
-        </Button>
-      </div>
-    );
-  }
 
   // --- CHECKOUT VIEW ---
   return (
@@ -380,7 +443,7 @@ const PublicCheckoutPage = () => {
               stripe={stripePromise}
               options={{ clientSecret, appearance: { theme: "stripe" } }}
             >
-              <StripeCheckoutForm
+              <CheckoutForm
                 amount={total}
                 portfolioId={portfolio.id}
                 actorId={portfolio.actor_id}

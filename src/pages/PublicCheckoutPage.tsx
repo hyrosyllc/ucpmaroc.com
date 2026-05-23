@@ -145,6 +145,17 @@ const CheckoutForm = ({
       return; 
     }
 
+    // 1.5. Inventory Management for Manual Payments (COD/Bank/Crypto)
+    // Since Stripe payments use the webhook, we deduct stock manually here for the others
+    if (paymentMethod !== "card") {
+      for (const item of items) {
+        await supabase.rpc('decrement_stock', {
+          p_product_id: item.id,
+          p_quantity: item.quantity
+        });
+      }
+    }
+
     // 2. Now that it's safe in the database, confirm the payment with Stripe!
     if (paymentMethod === "card") {
       if (!stripe || !elements) {

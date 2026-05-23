@@ -186,34 +186,50 @@ const PublicThankYouPage = () => {
 
           <div className="mb-8">
             <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground print:text-neutral-400 mb-4">Order Summary</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center bg-muted/20 print:bg-neutral-50 p-4 rounded-2xl border border-border/40 print:border-neutral-200">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="font-bold text-foreground print:text-black leading-tight">{order.product_name}</p>
-                    {order.variants && Object.keys(order.variants).length > 0 ? (
-                      <div className="mt-1 space-y-0.5">
-                        {Object.entries(order.variants).map(([k, v]: any) => (
-                          <p key={k} className="text-xs text-muted-foreground print:text-neutral-500">
-                            {k.startsWith('Item') ? v : `${k}: ${v.label || v}`}
-                          </p>
-                        ))}
+            <div className="space-y-4">
+              {/* --- IMPROVEMENT: Read from structured 'items' array --- */}
+              {order.items && order.items.length > 0 ? (
+                order.items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center bg-muted/20 print:bg-neutral-50 p-4 rounded-2xl border border-border/40 print:border-neutral-200">
+                    <div className="flex items-center gap-4">
+                      {item.image && <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-border/40 hidden sm:block print:hidden"><img src={item.image} alt={item.title} className="w-full h-full object-cover" /></div>}
+                      <div>
+                        <p className="font-bold text-foreground print:text-black leading-tight">{item.title}</p>
+                        <p className="text-xs text-muted-foreground print:text-neutral-500 mt-1">
+                          Qty: {item.quantity} {item.variant && item.variant !== 'default' ? `• ${item.variant}` : ''}
+                        </p>
                       </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground print:text-neutral-500 mt-1">
-                        Qty: {order.quantity}
-                      </p>
-                    )}
+                    </div>
+                    <p className="font-mono font-bold text-foreground print:text-black whitespace-nowrap ml-4">${(item.price * item.quantity).toFixed(2)}</p>
                   </div>
+                ))
+              ) : (
+                // Fallback for old orders without the 'items' array
+                <div className="flex justify-between items-center bg-muted/20 print:bg-neutral-50 p-4 rounded-2xl border border-border/40 print:border-neutral-200">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <p className="font-bold text-foreground print:text-black leading-tight">{order.product_name}</p>
+                      {order.variants && Object.keys(order.variants).length > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          {Object.entries(order.variants).map(([k, v]: any) => (
+                            <p key={k} className="text-xs text-muted-foreground print:text-neutral-500">{k.startsWith('Item') ? v : `${k}: ${v.label || v}`}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <p className="font-mono font-bold text-foreground print:text-black whitespace-nowrap ml-4">{order.product_price}</p>
                 </div>
-                <p className="font-mono font-bold text-foreground print:text-black whitespace-nowrap ml-4">{order.product_price}</p>
-              </div>
+              )}
             </div>
           </div>
 
           <div className="border-t border-border/40 print:border-neutral-300 pt-6 flex justify-between items-end">
             <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground print:text-neutral-400 mb-1">Total Paid</span>
-            <span className="text-4xl font-black text-primary print:text-black">{order.product_price}</span>
+            {/* --- IMPROVEMENT: Read from structured 'amount_cents' --- */}
+            <span className="text-4xl font-black text-primary print:text-black">
+              ${order.amount_cents ? (order.amount_cents / 100).toFixed(2) : order.product_price.replace('$', '')}
+            </span>
           </div>
         </div>
       )}

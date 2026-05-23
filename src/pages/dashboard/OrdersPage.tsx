@@ -725,7 +725,7 @@ const OrdersPage = () => {
                     const isSelected = selectedOrderIds.has(order.id);
 
                     return (
-                      <TableRow
+                      <TableRow // eslint-disable-line
                         key={order.id}
                         className={cn(
                           "cursor-pointer transition-colors border-b border-border/50 group",
@@ -780,7 +780,10 @@ const OrdersPage = () => {
 
                         <TableCell className="py-4 align-top">
                           <div className="font-bold text-foreground flex items-center gap-2">
-                            {!order.items || order.items.length <= 1 ? (
+                            {/* --- IMPROVEMENT: Show quantity only for single-item orders --- */}
+                            {order.items && order.items.length === 1 ? (
+                              <span className="text-muted-foreground font-mono bg-muted px-1.5 rounded">{order.items[0].quantity}x</span>
+                            ) : !order.items || order.items.length <= 1 ? (
                               <span className="text-muted-foreground font-mono bg-muted px-1.5 rounded">
                                 {order.quantity}x
                               </span>
@@ -796,7 +799,10 @@ const OrdersPage = () => {
 
                         <TableCell className="py-4 align-top">
                           <div className="font-bold text-foreground font-mono px-2 py-1 rounded-md inline-block">
-                            {order.product_price}
+                            {/* --- IMPROVEMENT: Read from amount_cents if available --- */}
+                            {order.amount_cents
+                              ? `$${(order.amount_cents / 100).toFixed(2)}`
+                              : order.product_price}
                           </div>
                         </TableCell>
 
@@ -909,7 +915,7 @@ const OrdersPage = () => {
                       <div className="pt-2 flex justify-between items-center">
                         <span className="font-bold text-muted-foreground text-sm uppercase tracking-widest">Total</span>
                         <div className="text-xl font-black font-mono text-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
-                          {selectedOrder.product_price}
+                          {selectedOrder.amount_cents ? `$${(selectedOrder.amount_cents / 100).toFixed(2)}` : selectedOrder.product_price}
                         </div>
                       </div>
                     </div>

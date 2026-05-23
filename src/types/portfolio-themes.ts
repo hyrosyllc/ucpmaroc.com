@@ -9,6 +9,12 @@ export const PORTFOLIO_TEMPLATES = [
   },
   
   {
+    id: 'modern_bright',
+    name: 'Modern Bright',
+    description: 'Clean lines, bright colors, professional feel.',
+  },
+  
+  {
     id: 'cinematic', // <-- This ID matches the registry key
     name: 'Cinematic Dark',
     description: 'Immersive 3D sliders and dark mode.',

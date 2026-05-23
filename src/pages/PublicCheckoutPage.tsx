@@ -31,6 +31,7 @@ const CheckoutForm = ({
   formValues,
   setFormValues,
   isLoadingForm,
+  clientSecret,
 }: any) => {
   const stripe = useStripe();
   const elements = useElements();
@@ -71,41 +72,10 @@ const CheckoutForm = ({
        return;
     }
 
-    let paymentIntentId = "cod_" + Date.now();
+    // Extract the exact Stripe Payment Intent ID from the client secret we fetched earlier
+    let paymentIntentId = paymentMethod === "cod" ? "cod_" + Date.now() : clientSecret?.split('_secret_')[0];
 
-    if (paymentMethod === "card") {
-      if (!stripe || !elements) {
-        setIsProcessing(false);
-        return;
-      }
-      
-      // 1. Confirm the payment with Stripe
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        redirect: "if_required", // Do not automatically redirect; we need to save the order first
-        confirmParams: {
-          payment_method_data: {
-            billing_details: { name, email, phone: phone || undefined },
-          },
-        },
-      });
-
-      if (error) {
-        setErrorMessage(error.message || "Payment failed.");
-        setIsProcessing(false);
-        return;
-      }
-      
-      if (paymentIntent && paymentIntent.status === "succeeded") {
-        paymentIntentId = paymentIntent.id;
-      } else {
-        setErrorMessage("Payment was not successful.");
-        setIsProcessing(false);
-        return;
-      }
-    }
-
-    // 2. Record the order in Supabase
+    // 1. Record the order in Supabase FIRST as "pending"
     let notesText = "";
     if (formTemplate) {
       notesText = Object.entries(formValues).map(([k, v]) => {
@@ -148,14 +118,45 @@ const CheckoutForm = ({
       product_price: productPrice,
       quantity: qty,
       variants: variants,
-      status: paymentMethod === "cod" ? "pending" : "paid",
+      // IMPROVEMENT: Store structured data
+      amount_cents: Math.round(amount * 100),
+      items: items,
+      stripe_payment_intent_id: paymentIntentId,
+      status: "pending",
       notes: notesText || undefined
     }).select().single();
 
     if (dbError) {
       console.error("Failed to save order to DB:", dbError);
-      // Depending on your architecture, you might want to alert an admin here
+      setErrorMessage("Failed to initialize your order. Please try again.");
+      setIsProcessing(false);
+      return; 
     }
+
+    // 2. Now that it's safe in the database, confirm the payment with Stripe!
+    if (paymentMethod === "card") {
+      if (!stripe || !elements) {
+        setIsProcessing(false);
+        return;
+      }
+      
+      const { error } = await stripe.confirmPayment({
+        elements,
+        redirect: "if_required",
+        confirmParams: {
+          payment_method_data: {
+            billing_details: { name, email, phone: phone || undefined },
+          },
+        },
+      });
+
+      if (error) {
+        setErrorMessage(error.message || "Payment failed. You have not been charged.");
+        setIsProcessing(false);
+        return;
+      }
+    }
+
     onComplete(dbData?.id); // Trigger the success screen, pass ID, and clear cart
   };
 
@@ -461,6 +462,7 @@ const PublicCheckoutPage = () => {
                 formValues={formValues}
                 setFormValues={setFormValues}
                 isLoadingForm={isLoadingForm}
+                clientSecret={clientSecret}
               />
             </Elements>
           )}

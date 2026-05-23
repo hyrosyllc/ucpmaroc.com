@@ -528,7 +528,7 @@ const SettingsPage = () => {
       is_published: false,
       sections: template.sections,
       theme_config: {
-        templateId: "modern",
+        templateId: template.id === "blank" ? "modern" : template.id,
         primaryColor: "violet",
         font: "sans",
       },

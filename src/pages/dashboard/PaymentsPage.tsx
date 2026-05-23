@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Loader2,
   Globe,
@@ -25,6 +26,7 @@ import {
   Bitcoin,
   CheckCircle2,
   AlertCircle,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -55,9 +57,16 @@ const PaymentsPage = () => {
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Crypto State
+  // Dynamic Payment Settings State
+  const [codEnabled, setCodEnabled] = useState(true);
+  const [bankEnabled, setBankEnabled] = useState(false);
+  const [bankName, setBankName] = useState("");
+  const [bankHolder, setBankHolder] = useState("");
+  const [bankIban, setBankIban] = useState("");
+  const [cryptoEnabled, setCryptoEnabled] = useState(false);
   const [cryptoWallet, setCryptoWallet] = useState("");
-  const [isSavingCrypto, setIsSavingCrypto] = useState(false);
+  
+  const [isSavingPayment, setIsSavingPayment] = useState<string | null>(null);
 
   // Check if they are on the Pro plan (assuming 'pro' is the ID for the top tier)
   const isPro = currentPlanId === "pro";
@@ -101,6 +110,23 @@ const PaymentsPage = () => {
 
     setLoading(false);
   };
+
+  // Sync local form state when context switches
+  useEffect(() => {
+    if (!loading && portfolios.length > 0) {
+      const source = selectedContext === "global" ? portfolios[0] : portfolios.find(p => p.id === selectedContext);
+      const pConfig = source?.theme_config?.payments || {};
+
+      setCodEnabled(pConfig.cod?.enabled ?? true);
+      setBankEnabled(pConfig.bank?.enabled ?? false);
+      setBankName(pConfig.bank?.name ?? "");
+      setBankHolder(pConfig.bank?.holder ?? "");
+      setBankIban(pConfig.bank?.iban ?? "");
+      
+      setCryptoEnabled(pConfig.crypto?.enabled ?? false);
+      setCryptoWallet(pConfig.crypto?.wallet ?? profile?.crypto_wallet ?? "");
+    }
+  }, [selectedContext, portfolios, profile, loading]);
 
   useEffect(() => {
     fetchData();
@@ -152,31 +178,39 @@ const PaymentsPage = () => {
     window.location.href = stripeOAuthUrl;
   };
 
-  // --- CRYPTO LOGIC ---
-  const handleSaveCryptoWallet = async () => {
-    setIsSavingCrypto(true);
+  // --- DYNAMIC PAYMENT SAVING ---
+  const handleSavePaymentMethod = async (type: 'cod' | 'bank' | 'crypto') => {
+    setIsSavingPayment(type);
     try {
-      // NOTE: Ensure you have added a 'crypto_wallet' column (type text) to your 'actors' table in Supabase!
-      const { error } = await supabase
-        .from("actors")
-        .update({ crypto_wallet: cryptoWallet.trim() })
-        .eq("id", actorData.id);
+      const paymentSettings = {
+        cod: { enabled: codEnabled },
+        bank: { enabled: bankEnabled, name: bankName, holder: bankHolder, iban: bankIban },
+        crypto: { enabled: cryptoEnabled, wallet: cryptoWallet }
+      };
 
-      if (error) throw error;
-      notify(
-        "success",
-        "Wallet Saved",
-        "Your USDC wallet has been securely updated."
-      );
+      if (selectedContext === "global") {
+        const promises = portfolios.map(p => {
+          const newConfig = { ...p.theme_config, payments: paymentSettings };
+          return supabase.from("portfolios").update({ theme_config: newConfig }).eq("id", p.id);
+        });
+        await Promise.all(promises);
+        
+        if (type === "crypto") {
+          await supabase.from("actors").update({ crypto_wallet: cryptoWallet.trim() }).eq("id", actorData.id);
+        }
+      } else {
+        const p = portfolios.find(port => port.id === selectedContext);
+        if (p) {
+          const newConfig = { ...p.theme_config, payments: paymentSettings };
+          await supabase.from("portfolios").update({ theme_config: newConfig }).eq("id", p.id);
+        }
+      }
+      notify("success", "Settings Saved", `Your ${type.toUpperCase()} settings have been updated.`);
       fetchData();
     } catch (err: any) {
-      notify(
-        "error",
-        "Save Failed",
-        "Could not save wallet. Please ensure the crypto_wallet column exists in your database."
-      );
+      notify("error", "Save Failed", err.message);
     }
-    setIsSavingCrypto(false);
+    setIsSavingPayment(null);
   };
 
   if (loading)
@@ -454,14 +488,7 @@ const PaymentsPage = () => {
                     className="text-amber-600 dark:text-amber-400"
                   />
                 </div>
-                {profile?.crypto_wallet && (
-                  <Badge
-                    variant="outline"
-                    className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800"
-                  >
-                    Ready
-                  </Badge>
-                )}
+                <Switch checked={cryptoEnabled} onCheckedChange={setCryptoEnabled} />
               </div>
               <CardTitle className="text-lg">Crypto (USDC / SOL)</CardTitle>
               <CardDescription>
@@ -469,45 +496,43 @@ const PaymentsPage = () => {
                 entirely with zero chargeback risk.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex-grow">
-              <Label className="text-xs font-semibold mb-1.5 block">
-                Wallet Address (EVM or Solana)
-              </Label>
-              <Input
-                placeholder="0x... or Solana address"
-                value={cryptoWallet}
-                onChange={(e) => setCryptoWallet(e.target.value)}
-                className="font-mono text-sm"
-              />
-            </CardContent>
+            {cryptoEnabled && (
+              <CardContent className="flex-grow animate-in fade-in zoom-in-95 duration-200">
+                <Label className="text-xs font-semibold mb-1.5 block">
+                  Wallet Address (EVM or Solana)
+                </Label>
+                <Input
+                  placeholder="0x... or Solana address"
+                  value={cryptoWallet}
+                  onChange={(e) => setCryptoWallet(e.target.value)}
+                  className="font-mono text-sm"
+                />
+              </CardContent>
+            )}
             <CardFooter className="mt-auto">
               <Button
-                variant={profile?.crypto_wallet ? "outline" : "default"}
-                className={cn(
-                  "w-full font-bold",
-                  !profile?.crypto_wallet &&
-                    "bg-amber-500 hover:bg-amber-600 text-white"
-                )}
-                onClick={handleSaveCryptoWallet}
-                disabled={isSavingCrypto}
+                variant={cryptoEnabled ? "default" : "outline"}
+                className={cn("w-full font-bold", cryptoEnabled && "bg-amber-500 hover:bg-amber-600 text-white")}
+                onClick={() => handleSavePaymentMethod('crypto')}
+                disabled={isSavingPayment === 'crypto'}
               >
-                {isSavingCrypto ? (
+                {isSavingPayment === 'crypto' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Save Wallet"
+                  "Save Crypto Settings"
                 )}
               </Button>
             </CardFooter>
           </Card>
 
-          {/* 4. MANUAL BANK TRANSFER (PLACEHOLDER) */}
-          <Card className="flex flex-col border-2 border-border/50 opacity-60 grayscale hover:grayscale-0 transition-all cursor-not-allowed">
+          {/* 4. MANUAL BANK TRANSFER */}
+          <Card className={cn("flex flex-col border-2 transition-all", bankEnabled ? "border-blue-500/30 bg-blue-50/5 dark:bg-blue-950/10" : "border-border")}>
             <CardHeader className="pb-3">
-              <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-1">
-                <Landmark
-                  size={20}
-                  className="text-blue-600 dark:text-blue-400"
-                />
+              <div className="flex justify-between items-start mb-1">
+                <div className="h-10 w-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-1">
+                  <Landmark size={20} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <Switch checked={bankEnabled} onCheckedChange={setBankEnabled} />
               </div>
               <CardTitle className="text-lg">Manual Bank Transfer</CardTitle>
               <CardDescription>
@@ -515,15 +540,51 @@ const PaymentsPage = () => {
                 fulfillment manually.
               </CardDescription>
             </CardHeader>
+            {bankEnabled && (
+              <CardContent className="flex-grow space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                <Input placeholder="Bank Name (e.g. Wise)" value={bankName} onChange={e => setBankName(e.target.value)} />
+                <Input placeholder="Account Holder Name" value={bankHolder} onChange={e => setBankHolder(e.target.value)} />
+                <Input placeholder="IBAN / Account Number" value={bankIban} onChange={e => setBankIban(e.target.value)} />
+              </CardContent>
+            )}
             <CardFooter className="mt-auto">
-              <Badge
-                variant="secondary"
-                className="w-full justify-center rounded-lg py-1.5"
+              <Button 
+                variant={bankEnabled ? "default" : "outline"} 
+                className="w-full font-bold" 
+                onClick={() => handleSavePaymentMethod('bank')}
+                disabled={isSavingPayment === 'bank'}
               >
-                Coming Soon
-              </Badge>
+                {isSavingPayment === 'bank' ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Bank Settings"}
+              </Button>
             </CardFooter>
           </Card>
+
+          {/* 5. CASH ON DELIVERY */}
+          <Card className={cn("flex flex-col border-2 transition-all", codEnabled ? "border-emerald-500/30 bg-emerald-50/5 dark:bg-emerald-950/10" : "border-border")}>
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-start mb-1">
+                <div className="h-10 w-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center mb-1">
+                  <Package size={20} className="text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <Switch checked={codEnabled} onCheckedChange={setCodEnabled} />
+              </div>
+              <CardTitle className="text-lg">Cash on Delivery</CardTitle>
+              <CardDescription>
+                Allow customers to place an order and pay in cash when the product or service is delivered.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="mt-auto">
+              <Button 
+                variant={codEnabled ? "default" : "outline"} 
+                className={cn("w-full font-bold", codEnabled && "bg-emerald-600 hover:bg-emerald-700 text-white")}
+                onClick={() => handleSavePaymentMethod('cod')}
+                disabled={isSavingPayment === 'cod'}
+              >
+                {isSavingPayment === 'cod' ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save COD Settings"}
+              </Button>
+            </CardFooter>
+          </Card>
+
         </div>
       </div>
     </div>

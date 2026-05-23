@@ -111,6 +111,14 @@ const PublicThankYouPage = () => {
      return parts.length > 0 ? parts.join(' - ') : null;
   };
   
+  const getPaymentMethodDisplay = () => {
+      if (order?.notes?.includes('Payment Method: BANK')) return 'Bank Transfer';
+      if (order?.notes?.includes('Payment Method: CRYPTO')) return 'Crypto Transfer';
+      if (order?.notes?.includes('Payment Method: COD')) return 'Cash on Delivery';
+      if (order?.stripe_payment_intent_id?.startsWith('cod_')) return 'Cash on Delivery';
+      return 'Credit Card (Stripe)';
+  };
+
   const displayAddress = formatAddress();
 
   return (
@@ -162,7 +170,7 @@ const PublicThankYouPage = () => {
             <div className="sm:text-right space-y-1">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground print:text-neutral-400 mb-2">Payment Info</h3>
               <p className="font-semibold text-foreground print:text-black">
-                {order.notes?.includes('Payment Intent:') ? 'Credit Card (Stripe)' : 'Cash on Delivery'}
+                {getPaymentMethodDisplay()}
               </p>
               <p className="text-sm text-muted-foreground print:text-neutral-600 capitalize flex items-center sm:justify-end gap-1.5">
                 Status: <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${order.status === 'paid' ? 'bg-green-500/20 text-green-500 print:text-green-700 print:bg-green-50' : 'bg-amber-500/20 text-amber-500 print:text-amber-700 print:bg-amber-50'}`}>{order.status}</span>

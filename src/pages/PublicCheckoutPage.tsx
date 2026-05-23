@@ -9,7 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User, AlertCircle, ChevronRight } from "lucide-react";
+import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User, AlertCircle, ChevronRight, Landmark, Bitcoin, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,12 +32,22 @@ const CheckoutForm = ({
   setFormValues,
   isLoadingForm,
   clientSecret,
+  paymentConfig
 }: any) => {
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cod" | "bank" | "crypto">("card");
+
+  // Fallback selector if Card isn't available
+  useEffect(() => {
+    if (!clientSecret) {
+      if (paymentConfig?.cod?.enabled ?? true) setPaymentMethod("cod");
+      else if (paymentConfig?.bank?.enabled) setPaymentMethod("bank");
+      else if (paymentConfig?.crypto?.enabled) setPaymentMethod("crypto");
+    }
+  }, [clientSecret, paymentConfig]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +83,7 @@ const CheckoutForm = ({
     }
 
     // Extract the exact Stripe Payment Intent ID from the client secret we fetched earlier
-    let paymentIntentId = paymentMethod === "cod" ? "cod_" + Date.now() : clientSecret?.split('_secret_')[0];
+    let paymentIntentId = paymentMethod === "card" ? clientSecret?.split('_secret_')[0] : `${paymentMethod}_${Date.now()}`;
 
     // 1. Record the order in Supabase FIRST as "pending"
     let notesText = "";
@@ -104,8 +114,10 @@ const CheckoutForm = ({
        notesText = notesText ? `Cart Items:\n${cartSummary}\n\nForm Details:\n${notesText}` : `Cart Items:\n${cartSummary}`;
     }
     
-    if (paymentMethod === "card" && paymentIntentId) {
-      notesText += `\nPayment Intent: ${paymentIntentId}`;
+    if (paymentMethod !== "card") {
+      notesText += `\nPayment Method: ${paymentMethod.toUpperCase()}`;
+    } else if (paymentIntentId) {
+       notesText += `\nPayment Intent: ${paymentIntentId}`;
     }
     
     const { data: dbData, error: dbError } = await supabase.from("pro_orders").insert({
@@ -264,41 +276,77 @@ const CheckoutForm = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label
-            className={cn(
-              "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-              paymentMethod === "card"
-                ? "border-primary bg-primary/5 shadow-md"
-                : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-            )}
-            onClick={() => setPaymentMethod("card")}
-          >
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+          {clientSecret && (
+            <label
+              className={cn(
+                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
+                paymentMethod === "card" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
+              )}
+              onClick={() => setPaymentMethod("card")}
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
+                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                </div>
+                <span className="font-semibold text-foreground">Credit Card</span>
               </div>
-              <span className="font-semibold text-foreground">Credit Card</span>
-            </div>
-            <p className="text-sm text-muted-foreground ml-7">Secure encrypted payment via Stripe.</p>
-          </label>
+              <p className="text-sm text-muted-foreground ml-7">Secure encrypted payment via Stripe.</p>
+            </label>
+          )}
 
-          <label
-            className={cn(
-              "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-              paymentMethod === "cod"
-                ? "border-primary bg-primary/5 shadow-md"
-                : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-            )}
-            onClick={() => setPaymentMethod("cod")}
-          >
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+          {(paymentConfig?.cod?.enabled ?? true) && (
+            <label
+              className={cn(
+                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
+                paymentMethod === "cod" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
+              )}
+              onClick={() => setPaymentMethod("cod")}
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
+                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                </div>
+                <span className="font-semibold text-foreground">Cash on Delivery</span>
               </div>
-              <span className="font-semibold text-foreground">Cash on Delivery</span>
-            </div>
-            <p className="text-sm text-muted-foreground ml-7">Pay in cash when your order arrives.</p>
-          </label>
+              <p className="text-sm text-muted-foreground ml-7">Pay in cash when your order arrives.</p>
+            </label>
+          )}
+
+          {paymentConfig?.bank?.enabled && (
+            <label
+              className={cn(
+                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
+                paymentMethod === "bank" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
+              )}
+              onClick={() => setPaymentMethod("bank")}
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
+                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "bank" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                </div>
+                <span className="font-semibold text-foreground flex items-center gap-2">Bank Transfer</span>
+              </div>
+              <p className="text-sm text-muted-foreground ml-7">Transfer directly to our account.</p>
+            </label>
+          )}
+
+          {paymentConfig?.crypto?.enabled && (
+            <label
+              className={cn(
+                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
+                paymentMethod === "crypto" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
+              )}
+              onClick={() => setPaymentMethod("crypto")}
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
+                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "crypto" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                </div>
+                <span className="font-semibold text-foreground flex items-center gap-2">Crypto (USDC/SOL)</span>
+              </div>
+              <p className="text-sm text-muted-foreground ml-7">Send stablecoins via Web3 wallet.</p>
+            </label>
+          )}
         </div>
 
         {paymentMethod === "card" && (
@@ -310,6 +358,28 @@ const CheckoutForm = ({
         {paymentMethod === "cod" && (
           <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
             <p className="text-sm text-foreground">You will pay for your order upon delivery. No payment details required now.</p>
+          </div>
+        )}
+
+        {paymentMethod === "bank" && (
+          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
+            <p className="text-sm font-semibold mb-3">Please transfer the total amount to the following bank account:</p>
+            <div className="space-y-1.5 text-sm text-muted-foreground bg-muted/30 p-4 rounded-xl border border-border/40">
+              <p><strong className="text-foreground">Bank:</strong> {paymentConfig?.bank?.name || "N/A"}</p>
+              <p><strong className="text-foreground">Account Holder:</strong> {paymentConfig?.bank?.holder || "N/A"}</p>
+              <p><strong className="text-foreground">IBAN/Account No:</strong> {paymentConfig?.bank?.iban || "N/A"}</p>
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">After making the transfer, click "Place Order". Your order will be processed once the funds are verified.</p>
+          </div>
+        )}
+
+        {paymentMethod === "crypto" && (
+          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
+            <p className="text-sm font-semibold mb-3 flex items-center gap-2"><Bitcoin className="text-amber-500 w-5 h-5"/> Send USDC or SOL to the following wallet:</p>
+            <div className="space-y-1.5 text-sm text-muted-foreground bg-muted/30 p-4 rounded-xl border border-border/40 break-all">
+              <p className="font-mono text-primary font-bold">{paymentConfig?.crypto?.wallet || "N/A"}</p>
+            </div>
+            <p className="text-xs text-muted-foreground mt-4">Supported networks: Solana, Polygon, Ethereum. Click "Place Order" after sending.</p>
           </div>
         )}
       </div>
@@ -463,6 +533,7 @@ const PublicCheckoutPage = () => {
                 setFormValues={setFormValues}
                 isLoadingForm={isLoadingForm}
                 clientSecret={clientSecret}
+                paymentConfig={portfolio?.theme_config?.payments || {}}
               />
             </Elements>
           )}

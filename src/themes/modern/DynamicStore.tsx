@@ -86,6 +86,8 @@ const ProductCard = ({
         quantity: 1,
         variant: "default",
         storeId: portfolioId || undefined,
+        productType: product.product_type,
+        collectionId: product.collection_id,
       });
     }
   };
@@ -202,6 +204,8 @@ const SpotlightLayout = ({
         quantity: 1,
         variant: "default",
         storeId: portfolioId || undefined,
+        productType: product.product_type,
+        collectionId: product.collection_id,
       });
     }
   };

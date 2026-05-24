@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCartStore } from "@/store/useCartStore"; // Adjust path if needed
+import { supabase } from "@/supabaseClient";
 import {
   Sheet,
   SheetContent,
@@ -9,7 +10,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight, Tag, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function ModernCartDrawer({
@@ -19,15 +20,49 @@ export default function ModernCartDrawer({
   username?: string;
   isPreview?: boolean;
 }) {
-  const { items, isOpen, closeCart, updateQuantity, removeItem } =
+  const { items, isOpen, closeCart, updateQuantity, removeItem, coupon, applyCoupon, removeCoupon, getCartDiscount } =
     useCartStore();
   const navigate = useNavigate();
+  
+  const [couponInput, setCouponInput] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
-  // Safely calculate total to avoid any Zustand type errors
-  const cartTotal = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discount = getCartDiscount();
+  const cartTotal = Math.max(0, subtotal - discount);
+
+  const handleApplyCoupon = async () => {
+    setCouponError("");
+    if (!couponInput.trim()) return;
+    
+    setIsValidatingCoupon(true);
+    const { data, error } = await supabase
+      .from('pro_coupons')
+      .select('*')
+      .eq('code', couponInput.trim().toUpperCase())
+      .eq('is_active', true);
+    setIsValidatingCoupon(false);
+
+    if (error || !data || data.length === 0) {
+      return setCouponError("Invalid or expired coupon code.");
+    }
+
+    const storeId = items[0]?.storeId || null;
+    const validCoupon = data.find(c => !c.portfolio_id || c.portfolio_id === storeId);
+
+    if (!validCoupon) return setCouponError("This coupon is not valid for this store.");
+
+    // Validate constraints
+    const now = new Date();
+    if (validCoupon.start_date && new Date(validCoupon.start_date) > now) return setCouponError("This coupon is not active yet.");
+    if (validCoupon.end_date && new Date(validCoupon.end_date) < now) return setCouponError("This coupon has expired.");
+    if (validCoupon.usage_limit && validCoupon.times_used >= validCoupon.usage_limit) return setCouponError("This coupon has reached its usage limit.");
+    if (validCoupon.min_order_amount_cents && (subtotal * 100) < validCoupon.min_order_amount_cents) return setCouponError(`Order must be at least $${(validCoupon.min_order_amount_cents / 100).toFixed(2)}`);
+
+    applyCoupon(validCoupon);
+    setCouponInput("");
+  };
 
   const handleCheckout = () => {
     if (isPreview) {
@@ -178,13 +213,47 @@ export default function ModernCartDrawer({
 
         {items.length > 0 && (
           <div className="p-6 bg-neutral-950 border-t border-white/10 space-y-4 shrink-0 relative">
-            <div className="flex justify-between items-center text-lg mb-2">
-              <span className="text-neutral-400 font-medium text-sm uppercase tracking-wider">
-                Subtotal
-              </span>
-              <span className="text-3xl font-bold text-white">
-                ${cartTotal.toFixed(2)}
-              </span>
+            
+            {/* Coupon Input Area */}
+            <div className="space-y-2">
+              {!coupon ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Discount code"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 text-sm focus:outline-none focus:border-primary transition-colors uppercase placeholder:normal-case text-white"
+                  />
+                  <Button variant="secondary" onClick={handleApplyCoupon} disabled={isValidatingCoupon || !couponInput.trim()} className="h-10 px-4">
+                    {isValidatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 text-primary font-medium text-sm"><Tag size={14} /> {coupon.code}</div>
+                  <button onClick={removeCoupon} className="text-primary/70 hover:text-primary transition-colors"><X size={14} /></button>
+                </div>
+              )}
+              {couponError && <p className="text-xs text-red-400 font-medium">{couponError}</p>}
+            </div>
+
+            {/* Subtotal & Total */}
+            <div className="space-y-1.5 pt-2">
+               <div className="flex justify-between items-center text-sm">
+                  <span className="text-neutral-400">Subtotal</span>
+                  <span className="text-white">${subtotal.toFixed(2)}</span>
+               </div>
+               {coupon && discount > 0 && (
+                 <div className="flex justify-between items-center text-sm text-primary font-medium">
+                    <span className="flex items-center gap-1.5"><Tag size={14}/> {coupon.code}</span>
+                    <span>-${discount.toFixed(2)}</span>
+                 </div>
+               )}
+               <div className="flex justify-between items-center text-lg mt-2 border-t border-white/10 pt-3">
+                  <span className="text-neutral-400 font-medium text-sm uppercase tracking-wider">Total</span>
+                  <span className="text-3xl font-bold text-white">${cartTotal.toFixed(2)}</span>
+               </div>
             </div>
 
             {/* 🚀 THEME INHERITANCE: Button uses Primary color and glowing shadow */}

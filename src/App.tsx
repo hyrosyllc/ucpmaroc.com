@@ -73,6 +73,7 @@ import ProductsPage from "./pages/dashboard/ProductsPage";
 import CollectionsPage from "./pages/dashboard/CollectionsPage";
 import ShippingRatesPage from "./pages/dashboard/ShippingRatesPage";
 import CouponsPage from "./pages/dashboard/CouponsPage";
+import MarketsPage from "./pages/dashboard/MarketsPage";
 import FormsPage from "./pages/dashboard/FormsPage";
 
 // --- E-COMMERCE PUBLIC PAGES ---
@@ -297,6 +298,7 @@ function App() {
                       <Route path="shipping" element={<ShippingRatesPage />} />
                       <Route path="coupons" element={<CouponsPage />} />
                       <Route path="forms" element={<FormsPage />} />
+                      <Route path="markets" element={<MarketsPage />} />
                       <Route path="payments" element={<PaymentsPage />} />
                       <Route path="studio" element={<ThemeStudioPage />} />
                       <Route

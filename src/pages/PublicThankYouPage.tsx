@@ -80,6 +80,12 @@ const PublicThankYouPage = () => {
       const v = rest.join(':').trim();
       
       if (k === "checkout_email" || k === "email" || k === "email address") coreExtra.email = v;
+      else if (k === "checkout_phone" || k === "phone" || k === "phone number") coreExtra.phone = v;
+      else if (k === "checkout_name" || k === "name" || k === "full name") coreExtra.name = v;
+      else if (k === "shipping") coreExtra.shipping = v;
+      else if (k === "bank name") coreExtra.bankName = v;
+      else if (k === "account holder") coreExtra.bankHolder = v;
+      else if (k === "iban" || k === "iban/account no") coreExtra.bankIban = v;
       else if (k === "checkout_city" || k === "city") coreExtra.city = v;
       else if (k === "checkout_zip" || k === "zip" || k === "zip code" || k === "zip / postal code") coreExtra.zip = v;
       else if (k === "checkout_country" || k === "country") coreExtra.country = v;
@@ -96,6 +102,8 @@ const PublicThankYouPage = () => {
 
   // Fallback handlers for legacy bugs
   const displayEmail = coreExtra.email || (order?.customer_address?.includes('@') ? order.customer_address : 'No Email Provided');
+  const displayName = order?.customer_name && order.customer_name !== "Anonymous Buyer" ? order.customer_name : coreExtra.name;
+  const displayPhone = order?.customer_phone && order.customer_phone !== "No Phone" ? order.customer_phone : coreExtra.phone;
   
   const formatAddress = () => {
      const parts = [];
@@ -106,7 +114,9 @@ const PublicThankYouPage = () => {
      }
      
      const cityZipCountry = [coreExtra.city, coreExtra.zip, coreExtra.country].filter(Boolean).join(', ');
-     if (cityZipCountry) parts.push(cityZipCountry);
+     if (cityZipCountry && (!order?.customer_address || !order.customer_address.includes(cityZipCountry))) {
+         parts.push(cityZipCountry);
+     }
      
      return parts.length > 0 ? parts.join(' - ') : null;
   };
@@ -122,7 +132,7 @@ const PublicThankYouPage = () => {
   const displayAddress = formatAddress();
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col items-center py-16 px-4 sm:px-6 font-sans selection:bg-primary/20 selection:text-gray-900 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-white text-gray-900 flex flex-col items-center pt-24 pb-16 lg:pt-32 px-4 sm:px-6 font-sans selection:bg-primary/20 selection:text-gray-900 animate-in fade-in duration-500">
       
       <div className="max-w-2xl w-full">
         
@@ -151,16 +161,32 @@ const PublicThankYouPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 text-sm">
                <div>
                  <h3 className="font-medium text-gray-900 mb-1">Contact information</h3>
+                 {displayName && <p className="text-gray-600 mb-1">{displayName}</p>}
                  <p className="text-gray-600">{displayEmail}</p>
+                 {displayPhone && <p className="text-gray-600 mt-1">{displayPhone}</p>}
                </div>
                <div>
                  <h3 className="font-medium text-gray-900 mb-1">Payment method</h3>
                  <p className="text-gray-600">{getPaymentMethodDisplay()}</p>
+                 {coreExtra.bankName && (
+                   <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
+                     <p className="text-xs font-semibold text-gray-900 mb-1.5">Bank Transfer Details</p>
+                     <p className="text-xs text-gray-600"><span className="font-medium">Bank:</span> {coreExtra.bankName}</p>
+                     <p className="text-xs text-gray-600"><span className="font-medium">Holder:</span> {coreExtra.bankHolder}</p>
+                     <p className="text-xs text-gray-600"><span className="font-medium">IBAN:</span> {coreExtra.bankIban}</p>
+                   </div>
+                 )}
                </div>
                {displayAddress && (
-                 <div className="sm:col-span-2">
+                 <div className="sm:col-span-2 pt-2 border-t border-gray-100">
                    <h3 className="font-medium text-gray-900 mb-1">Shipping address</h3>
                    <p className="text-gray-600">{displayAddress}</p>
+                 </div>
+               )}
+               {coreExtra.shipping && (
+                 <div className="sm:col-span-2 pt-2 border-t border-gray-100">
+                   <h3 className="font-medium text-gray-900 mb-1">Shipping method</h3>
+                   <p className="text-gray-600">{coreExtra.shipping}</p>
                  </div>
                )}
             </div>

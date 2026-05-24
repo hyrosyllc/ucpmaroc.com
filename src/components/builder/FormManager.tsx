@@ -69,6 +69,8 @@ interface FormManagerProps {
   onFormsChange?: () => void;
 }
 
+import { ALL_COUNTRIES_STRING } from "../../lib/countries";
+
 // --- TEMPLATES ---
 const defaultContactTemplate = {
   name: "New Contact Form",
@@ -173,7 +175,7 @@ const defaultCheckoutTemplate = {
       id: "checkout_country",
       label: "Country",
       type: "select",
-      options: "United States, Canada, United Kingdom, Australia, New Zealand, Ireland, Germany, France, Spain, Italy, Netherlands, Morocco, United Arab Emirates, Saudi Arabia",
+      options: ALL_COUNTRIES_STRING,
       required: true,
       width: "third",
       locked: true,

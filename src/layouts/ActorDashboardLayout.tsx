@@ -42,6 +42,7 @@ import {
   Palette,
   LayoutDashboard,
   ShoppingCart,
+  Globe,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -129,6 +130,12 @@ const NAV_GROUPS = [
             name: "Payments & Integrations",
             icon: CreditCard,
             description: "Stripe & Payouts",
+          },
+          {
+            to: "/dashboard/markets",
+            name: "Markets & Regions",
+            icon: Globe,
+            description: "Where you sell",
           },
           {
             to: "/dashboard/shipping",

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, Link } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { ActorDashboardContextType } from "../../layouts/ActorDashboardLayout";
 import { Button } from "@/components/ui/button";
@@ -8,15 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, Truck, Edit, Trash2, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, Truck, Edit, Trash2, ArrowLeft, Copy, ChevronDown, ChevronUp, Globe } from "lucide-react";
 import SiteFilter from "../../components/dashboard/SiteFilter";
+import { SHIPPING_REGIONS, ALL_COUNTRIES_LIST } from "../../lib/countries";
 
-const COMMON_COUNTRIES = [
-  "United States", "Canada", "United Kingdom", "Australia", 
-  "New Zealand", "Ireland", "Germany", "France", 
-  "Spain", "Italy", "Netherlands", "Morocco", 
-  "United Arab Emirates", "Saudi Arabia"
-];
 
 export default function ShippingRatesPage() {
   const { actorData } = useOutletContext<ActorDashboardContextType>();
@@ -32,6 +27,7 @@ export default function ShippingRatesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
   const [destinationType, setDestinationType] = useState<"all" | "specific">("all");
+  const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
 
   const fetchRates = useCallback(async () => {
     if (!actorId) return;
@@ -51,7 +47,7 @@ export default function ShippingRatesPage() {
     if (actorId) {
       supabase
         .from("portfolios")
-        .select("id, public_slug, site_name")
+        .select("id, public_slug, site_name, theme_config")
         .eq("actor_id", actorId)
         .then(({ data }) => {
           if (data) setPortfolios(data);
@@ -115,6 +111,23 @@ export default function ShippingRatesPage() {
     setIsSaving(false);
   };
 
+  const handleDuplicate = async (rate: any) => {
+    const payload = {
+      ...rate,
+      id: undefined,
+      created_at: undefined,
+      updated_at: undefined,
+      name: `${rate.name} (Copy)`
+    };
+    Object.keys(payload).forEach(key => payload[key] === undefined && delete payload[key]);
+    const { error } = await supabase.from("pro_shipping_rates").insert([payload]);
+    if (error) {
+      alert("Failed to duplicate shipping rate: " + error.message);
+    } else {
+      fetchRates();
+    }
+  };
+
   const handleCountryToggle = (country: string, checked: boolean) => {
     const current = formData.countries || [];
     if (checked) {
@@ -124,8 +137,34 @@ export default function ShippingRatesPage() {
     }
   };
 
+  const toggleRegionExpansion = (code: string) => {
+    setExpandedRegions(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+  };
+
+  const handleRegionToggle = (region: any, checked: boolean) => {
+    let current = [...(formData.countries || [])];
+    if (checked) {
+       region.countries.forEach((c: string) => {
+         if (!current.includes(c)) current.push(c);
+       });
+    } else {
+       current = current.filter(c => !region.countries.includes(c));
+    }
+    setFormData({ ...formData, countries: current });
+  };
+
   const formatCountries = (countries?: string[]) => {
     if (!countries || countries.length === 0) return "Global (Rest of World)";
+    
+    const regionsCovered = SHIPPING_REGIONS.filter(r => r.countries.every(c => countries.includes(c)));
+    if (regionsCovered.length > 0) {
+      let display = `All ${regionsCovered.map(r => r.code).join(", ")}`;
+      const coveredCountries = regionsCovered.flatMap(r => r.countries);
+      const loose = countries.filter(c => !coveredCountries.includes(c));
+      if (loose.length > 0) display += ` + ${loose.length} more`;
+      return display;
+    }
+    
     if (countries.length <= 2) return countries.join(", ");
     return `${countries[0]}, ${countries[1]} +${countries.length - 2} more`;
   };
@@ -144,6 +183,11 @@ export default function ShippingRatesPage() {
               selectedSiteId={selectedSiteId}
               onChange={setSelectedSiteId}
             />
+            <Button variant="outline" asChild className="shadow-sm">
+              <Link to="/dashboard/markets">
+                <Globe className="w-4 h-4 mr-2" /> Manage Markets
+              </Link>
+            </Button>
             <Button onClick={() => initForm()} className="shadow-sm">
               <Plus className="w-4 h-4 mr-2" /> Add Rate
             </Button>
@@ -230,17 +274,44 @@ export default function ShippingRatesPage() {
                 </RadioGroup>
 
                 {destinationType === "specific" && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-muted/30 border rounded-lg animate-in fade-in slide-in-from-top-2">
-                    {COMMON_COUNTRIES.map((country) => (
-                      <div key={country} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`country-${country}`} 
-                          checked={(formData.countries || []).includes(country)}
-                          onCheckedChange={(c) => handleCountryToggle(country, c as boolean)}
-                        />
-                        <label htmlFor={`country-${country}`} className="text-sm font-medium leading-none cursor-pointer">{country}</label>
-                      </div>
-                    ))}
+                  <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2">
+                    {(() => {
+                      const activeSite = portfolios.find((p) => p.id === formData.portfolio_id);
+                      const siteAllowedCountries = activeSite?.theme_config?.allowedCountries || ALL_COUNTRIES_LIST;
+                      const filteredRegions = SHIPPING_REGIONS.map(region => ({
+                        ...region,
+                        countries: region.countries.filter(c => siteAllowedCountries.includes(c))
+                      })).filter(r => r.countries.length > 0);
+
+                      return filteredRegions.map((region) => {
+                      const isExpanded = expandedRegions.includes(region.code);
+                      const visibleCountries = isExpanded ? region.countries : region.countries.slice(0, 10);
+                      const isAllSelected = region.countries.every(c => (formData.countries || []).includes(c));
+
+                      return (
+                        <div key={region.code} className="p-3 border rounded-lg bg-muted/20">
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-2">
+                              <Checkbox id={`region-${region.code}`} checked={isAllSelected} onCheckedChange={(c) => handleRegionToggle(region, c as boolean)}/>
+                              <Label htmlFor={`region-${region.code}`} className="font-bold text-sm cursor-pointer">{region.name}</Label>
+                            </div>
+                            {region.countries.length > 10 && (
+                              <Button type="button" variant="ghost" size="sm" onClick={() => toggleRegionExpansion(region.code)} className="h-6 text-xs text-muted-foreground">
+                                {isExpanded ? <><ChevronUp className="w-3 h-3 mr-1"/> Show Less</> : <><ChevronDown className="w-3 h-3 mr-1"/> Show All ({region.countries.length})</>}
+                              </Button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6">
+                            {visibleCountries.map((country: string) => (
+                              <div key={country} className="flex items-center space-x-2">
+                                <Checkbox id={`country-${country}`} checked={(formData.countries || []).includes(country)} onCheckedChange={(c) => handleCountryToggle(country, c as boolean)}/>
+                                <label htmlFor={`country-${country}`} className="text-xs font-medium leading-none cursor-pointer truncate" title={country}>{country}</label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })})()}
                   </div>
                 )}
               </div>
@@ -285,6 +356,7 @@ export default function ShippingRatesPage() {
                       {rate.type === 'free_over' ? "Free" : `$${(rate.rate_cents / 100).toFixed(2)}`}
                     </td>
                     <td className="px-6 py-4 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleDuplicate(rate)} title="Duplicate"><Copy className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => initForm(rate)}><Edit className="w-4 h-4" /></Button>
                       <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(rate.id)}><Trash2 className="w-4 h-4" /></Button>
                     </td>

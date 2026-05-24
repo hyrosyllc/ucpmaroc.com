@@ -132,16 +132,32 @@ const PublicThankYouPage = () => {
   const displayAddress = formatAddress();
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col items-center pt-24 pb-16 lg:pt-32 px-4 sm:px-6 font-sans selection:bg-primary/20 selection:text-gray-900 animate-in fade-in duration-500">
+    <div className="w-full flex flex-col items-center pt-12 pb-16 lg:pt-16 px-4 sm:px-6 font-sans selection:bg-primary/20 selection:text-white animate-in fade-in duration-500 bg-transparent text-white print:bg-white print:text-black print:p-0">
       
       <div className="max-w-2xl w-full">
         
+        {/* PRINT ONLY: Invoice Header */}
+        {order && (
+          <div className="hidden print:block border-b border-neutral-300 pb-8 mb-8">
+            <div className="flex justify-between items-end">
+              <div>
+                <h1 className="text-4xl font-black text-black tracking-tighter uppercase">Receipt</h1>
+                <p className="text-neutral-500 mt-1 font-mono text-sm">#{order.id.split('-')[0].toUpperCase()}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-bold text-black text-lg">{portfolio?.site_name || portfolio?.public_slug || 'Store'}</p>
+                <p className="text-neutral-500 text-sm mt-1">{new Date(order.created_at).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Success Header */}
-        <div className="flex flex-col items-start gap-4 mb-8 print:items-center print:mb-6">
+        <div className="flex flex-col items-start gap-4 mb-8 print:hidden">
           <CheckCircle2 className="w-16 h-16 text-green-500 animate-in zoom-in duration-500 delay-150" />
           <div className="space-y-1">
-            {order && <p className="text-sm text-gray-500 font-medium tracking-wide uppercase">Order #{order.id.split('-')[0].toUpperCase()}</p>}
-            <h1 className="text-3xl sm:text-4xl font-normal text-gray-900 tracking-tight">
+            {order && <p className="text-sm text-neutral-400 font-medium tracking-wide uppercase">Order #{order.id.split('-')[0].toUpperCase()}</p>}
+            <h1 className="text-3xl sm:text-4xl font-normal text-white tracking-tight">
               Thank you{order ? `, ${order.customer_name.split(' ')[0]}` : ''}!
             </h1>
           </div>
@@ -150,87 +166,93 @@ const PublicThankYouPage = () => {
       {order && (
         <>
           {/* Confirmation Box */}
-          <div className="rounded-lg border border-gray-200 p-6 mb-6 bg-white shadow-sm print:shadow-none">
-            <h2 className="text-lg font-medium text-gray-900 mb-2">Your order is confirmed</h2>
-            <p className="text-sm text-gray-600">You'll receive a confirmation email with your order details shortly.</p>
+          <div className="rounded-lg border border-white/10 p-6 mb-6 bg-neutral-900 shadow-sm print:hidden">
+            <h2 className="text-lg font-medium text-white mb-2">Your order is confirmed</h2>
+            <p className="text-sm text-neutral-400">You'll receive a confirmation email with your order details shortly.</p>
           </div>
 
           {/* Customer Information Box */}
-          <div className="rounded-lg border border-gray-200 p-6 mb-6 bg-white shadow-sm print:shadow-none">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Customer information</h2>
+          <div className="rounded-lg border border-white/10 p-6 mb-6 bg-neutral-900 shadow-sm print:shadow-none print:border-neutral-200 print:bg-transparent print:p-0 print:mb-8">
+            <h2 className="text-lg font-medium text-white mb-4 print:hidden">Customer information</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 text-sm">
                <div>
-                 <h3 className="font-medium text-gray-900 mb-1">Contact information</h3>
-                 {displayName && <p className="text-gray-600 mb-1">{displayName}</p>}
-                 <p className="text-gray-600">{displayEmail}</p>
-                 {displayPhone && <p className="text-gray-600 mt-1">{displayPhone}</p>}
+                 <h3 className="font-medium text-white mb-1 print:text-neutral-500 print:text-xs print:uppercase print:tracking-widest">Billed To</h3>
+                 {displayName && <p className="text-neutral-400 print:text-black print:font-bold mb-1">{displayName}</p>}
+                 <p className="text-neutral-400 print:text-neutral-600">{displayEmail}</p>
+                 {displayPhone && <p className="text-neutral-400 print:text-neutral-600 mt-1">{displayPhone}</p>}
                </div>
                <div>
-                 <h3 className="font-medium text-gray-900 mb-1">Payment method</h3>
-                 <p className="text-gray-600">{getPaymentMethodDisplay()}</p>
+                 <h3 className="font-medium text-white mb-1 print:text-neutral-500 print:text-xs print:uppercase print:tracking-widest">Payment method</h3>
+                 <p className="text-neutral-400 print:text-black print:font-bold">{getPaymentMethodDisplay()}</p>
                  {coreExtra.bankName && (
-                   <div className="mt-3 p-3 bg-gray-50 rounded-md border border-gray-200">
-                     <p className="text-xs font-semibold text-gray-900 mb-1.5">Bank Transfer Details</p>
-                     <p className="text-xs text-gray-600"><span className="font-medium">Bank:</span> {coreExtra.bankName}</p>
-                     <p className="text-xs text-gray-600"><span className="font-medium">Holder:</span> {coreExtra.bankHolder}</p>
-                     <p className="text-xs text-gray-600"><span className="font-medium">IBAN:</span> {coreExtra.bankIban}</p>
+                   <div className="mt-3 p-3 bg-neutral-950 rounded-md border border-white/10 print:border-neutral-200 print:bg-transparent print:p-0 print:mt-2">
+                     <p className="text-xs font-semibold text-white print:text-black mb-1.5 print:mb-0.5">Bank Transfer Details</p>
+                     <p className="text-xs text-neutral-400 print:text-neutral-600"><span className="font-medium print:text-black">Bank:</span> {coreExtra.bankName}</p>
+                     <p className="text-xs text-neutral-400 print:text-neutral-600"><span className="font-medium print:text-black">Holder:</span> {coreExtra.bankHolder}</p>
+                     <p className="text-xs text-neutral-400 print:text-neutral-600"><span className="font-medium print:text-black">IBAN:</span> {coreExtra.bankIban}</p>
                    </div>
                  )}
                </div>
                {displayAddress && (
-                 <div className="sm:col-span-2 pt-2 border-t border-gray-100">
-                   <h3 className="font-medium text-gray-900 mb-1">Shipping address</h3>
-                   <p className="text-gray-600">{displayAddress}</p>
+                 <div className="sm:col-span-2 pt-2 border-t border-white/5 print:border-neutral-200">
+                   <h3 className="font-medium text-white mb-1 print:text-neutral-500 print:text-xs print:uppercase print:tracking-widest">Shipping address</h3>
+                   <p className="text-neutral-400 print:text-black">{displayAddress}</p>
                  </div>
                )}
                {coreExtra.shipping && (
-                 <div className="sm:col-span-2 pt-2 border-t border-gray-100">
-                   <h3 className="font-medium text-gray-900 mb-1">Shipping method</h3>
-                   <p className="text-gray-600">{coreExtra.shipping}</p>
+                 <div className="sm:col-span-2 pt-2 border-t border-white/5 print:border-neutral-200">
+                   <h3 className="font-medium text-white mb-1 print:text-neutral-500 print:text-xs print:uppercase print:tracking-widest">Shipping method</h3>
+                   <p className="text-neutral-400 print:text-black">{coreExtra.shipping}</p>
                  </div>
                )}
             </div>
           </div>
 
           {/* Order Summary Box */}
-          <div className="rounded-lg border border-gray-200 p-6 mb-8 bg-white shadow-sm print:shadow-none">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Order summary</h2>
-            <div className="space-y-5">
+          <div className="rounded-lg border border-white/10 p-6 mb-8 bg-neutral-900 shadow-sm print:shadow-none print:border-none print:bg-transparent print:p-0">
+            <h2 className="text-lg font-medium text-white mb-4 print:text-neutral-500 print:text-xs print:uppercase print:tracking-widest print:border-b print:border-neutral-300 print:pb-2">Order summary</h2>
+            <div className="space-y-5 print:space-y-3">
               {/* --- IMPROVEMENT: Read from structured 'items' array --- */}
               {order.items && order.items.length > 0 ? (
                 order.items.map((item: any, idx: number) => (
-                  <div key={idx} className="flex items-center gap-4">
+                  <div key={idx} className="flex items-center gap-4 print:border-b print:border-neutral-100 print:pb-3 print:items-start">
                     {item.image && (
-                      <div className="relative w-16 h-16 bg-white border border-gray-200 rounded-lg flex items-center justify-center shrink-0">
+                      <div className="relative w-16 h-16 bg-neutral-950 border border-white/10 rounded-lg flex items-center justify-center shrink-0 print:hidden">
                         <img src={item.image} alt={item.title} className="w-full h-full object-cover rounded-lg" />
-                        <span className="absolute -top-2 -right-2 bg-gray-500/90 backdrop-blur-sm text-white text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
+                        <span className="absolute -top-2 -right-2 bg-neutral-700/90 backdrop-blur-sm text-white text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
                           {item.quantity}
                         </span>
                       </div>
                     )}
                     <div className="flex-1 min-w-0 pr-4">
-                      <p className="font-medium text-gray-900 leading-tight text-sm truncate">{item.title}</p>
+                      <p className="font-medium text-white print:text-black leading-tight text-sm truncate print:text-base print:whitespace-normal">{item.title}</p>
                       {item.variant && item.variant !== 'default' && (
-                         <p className="text-xs text-gray-500 mt-0.5 truncate">{item.variant}</p>
+                         <p className="text-xs text-neutral-500 print:text-neutral-600 mt-0.5 truncate print:whitespace-normal">
+                           <span className="print:hidden">{item.variant}</span>
+                           <span className="hidden print:inline">Qty: {item.quantity} • {item.variant}</span>
+                         </p>
+                      )}
+                      {(!item.variant || item.variant === 'default') && (
+                         <p className="hidden print:block text-xs text-neutral-600 mt-0.5">Qty: {item.quantity}</p>
                       )}
                     </div>
-                    <p className="font-medium text-gray-900 text-sm whitespace-nowrap ml-4">${(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-medium text-white print:text-black text-sm whitespace-nowrap ml-4 print:mt-0 print:text-base">${(item.price * item.quantity).toFixed(2)}</p>
                   </div>
                 ))
               ) : (
                 // Fallback for old orders without the 'items' array
                 <div className="flex justify-between items-center">
-                  <p className="font-medium text-gray-900 text-sm">{order.product_name}</p>
-                  <p className="font-medium text-gray-900 text-sm">{order.product_price}</p>
+                  <p className="font-medium text-white print:text-black text-sm">{order.product_name}</p>
+                  <p className="font-medium text-white print:text-black text-sm">{order.product_price}</p>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-gray-200 mt-6 pt-5 flex justify-between items-center">
-              <span className="text-base font-semibold text-gray-900">Total</span>
+            <div className="border-t border-white/10 print:border-neutral-300 mt-6 pt-5 flex justify-between items-center">
+              <span className="text-base font-semibold text-white print:text-black print:uppercase print:text-xs print:tracking-widest">Total Paid</span>
               <div className="flex items-end gap-2">
-                <span className="text-xs text-gray-500 mb-1">USD</span>
-                <span className="text-2xl font-bold text-gray-900 tracking-tight">
+                <span className="text-xs text-neutral-500 print:hidden mb-1">USD</span>
+                <span className="text-2xl font-bold text-white print:text-black tracking-tight">
                   ${order.amount_cents ? (order.amount_cents / 100).toFixed(2) : order.product_price.replace('$', '')}
                 </span>
               </div>
@@ -251,7 +273,7 @@ const PublicThankYouPage = () => {
           <Button
             variant="outline"
             onClick={handlePrint}
-            className="h-12 px-8 font-medium text-base hover:bg-gray-50 bg-white border-gray-300 text-gray-700 rounded-md shadow-sm transition-all"
+                className="h-12 px-8 font-medium text-base hover:bg-neutral-800 bg-neutral-900 border-white/10 text-white rounded-md shadow-sm transition-all"
           >
             <Printer className="w-4 h-4 mr-2" /> Print receipt
           </Button>

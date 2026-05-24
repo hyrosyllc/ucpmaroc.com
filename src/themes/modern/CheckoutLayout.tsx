@@ -14,7 +14,7 @@ const CheckoutLayout = () => {
   const { portfolio } = useOutletContext<{ portfolio: any }>();
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 flex flex-col relative font-sans selection:bg-primary selection:text-white">
+    <div className="min-h-screen bg-neutral-950 text-white flex flex-col relative font-sans selection:bg-primary selection:text-white">
       <main className="flex-grow w-full h-full relative z-10">
         <Outlet context={{ portfolio }} />
       </main>

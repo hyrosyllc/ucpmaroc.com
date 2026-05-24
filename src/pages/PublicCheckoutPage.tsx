@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useOutletContext, useNavigate } from "react-router-dom";
+import { useOutletContext, useNavigate, Link } from "react-router-dom";
 import { useCartStore, type CartItem } from "@/store/useCartStore";
 import { supabase } from "../supabaseClient"; // Adjust path if needed
 import { loadStripe } from "@stripe/stripe-js";
@@ -9,7 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User, AlertCircle, ChevronRight, Landmark, Bitcoin, Package } from "lucide-react";
+import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User, AlertCircle, ChevronLeft, Landmark, Bitcoin, Package, ShoppingCart, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -199,59 +199,59 @@ const CheckoutForm = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-10 animate-in fade-in duration-500">
+    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in duration-500 w-full">
       
       {/* CONTACT INFO SECTION */}
       <div className="space-y-6">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Contact Information</h2>
-          <p className="text-sm text-muted-foreground mt-1">We'll use this to send your order updates and receipt.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-gray-900">Contact & Shipping</h2>
+          <p className="text-sm text-gray-500 mt-1">We'll use this to send your order updates.</p>
         </div>
 
         {isLoadingForm ? (
           <div className="flex items-center justify-center py-6"><Loader2 className="animate-spin text-primary" /></div>
         ) : formTemplate?.fields ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-6 gap-x-4 gap-y-4">
             {formTemplate.fields.filter((f: any) => f.enabled !== false).map((field: any, idx: number) => {
-              const isHalf = field.width === "half";
+              const widthClass = field.width === "third" ? "sm:col-span-2" : field.width === "half" ? "sm:col-span-3" : "sm:col-span-6";
               const fieldOptions = parseOptions(field.options);
               return (
-                <div key={idx} className={cn("space-y-2", isHalf ? "col-span-1" : "col-span-1 sm:col-span-2")}>
-                  <label className="text-sm font-semibold text-foreground flex items-center gap-1.5 ml-1">
+                <div key={idx} className={cn("space-y-2 col-span-1", widthClass)}>
+                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                      {field.label} {field.required && <span className="text-primary">*</span>}
                   </label>
                   {field.type === "textarea" ? (
-                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-muted/20 hover:bg-muted/40 focus:bg-background min-h-[100px] resize-none rounded-xl p-4 border-border/40 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary/50 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-white hover:border-gray-400 focus:bg-white min-h-[100px] resize-none rounded-md p-3 border-gray-300 shadow-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent text-gray-900 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
                   ) : field.type === "select" ? (
-                    <select required={field.required} className="w-full bg-muted/20 hover:bg-muted/40 focus:bg-background border border-border/40 text-foreground h-12 rounded-xl px-3 text-sm appearance-none outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary/50 transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
+                    <select required={field.required} className="w-full bg-white hover:border-gray-400 focus:bg-white border border-gray-300 text-gray-900 h-11 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
                       <option value="" disabled>Select...</option>
                       {fieldOptions.map((opt: string, i: number) => (
                         <option key={i} value={opt}>{opt}</option>
                       ))}
                     </select>
                   ) : field.type === "radio" ? (
-                    <div className="flex flex-col gap-2 pt-1">
+                    <div className="flex flex-col gap-2">
                       {fieldOptions.map((opt: string, i: number) => (
-                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border border-border/40 bg-muted/10 shadow-sm hover:bg-muted/30 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
-                          <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 group-hover:border-primary bg-background">
+                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-3 rounded-md border border-gray-300 bg-white shadow-sm hover:border-gray-400 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary">
+                          <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-gray-300 group-hover:border-primary bg-white">
                             <input type="radio" name={field.id} value={opt} required={field.required} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
-                            <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
+                            <div className="w-2 h-2 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
                           </div>
-                          <span className="text-foreground text-sm font-medium">{opt}</span>
+                          <span className="text-gray-900 text-sm font-medium">{opt}</span>
                         </label>
                       ))}
                     </div>
                   ) : (
-                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className="bg-white hover:border-gray-400 focus:bg-white text-gray-900 h-11 rounded-md border-gray-300 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
                   )}
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1 text-foreground">
+              <label className="text-sm font-medium text-gray-700">
                 Full Name
               </label>
               <Input
@@ -259,11 +259,11 @@ const CheckoutForm = ({
                 placeholder="Jane Doe"
                 value={formValues.name || ""}
                 onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
-                className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
+                className="bg-white hover:border-gray-400 focus:bg-white text-gray-900 h-11 rounded-md border-gray-300 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1 text-foreground">
+              <label className="text-sm font-medium text-gray-700">
                 Email Address
               </label>
               <Input
@@ -272,7 +272,7 @@ const CheckoutForm = ({
                 placeholder="jane@example.com"
                 value={formValues.email || ""}
                 onChange={(e) => setFormValues({ ...formValues, email: e.target.value })}
-                className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
+                className="bg-white hover:border-gray-400 focus:bg-white text-gray-900 h-11 rounded-md border-gray-300 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all"
               />
             </div>
           </div>
@@ -280,124 +280,124 @@ const CheckoutForm = ({
       </div>
 
       {/* PAYMENT SECURE SECTION */}
-      <div className="space-y-6 pt-8 border-t border-border/40">
+      <div className="space-y-6 pt-8">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Payment Method</h2>
-          <p className="text-sm text-muted-foreground mt-1">Select how you want to pay for your order.</p>
+          <h2 className="text-xl font-semibold tracking-tight text-gray-900">Payment</h2>
+          <p className="text-sm text-gray-500 mt-1">All transactions are secure and encrypted.</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="border border-gray-300 bg-white rounded-md overflow-hidden shadow-sm">
           {clientSecret && (
-            <label
-              className={cn(
-                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                paymentMethod === "card" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-              )}
-              onClick={() => setPaymentMethod("card")}
-            >
-              <div className="flex items-center gap-2">
-                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                        <>
+              <label
+                className={cn(
+                  "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                  paymentMethod === "card" ? "bg-primary/5 border-b border-gray-200" : "hover:bg-gray-50"
+                )}
+                onClick={() => setPaymentMethod("card")}
+              >
+                <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-gray-300 bg-white">
+                  <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
                 </div>
-                <span className="font-semibold text-foreground">Credit Card</span>
-              </div>
-              <p className="text-sm text-muted-foreground ml-7">Secure encrypted payment via Stripe.</p>
-            </label>
+                                <span className="font-medium text-gray-900 text-sm">Credit card</span>
+              </label>
+              {paymentMethod === "card" && (
+                <div className="p-4 bg-gray-50 border-b border-gray-200">
+                  <PaymentElement />
+                </div>
+              )}
+            </>
           )}
 
           {(paymentConfig?.cod?.enabled ?? true) && (
-            <label
-              className={cn(
-                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                paymentMethod === "cod" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-              )}
-              onClick={() => setPaymentMethod("cod")}
-            >
-              <div className="flex items-center gap-2">
-                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                        <>
+              {clientSecret && <div className="h-px bg-gray-200 w-full" />}
+              <label
+                className={cn(
+                  "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                  paymentMethod === "cod" ? "bg-primary/5 border-b border-gray-200" : "hover:bg-gray-50"
+                )}
+                onClick={() => setPaymentMethod("cod")}
+              >
+                <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-gray-300 bg-white">
+                  <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
                 </div>
-                <span className="font-semibold text-foreground">Cash on Delivery</span>
-              </div>
-              <p className="text-sm text-muted-foreground ml-7">Pay in cash when your order arrives.</p>
-            </label>
+                <span className="font-medium text-gray-900 text-sm">Cash on Delivery</span>
+              </label>
+              {paymentMethod === "cod" && (
+                <div className="p-6 bg-gray-50 border-b border-gray-200 text-center text-sm text-gray-600">
+                  You will pay for your order upon delivery.
+                </div>
+              )}
+            </>
           )}
 
+
           {paymentConfig?.bank?.enabled && (
-            <label
-              className={cn(
-                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                paymentMethod === "bank" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-              )}
-              onClick={() => setPaymentMethod("bank")}
-            >
-              <div className="flex items-center gap-2">
-                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "bank" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                        <>
+              <div className="h-px bg-gray-200 w-full" />
+              <label
+                className={cn(
+                  "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                  paymentMethod === "bank" ? "bg-primary/5 border-b border-gray-200" : "hover:bg-gray-50"
+                )}
+                onClick={() => setPaymentMethod("bank")}
+              >
+                <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-gray-300 bg-white">
+                  <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "bank" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+
                 </div>
-                <span className="font-semibold text-foreground flex items-center gap-2">Bank Transfer</span>
-              </div>
-              <p className="text-sm text-muted-foreground ml-7">Transfer directly to our account.</p>
-            </label>
+                <span className="font-medium text-gray-900 text-sm">Bank Transfer</span>
+              </label>
+              {paymentMethod === "bank" && (
+                <div className="p-6 bg-gray-50 border-b border-gray-200">
+                  <p className="text-sm font-medium text-gray-900 mb-3 text-center">Transfer the total amount to:</p>
+                  <div className="space-y-2 text-sm text-gray-700 bg-white p-4 rounded-md border border-gray-200 shadow-sm">
+                    <div className="flex justify-between"><span className="text-gray-500">Bank</span><span className="font-medium">{paymentConfig?.bank?.name || "N/A"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">Account Holder</span><span className="font-medium">{paymentConfig?.bank?.holder || "N/A"}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">IBAN/Account No</span><span className="font-medium break-all text-right">{paymentConfig?.bank?.iban || "N/A"}</span></div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {paymentConfig?.crypto?.enabled && (
-            <label
-              className={cn(
-                "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                paymentMethod === "crypto" ? "border-primary bg-primary/5 shadow-md" : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-              )}
-              onClick={() => setPaymentMethod("crypto")}
-            >
-              <div className="flex items-center gap-2">
-                <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                  <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "crypto" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+            <>
+              <div className="h-px bg-gray-200 w-full" />
+              <label
+                className={cn(
+                  "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                  paymentMethod === "crypto" ? "bg-primary/5 border-b border-gray-200" : "hover:bg-gray-50"
+                )}
+                onClick={() => setPaymentMethod("crypto")}
+              >
+                <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-gray-300 bg-white">
+                  <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "crypto" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+
                 </div>
-                <span className="font-semibold text-foreground flex items-center gap-2">Crypto (USDC/SOL)</span>
-              </div>
-              <p className="text-sm text-muted-foreground ml-7">Send stablecoins via Web3 wallet.</p>
-            </label>
+                <span className="font-medium text-gray-900 text-sm">Crypto (USDC/SOL)</span>
+              </label>
+              {paymentMethod === "crypto" && (
+                <div className="p-6 bg-gray-50 border-b border-gray-200">
+                  <p className="text-sm font-medium text-gray-900 mb-3 text-center flex items-center justify-center gap-2">
+                     Send USDC or SOL to:
+                  </p>
+                  <div className="text-sm text-gray-700 bg-white p-4 rounded-md border border-gray-200 shadow-sm break-all text-center font-mono font-bold text-primary">
+                    {paymentConfig?.crypto?.wallet || "N/A"}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {paymentMethod === "card" && (
-          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
-            <PaymentElement />
-          </div>
-        )}
         
-        {paymentMethod === "cod" && (
-          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
-            <p className="text-sm text-foreground">You will pay for your order upon delivery. No payment details required now.</p>
-          </div>
-        )}
-
-        {paymentMethod === "bank" && (
-          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
-            <p className="text-sm font-semibold mb-3">Please transfer the total amount to the following bank account:</p>
-            <div className="space-y-1.5 text-sm text-muted-foreground bg-muted/30 p-4 rounded-xl border border-border/40">
-              <p><strong className="text-foreground">Bank:</strong> {paymentConfig?.bank?.name || "N/A"}</p>
-              <p><strong className="text-foreground">Account Holder:</strong> {paymentConfig?.bank?.holder || "N/A"}</p>
-              <p><strong className="text-foreground">IBAN/Account No:</strong> {paymentConfig?.bank?.iban || "N/A"}</p>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">After making the transfer, click "Place Order". Your order will be processed once the funds are verified.</p>
-          </div>
-        )}
-
-        {paymentMethod === "crypto" && (
-          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
-            <p className="text-sm font-semibold mb-3 flex items-center gap-2"><Bitcoin className="text-amber-500 w-5 h-5"/> Send USDC or SOL to the following wallet:</p>
-            <div className="space-y-1.5 text-sm text-muted-foreground bg-muted/30 p-4 rounded-xl border border-border/40 break-all">
-              <p className="font-mono text-primary font-bold">{paymentConfig?.crypto?.wallet || "N/A"}</p>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">Supported networks: Solana, Polygon, Ethereum. Click "Place Order" after sending.</p>
-          </div>
-        )}
       </div>
 
       {/* ERROR HANDLER */}
       {errorMessage && (
-        <div className="p-4 bg-destructive/10 text-destructive rounded-xl text-sm border border-destructive/20 flex items-start gap-3 animate-in fade-in duration-300">
+        <div className="p-4 bg-red-50 text-red-600 rounded-md text-sm border border-red-200 flex items-start gap-3 animate-in fade-in duration-300">
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <span className="font-medium leading-relaxed">{errorMessage}</span>
         </div>
@@ -407,7 +407,7 @@ const CheckoutForm = ({
       <Button
         type="submit"
         disabled={(paymentMethod === "card" && (!stripe || !elements)) || isProcessing}
-        className="w-full h-14 font-bold tracking-wide text-lg rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.01] transition-all bg-primary text-primary-foreground hover:brightness-110"
+        className="w-full h-14 font-medium tracking-wide text-lg rounded-md shadow-sm transition-all bg-primary text-primary-foreground hover:brightness-110"
       >
         {isProcessing ? (
           <Loader2 className="animate-spin mr-2" />
@@ -421,6 +421,52 @@ const CheckoutForm = ({
     </form>
   );
 };
+// --- REUSABLE ORDER SUMMARY COMPONENT ---
+const OrderSummaryContent = ({ items, total }: any) => (
+  <div className="flex flex-col h-full animate-in fade-in">
+    <div className="space-y-4 mb-6 flex-grow">
+      {items.map((item: CartItem) => (
+        <div key={item.id} className="flex items-center gap-4">
+          <div className="relative w-16 h-16 bg-white border border-gray-200 rounded-lg flex items-center justify-center shrink-0">
+            {item.image ? (
+              <img src={item.image} className="w-full h-full object-cover rounded-lg" alt={item.title} />
+            ) : (
+              <ShoppingBag className="w-6 h-6 text-gray-300" />
+            )}
+            <span className="absolute -top-2 -right-2 bg-gray-500/90 backdrop-blur-sm text-white text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
+              {item.quantity}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 pr-4">
+            <h4 className="font-medium text-gray-900 text-sm truncate">{item.title}</h4>
+            {item.variant && <p className="text-xs text-gray-500 truncate mt-0.5">{item.variant}</p>}
+          </div>
+          <div className="font-medium text-gray-900 shrink-0 text-right text-sm">
+            ${(item.price * item.quantity).toFixed(2)}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="border-t border-gray-200 pt-5 space-y-3">
+      <div className="flex justify-between text-sm text-gray-600">
+        <span>Subtotal</span>
+        <span className="font-medium text-gray-900">${total.toFixed(2)}</span>
+      </div>
+      <div className="flex justify-between text-sm text-gray-600">
+        <span>Shipping</span>
+        <span className="text-gray-500 text-xs">Calculated at next step</span>
+      </div>
+      <div className="flex justify-between items-center mt-4 border-t border-gray-200 pt-5">
+        <span className="text-base font-semibold text-gray-900">Total</span>
+        <div className="flex items-end gap-2">
+          <span className="text-xs text-gray-500 mb-1">USD</span>
+          <span className="text-2xl font-bold text-gray-900 tracking-tight">${total.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 // --- MAIN PAGE COMPONENT ---
 const PublicCheckoutPage = () => {
@@ -435,6 +481,7 @@ const PublicCheckoutPage = () => {
   const [formTemplate, setFormTemplate] = useState<any>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoadingForm, setIsLoadingForm] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
   const MAIN_DOMAINS = [
     "ucpmaroc.com",
@@ -515,23 +562,86 @@ const PublicCheckoutPage = () => {
 
   // --- CHECKOUT VIEW ---
   return (
-    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-x-12 gap-y-12 items-start mt-4 md:mt-8 pt-8 md:pt-12 pb-12 px-4 md:px-8">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white font-sans text-gray-900 w-full overflow-x-hidden selection:bg-primary/20 selection:text-gray-900">
       
-      {/* LEFT COLUMN: PAYMENT GATEWAY (Primary Focus) */}
-      <div className="w-full lg:w-[55%] xl:w-3/5 order-2 lg:order-1 pt-4 lg:pt-0">
+      {/* MOBILE ACCORDION (Hidden on Desktop) */}
+      <div className="lg:hidden bg-[#F9FAFB] border-b border-gray-200 w-full">
+        <div 
+          className="flex items-center justify-between p-5 sm:px-6 cursor-pointer"
+          onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+        >
+          <div className="flex items-center gap-2 text-primary text-sm font-medium">
+            <ShoppingCart size={18} />
+            {isSummaryExpanded ? "Hide order summary" : "Show order summary"}
+            {isSummaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+          <span className="font-semibold text-gray-900 text-lg">${total.toFixed(2)}</span>
+        </div>
+        {isSummaryExpanded && (
+          <div className="p-5 sm:px-6 border-t border-gray-200 bg-[#F9FAFB]">
+            <OrderSummaryContent items={items} total={total} />
+          </div>
+        )}
+      </div>
+
+      {/* LEFT COLUMN: ACTIVE FORM (White Background) */}
+      <div className="flex-1 flex justify-end bg-white">
+        <div className="w-full max-w-xl flex flex-col px-5 py-8 sm:p-10 lg:p-12 xl:pr-24 lg:pl-8 mx-auto lg:mx-0">
+          
+          {/* Header Link / Logo */}
+          <div className="mb-8">
+            <Link to={shopUrl} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors mb-6">
+              <ChevronLeft size={16} className="mr-1" /> Return to cart
+            </Link>
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{portfolio.site_name || portfolio.public_slug}</h1>
+          </div>
+
           {initError ? (
-            <div className="p-6 bg-destructive/10 rounded-2xl border border-destructive/20 text-center">
-              <p className="text-destructive font-semibold">{initError}</p>
+            <div className="p-6 bg-red-50 rounded-md border border-red-200 text-center">
+              <p className="text-red-600 font-semibold">{initError}</p>
             </div>
           ) : !clientSecret ? (
-            <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center py-32 text-gray-500">
               <Loader2 className="w-8 h-8 animate-spin mb-4" />
               <p>Initializing secure connection...</p>
             </div>
           ) : (
             <Elements
               stripe={stripePromise}
-              options={{ clientSecret, appearance: { theme: "stripe" } }}
+              options={{ 
+                clientSecret, 
+                appearance: { 
+                  theme: "stripe",
+                  variables: {
+                    fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
+                    borderRadius: '6px',
+                    colorBackground: 'transparent',
+                    colorText: '#111827',
+                    colorPrimary: 'var(--primary)',
+                    colorDanger: '#ef4444',
+                    colorTextPlaceholder: '#6B7280',
+                    colorBorder: '#D1D5DB',
+                  },
+                  rules: {
+                    '.Input': {
+                      backgroundColor: '#ffffff',
+                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                      padding: '12px',
+                    },
+                    '.Input:focus': {
+                      border: '1px solid var(--primary)',
+                      boxShadow: '0 0 0 1px var(--primary)',
+                    },
+                    '.Label': {
+                      fontWeight: '500',
+                      color: '#374151',
+                      marginBottom: '4px'
+                    },
+                    '.Tab--selected': {
+                    }
+                  }
+                } 
+              }}
             >
               <CheckoutForm
                 amount={total}
@@ -548,59 +658,13 @@ const PublicCheckoutPage = () => {
               />
             </Elements>
           )}
+        </div>
       </div>
 
-      {/* RIGHT COLUMN: ORDER SUMMARY (Sticky Sidebar) */}
-      <div className="w-full lg:w-[45%] xl:w-2/5 order-1 lg:order-2 bg-card/50 backdrop-blur-xl border border-border/40 shadow-2xl rounded-[2rem] p-6 md:p-10 sticky top-24">
-        
-        <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-foreground">
-          Order Summary
-        </h2>
-
-        <div className="space-y-5 mb-8">
-          {items.map((item: CartItem) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-4"
-            >
-              <div className="relative w-16 h-16 rounded-xl border border-border/40 bg-muted/30 flex items-center justify-center shrink-0 shadow-sm">
-                 {item.image ? (
-                    <img src={item.image} className="w-full h-full object-cover rounded-xl" alt={item.title} />
-                 ) : (
-                    <ShoppingBag className="w-6 h-6 text-muted-foreground opacity-30" />
-                 )}
-                 <span className="absolute -top-2 -right-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-foreground text-[11px] font-bold text-background shadow-sm z-10">
-                    {item.quantity}
-                 </span>
-              </div>
-
-              <div className="flex-1 min-w-0 pr-4">
-                <h4 className="font-semibold text-foreground text-sm truncate">
-                  {item.title}
-                </h4>
-                {item.variant && (
-                  <p className="text-xs text-muted-foreground truncate mt-1">
-                    {item.variant}
-                  </p>
-                )}
-              </div>
-              
-              <div className="font-semibold text-foreground shrink-0 text-right">
-                ${(item.price * item.quantity).toFixed(2)}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="border-t border-border/50 pt-5 space-y-3">
-          <div className="flex justify-between text-muted-foreground text-sm font-medium">
-            <span>Subtotal</span>
-            <span>${total.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between font-black text-2xl pt-4 border-t border-border/50 mt-4 text-foreground items-end">
-            <span className="text-lg">Total</span>
-            <span className="text-primary">${total.toFixed(2)}</span>
-          </div>
+      {/* RIGHT COLUMN: PASSIVE SUMMARY (Desktop Only) */}
+      <div className="hidden lg:block w-[45%] xl:w-[42%] bg-[#F9FAFB] border-l border-gray-200 px-6 py-12 lg:p-12 xl:pl-16">
+        <div className="w-full max-w-md sticky top-12">
+           <OrderSummaryContent items={items} total={total} />
         </div>
       </div>
 

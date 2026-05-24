@@ -145,7 +145,7 @@ const defaultCheckoutTemplate = {
     {
       id: "checkout_address",
       label: "Street Address",
-      type: "textarea",
+      type: "text",
       required: false,
       width: "full",
       locked: true,
@@ -156,7 +156,7 @@ const defaultCheckoutTemplate = {
       label: "City",
       type: "text",
       required: false,
-      width: "half",
+      width: "third",
       locked: true,
       enabled: true,
     },
@@ -165,16 +165,17 @@ const defaultCheckoutTemplate = {
       label: "Zip / Postal Code",
       type: "text",
       required: false,
-      width: "half",
+      width: "third",
       locked: true,
       enabled: true,
     },
     {
       id: "checkout_country",
       label: "Country",
-      type: "text",
-      required: false,
-      width: "full",
+      type: "select",
+      options: "United States, Canada, United Kingdom, Australia, New Zealand, Ireland, Germany, France, Spain, Italy, Netherlands, Morocco, United Arab Emirates, Saudi Arabia",
+      required: true,
+      width: "third",
       locked: true,
       enabled: true,
     },
@@ -344,6 +345,7 @@ const SortableFormField = ({ field, idx, updateField, removeField }: any) => {
                 <SelectContent>
                   <SelectItem value="full">Full Width</SelectItem>
                   <SelectItem value="half">Half (50%)</SelectItem>
+                  <SelectItem value="third">One Third (33%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -1418,12 +1418,12 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                         <h4 className="text-xs font-bold uppercase tracking-widest text-white/70 flex items-center gap-2">
                           <User size={14} /> Your Details
                         </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 sm:gap-5">
                           {formTemplate?.fields ? (
                             formTemplate.fields
                               .filter((f: any) => f.enabled !== false) // 🚀 FIX: Hides disabled fields!
                               .map((field: any, idx: number) => {
-                                const isHalf = field.width === "half";
+                                const widthClass = field.width === "third" ? "sm:col-span-2" : field.width === "half" ? "sm:col-span-3" : "sm:col-span-6";
                                 const fieldOptions = parseOptions(
                                   field.options
                                 );
@@ -1432,9 +1432,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                     key={idx}
                                     className={cn(
                                       "space-y-2",
-                                      isHalf
-                                        ? "col-span-1"
-                                        : "col-span-1 sm:col-span-2"
+                                      "col-span-1", widthClass
                                     )}
                                   >
                                     <Label className="text-neutral-400 flex items-center gap-2 text-xs uppercase tracking-widest font-bold ml-1">

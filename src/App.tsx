@@ -71,6 +71,9 @@ import LeadsPage from "./pages/dashboard/LeadsPage.tsx";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import CollectionsPage from "./pages/dashboard/CollectionsPage";
+import ShippingRatesPage from "./pages/dashboard/ShippingRatesPage";
+import CouponsPage from "./pages/dashboard/CouponsPage";
+import FormsPage from "./pages/dashboard/FormsPage";
 
 // --- E-COMMERCE PUBLIC PAGES ---
 import PublicProductPage from "./pages/PublicProductPage";
@@ -291,6 +294,9 @@ function App() {
                       <Route path="settings" element={<SettingsPage />} />
                       <Route path="products" element={<ProductsPage />} />
                       <Route path="collections" element={<CollectionsPage />} />
+                      <Route path="shipping" element={<ShippingRatesPage />} />
+                      <Route path="coupons" element={<CouponsPage />} />
+                      <Route path="forms" element={<FormsPage />} />
                       <Route path="payments" element={<PaymentsPage />} />
                       <Route path="studio" element={<ThemeStudioPage />} />
                       <Route

@@ -171,7 +171,11 @@ const LeadForm: React.FC<any> = ({
     >
       <div className="flex flex-wrap gap-5">
         {fields.map((field: any, idx: number) => {
-          const isHalf = field.width === "half";
+          const widthClass = field.width === "third"
+            ? "basis-[calc(33.33%-1.25rem)] min-w-[160px]"
+            : field.width === "half"
+            ? "basis-[calc(50%-1.25rem)] min-w-[240px]"
+            : "basis-full w-full";
           const fieldOptions = parseOptions(field.options);
 
           return (
@@ -179,9 +183,7 @@ const LeadForm: React.FC<any> = ({
               key={idx}
               className={cn(
                 "space-y-2.5 flex-grow",
-                isHalf
-                  ? "basis-[calc(50%-1.25rem)] min-w-[240px]"
-                  : "basis-full w-full"
+                widthClass
               )}
             >
               <Label className="text-neutral-400 flex items-center gap-2 text-xs uppercase tracking-widest font-bold ml-1">

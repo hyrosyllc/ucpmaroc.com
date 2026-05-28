@@ -2,12 +2,14 @@
 
 import { PortfolioThemeDefinition } from "./types";
 import { ModernTheme } from "./modern";
+import { ModernBrightTheme } from "./modern-bright";
 import { CinematicTheme } from "./cinematic";
 import { CupertinoTheme } from "./cupertino";
 
 // 1. Existing Theme Map
 export const THEME_REGISTRY: Record<string, PortfolioThemeDefinition> = {
   modern: ModernTheme,
+  modern_bright: ModernBrightTheme,
   cinematic: CinematicTheme,
   cupertino: CupertinoTheme,
 };

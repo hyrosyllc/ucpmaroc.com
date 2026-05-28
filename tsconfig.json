@@ -29,5 +29,5 @@
         }
     /* --- END OF ADDITION --- */
   },
-  "include": ["src"]
+  "include": ["src", "supabase/functions/abandoned-cart-recovery/index.ts"]
 }

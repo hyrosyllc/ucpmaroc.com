@@ -9,11 +9,14 @@ export interface CartItem {
   quantity: number;
   variant?: string;
   storeId?: string;
+  productType?: string;
+  collectionId?: string;
 }
 
 interface CartState {
   items: CartItem[];
   isOpen: boolean; // Controls UI visibility
+  coupon: any | null; // 🚀 ADD COUPON STATE
   openCart: () => void;
   closeCart: () => void;
   addItem: (item: CartItem) => void;
@@ -22,6 +25,9 @@ interface CartState {
   clearCart: () => void;
   getCartTotal: () => number;
   getCartCount: () => number;
+  applyCoupon: (coupon: any) => void;
+  removeCoupon: () => void;
+  getCartDiscount: () => number;
 }
 
 export const useCartStore = create<CartState>()(
@@ -29,6 +35,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       isOpen: false,
+      coupon: null,
 
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
@@ -70,12 +77,47 @@ export const useCartStore = create<CartState>()(
           ),
         })),
 
-      clearCart: () => set({ items: [], isOpen: false }),
-      getCartTotal: () =>
-        get().items.reduce(
-          (total, item) => total + item.price * item.quantity,
-          0
-        ),
+      clearCart: () => set({ items: [], isOpen: false, coupon: null }),
+      
+      applyCoupon: (coupon) => set({ coupon }),
+      removeCoupon: () => set({ coupon: null }),
+      
+      getCartDiscount: () => {
+        const state = get();
+        if (!state.coupon) return 0;
+        
+        const subtotal = state.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        
+        if (state.coupon.min_order_amount_cents && (subtotal * 100) < state.coupon.min_order_amount_cents) {
+          return 0; // Does not meet minimum order value
+        }
+
+        let eligibleSubtotal = 0;
+        if (state.coupon.applies_to === 'all' || !state.coupon.applies_to) {
+          eligibleSubtotal = subtotal;
+        } else {
+          const targetIds = state.coupon.target_ids || [];
+          eligibleSubtotal = state.items.reduce((sum, item) => {
+            let isEligible = false;
+            if (state.coupon.applies_to === 'products' && targetIds.includes(item.id)) isEligible = true;
+            if (state.coupon.applies_to === 'collections' && item.collectionId && targetIds.includes(item.collectionId)) isEligible = true;
+            if (state.coupon.applies_to === 'types' && item.productType && targetIds.includes(item.productType)) isEligible = true;
+            return sum + (isEligible ? item.price * item.quantity : 0);
+          }, 0);
+        }
+
+        if (eligibleSubtotal === 0) return 0; // No eligible items for this coupon
+
+        if (state.coupon.type === 'percentage') return eligibleSubtotal * (state.coupon.value_amount / 100);
+        if (state.coupon.type === 'fixed') return Math.min(eligibleSubtotal, state.coupon.value_amount / 100);
+        return 0;
+      },
+
+      getCartTotal: () => {
+        const subtotal = get().items.reduce((total, item) => total + item.price * item.quantity, 0);
+        const discount = get().getCartDiscount();
+        return Math.max(0, subtotal - discount);
+      },
       getCartCount: () =>
         get().items.reduce((count, item) => count + item.quantity, 0),
     }),

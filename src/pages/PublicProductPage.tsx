@@ -193,6 +193,8 @@ export default function PublicProductPage() {
         quantity,
         variant: variantString || "default",
         storeId: portfolioId || undefined,
+        productType: product.product_type,
+        collectionId: product.collection_id,
       });
       return;
     }

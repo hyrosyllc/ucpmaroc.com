@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useOutletContext, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { useOutletContext, useNavigate, Link } from "react-router-dom";
 import { useCartStore, type CartItem } from "@/store/useCartStore";
 import { supabase } from "../supabaseClient"; // Adjust path if needed
 import { loadStripe } from "@stripe/stripe-js";
@@ -9,7 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User, AlertCircle, ChevronRight } from "lucide-react";
+import { Loader2, Lock, ShoppingBag, CheckCircle2, Mail, Phone, MessageSquare, Calendar, User, AlertCircle, ChevronLeft, Landmark, Bitcoin, Package, ShoppingCart, ChevronUp, ChevronDown, Tag, Truck, Edit2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,8 +20,99 @@ const stripePromise = loadStripe(
     "pk_test_YOUR_STRIPE_PUBLIC_KEY"
 );
 
-// --- THE STRIPE FORM COMPONENT ---
-const CheckoutForm = ({
+const getFieldIcon = (type: string) => {
+  switch (type) {
+    case "email": return <Mail size={14} />;
+    case "tel": return <Phone size={14} />;
+    case "textarea": return <MessageSquare size={14} />;
+    case "date": return <Calendar size={14} />;
+    default: return <User size={14} />;
+  }
+};
+
+const parseOptions = (optString?: string) => {
+  if (!optString) return [];
+  return optString.split(",").map((s) => s.trim()).filter(Boolean);
+};
+
+// --- STEP 1: CONTACT & SHIPPING FORM ---
+const ContactShippingForm = ({ formTemplate, formValues, setFormValues, isLoadingForm, allowedCountries, onSubmit }: any) => {
+  return (
+    <form onSubmit={onSubmit} className="space-y-8 animate-in fade-in duration-500 w-full">
+      <div className="space-y-6">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold tracking-tight text-white">Contact & Shipping</h2>
+          <p className="text-sm text-neutral-400 mt-1">Where should we send your order?</p>
+        </div>
+        {isLoadingForm ? (
+          <div className="flex items-center justify-center py-6"><Loader2 className="animate-spin text-primary" /></div>
+        ) : formTemplate?.fields ? (
+          <div className="grid grid-cols-1 sm:grid-cols-6 gap-x-4 gap-y-4">
+            {formTemplate.fields.filter((f: any) => f.enabled !== false).map((field: any, idx: number) => {
+              const widthClass = field.width === "third" ? "sm:col-span-2" : field.width === "half" ? "sm:col-span-3" : "sm:col-span-6";
+              let fieldOptions = parseOptions(field.options);
+              if (field.id === "checkout_country" && allowedCountries?.length > 0) {
+                fieldOptions = allowedCountries;
+              }
+              return (
+                <div key={idx} className={cn("space-y-2 col-span-1", widthClass)}>
+                  <label className="text-sm font-medium text-neutral-300 flex items-center gap-1.5">
+                     {field.label} {field.required && <span className="text-primary">*</span>}
+                  </label>
+                  {field.type === "textarea" ? (
+                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 min-h-[100px] resize-none rounded-md p-3 border-white/10 shadow-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent text-white transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                  ) : field.type === "select" ? (
+                    <select required={field.required} className="w-full bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 border border-white/10 text-white h-11 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
+                      <option value="" disabled>Select...</option>
+                      {fieldOptions.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : field.type === "radio" ? (
+                    <div className="flex flex-col gap-2">
+                      {fieldOptions.map((opt: string, i: number) => (
+                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-3 rounded-md border border-white/10 bg-neutral-900 shadow-sm hover:border-white/30 transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary">
+                          <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 group-hover:border-primary bg-neutral-800"><input type="radio" name={field.id} value={opt} required={field.required} checked={formValues[field.id] === opt} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} /><div className="w-2 h-2 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" /></div>
+                          <span className="text-white text-sm font-medium">{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Full Name</label><Input required placeholder="Jane Doe" value={formValues.name || ""} onChange={(e) => setFormValues({ ...formValues, name: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Email Address</label><Input required type="email" placeholder="jane@example.com" value={formValues.email || ""} onChange={(e) => setFormValues({ ...formValues, email: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Phone (Optional)</label><Input type="tel" placeholder="+1 234 567 890" value={formValues.phone || ""} onChange={(e) => setFormValues({ ...formValues, phone: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+            </div>
+            <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Street Address</label><Input placeholder="123 Main St" value={formValues.address || ""} onChange={(e) => setFormValues({ ...formValues, address: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">City</label><Input placeholder="City" value={formValues.city || ""} onChange={(e) => setFormValues({ ...formValues, city: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Zip / Postal Code</label><Input placeholder="Zip" value={formValues.zip || ""} onChange={(e) => setFormValues({ ...formValues, zip: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-300">Country</label>
+              <select className="w-full bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 border border-white/10 text-white h-11 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm" value={formValues.country || ""} onChange={(e) => setFormValues({ ...formValues, country: e.target.value })}>
+                <option value="" disabled>Select Country</option>
+                {(allowedCountries?.length > 0 ? allowedCountries : ["United States", "United Kingdom", "Canada", "Morocco", "France", "Spain", "Other"]).map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="pt-4">
+        <Button type="submit" className="w-full h-14 text-lg rounded-md shadow-sm transition-all bg-primary text-primary-foreground hover:brightness-110">Continue to Payment</Button>
+      </div>
+    </form>
+  );
+};
+
+// --- STEP 2: THE STRIPE PAYMENT COMPONENT ---
+const PaymentForm = ({
   amount,
   portfolioId,
   actorId,
@@ -29,14 +120,32 @@ const CheckoutForm = ({
   onComplete,
   formTemplate,
   formValues,
-  setFormValues,
-  isLoadingForm,
+  clientSecret,
+  paymentConfig,
+  coupon,
+  discount,
+  stripe,
+  elements,
+  isFreeOrder,
+  shippingCost,
+  selectedShippingRate
 }: any) => {
-  const stripe = useStripe();
-  const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("card");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cod" | "bank" | "crypto" | "free">("card");
+
+  // Fallback selector if Card isn't available
+  useEffect(() => {
+    if (isFreeOrder) {
+      setPaymentMethod("free");
+    } else if (!clientSecret) {
+      if (paymentConfig?.cod?.enabled ?? true) setPaymentMethod("cod");
+      else if (paymentConfig?.bank?.enabled) setPaymentMethod("bank");
+      else if (paymentConfig?.crypto?.enabled) setPaymentMethod("crypto");
+    } else {
+      setPaymentMethod("card");
+    }
+  }, [clientSecret, paymentConfig, isFreeOrder]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,8 +171,14 @@ const CheckoutForm = ({
 
     const name = getFieldVal(["name", "first", "last"]) || formValues.name;
     const email = getFieldVal(["email", "mail"]) || formValues.email;
-    const phone = getFieldVal(["phone", "tel", "mobile"]) || "";
-    const address = getFieldVal(["address", "shipping", "street", "city", "zip"], ["email"]) || "";
+    const phone = getFieldVal(["phone", "tel", "mobile"]) || formValues.phone || "";
+    
+    const addressField = getFieldVal(["address", "shipping", "street"], ["email"]) || formValues.address;
+    const city = getFieldVal(["city"]) || formValues.city;
+    const zip = getFieldVal(["zip", "postal"]) || formValues.zip;
+    const country = getFieldVal(["country"]) || formValues.country;
+
+    const address = [addressField, city, zip, country].filter(Boolean).join(", ");
 
     if (!name || !email) {
        setErrorMessage("Name and email are required for order processing.");
@@ -71,41 +186,9 @@ const CheckoutForm = ({
        return;
     }
 
-    let paymentIntentId = "cod_" + Date.now();
+    let paymentIntentId = isFreeOrder ? `free_${Date.now()}` : (paymentMethod === "card" ? clientSecret?.split('_secret_')[0] : `${paymentMethod}_${Date.now()}`);
 
-    if (paymentMethod === "card") {
-      if (!stripe || !elements) {
-        setIsProcessing(false);
-        return;
-      }
-      
-      // 1. Confirm the payment with Stripe
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        redirect: "if_required", // Do not automatically redirect; we need to save the order first
-        confirmParams: {
-          payment_method_data: {
-            billing_details: { name, email, phone: phone || undefined },
-          },
-        },
-      });
-
-      if (error) {
-        setErrorMessage(error.message || "Payment failed.");
-        setIsProcessing(false);
-        return;
-      }
-      
-      if (paymentIntent && paymentIntent.status === "succeeded") {
-        paymentIntentId = paymentIntent.id;
-      } else {
-        setErrorMessage("Payment was not successful.");
-        setIsProcessing(false);
-        return;
-      }
-    }
-
-    // 2. Record the order in Supabase
+    // 1. Record the order in Supabase FIRST as "pending"
     let notesText = "";
     if (formTemplate) {
       notesText = Object.entries(formValues).map(([k, v]) => {
@@ -114,7 +197,12 @@ const CheckoutForm = ({
         return `${label}: ${v}`;
       }).join("\n");
     } else {
-      notesText = `Email: ${email}`;
+      notesText = `Name: ${name}\nEmail: ${email}`;
+      if (phone) notesText += `\nPhone: ${phone}`;
+      if (addressField) notesText += `\nAddress: ${addressField}`;
+      if (city) notesText += `\nCity: ${city}`;
+      if (zip) notesText += `\nZip: ${zip}`;
+      if (country) notesText += `\nCountry: ${country}`;
     }
 
     // Format for Orders Dashboard Compatibility
@@ -133,9 +221,22 @@ const CheckoutForm = ({
        const cartSummary = items.map((item: any) => `- ${item.quantity}x ${item.title} (${item.variant || 'Default'})`).join('\n');
        notesText = notesText ? `Cart Items:\n${cartSummary}\n\nForm Details:\n${notesText}` : `Cart Items:\n${cartSummary}`;
     }
+
+    if (coupon && discount > 0) {
+       notesText = `Coupon Applied: ${coupon.code} (-$${discount.toFixed(2)})\n${notesText}`;
+    }
+
+    if (selectedShippingRate) {
+       notesText = `Shipping: ${selectedShippingRate.name} (${shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`})\n${notesText}`;
+    }
     
-    if (paymentMethod === "card" && paymentIntentId) {
-      notesText += `\nPayment Intent: ${paymentIntentId}`;
+    if (paymentMethod !== "card") {
+      notesText += `\nPayment Method: ${paymentMethod.toUpperCase()}`;
+      if (paymentMethod === "bank") {
+        notesText += `\nBank Name: ${paymentConfig?.bank?.name || "N/A"}\nAccount Holder: ${paymentConfig?.bank?.holder || "N/A"}\nIBAN: ${paymentConfig?.bank?.iban || "N/A"}`;
+      }
+    } else if (paymentIntentId && !isFreeOrder) {
+       notesText += `\nPayment Intent: ${paymentIntentId}`;
     }
     
     const { data: dbData, error: dbError } = await supabase.from("pro_orders").insert({
@@ -148,174 +249,190 @@ const CheckoutForm = ({
       product_price: productPrice,
       quantity: qty,
       variants: variants,
-      status: paymentMethod === "cod" ? "pending" : "paid",
+      // IMPROVEMENT: Store structured data
+      amount_cents: Math.round(amount * 100),
+      items: items,
+      stripe_payment_intent_id: paymentIntentId,
+      status: "pending",
       notes: notesText || undefined
     }).select().single();
 
     if (dbError) {
       console.error("Failed to save order to DB:", dbError);
-      // Depending on your architecture, you might want to alert an admin here
+      setErrorMessage("Failed to initialize your order. Please try again.");
+      setIsProcessing(false);
+      return; 
     }
+
+    // 1.5. Inventory Management for Manual Payments (COD/Bank/Crypto)
+    // Since Stripe payments use the webhook, we deduct stock manually here for the others
+    if (paymentMethod !== "card" || isFreeOrder) {
+      for (const item of items) {
+        await supabase.rpc('decrement_stock', {
+          p_product_id: item.id,
+          p_quantity: item.quantity
+        });
+      }
+    }
+
+    // 2. Now that it's safe in the database, confirm the payment with Stripe!
+    if (paymentMethod === "card" && !isFreeOrder) {
+      if (!stripe || !elements) {
+        setIsProcessing(false);
+        return;
+      }
+      
+      const { error } = await stripe.confirmPayment({
+        elements,
+        redirect: "if_required",
+        confirmParams: {
+          payment_method_data: {
+            billing_details: { name, email, phone: phone || undefined },
+          },
+        },
+      });
+
+      if (error) {
+        setErrorMessage(error.message || "Payment failed. You have not been charged.");
+        setIsProcessing(false);
+        return;
+      }
+    }
+
     onComplete(dbData?.id); // Trigger the success screen, pass ID, and clear cart
   };
 
-  const getFieldIcon = (type: string) => {
-    switch (type) {
-      case "email": return <Mail size={14} />;
-      case "tel": return <Phone size={14} />;
-      case "textarea": return <MessageSquare size={14} />;
-      case "date": return <Calendar size={14} />;
-      default: return <User size={14} />;
-    }
-  };
-
-  const parseOptions = (optString?: string) => {
-    if (!optString) return [];
-    return optString.split(",").map((s) => s.trim()).filter(Boolean);
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-10 animate-in fade-in duration-500">
-      
-      {/* CONTACT INFO SECTION */}
-      <div className="space-y-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Contact Information</h2>
-          <p className="text-sm text-muted-foreground mt-1">We'll use this to send your order updates and receipt.</p>
-        </div>
-
-        {isLoadingForm ? (
-          <div className="flex items-center justify-center py-6"><Loader2 className="animate-spin text-primary" /></div>
-        ) : formTemplate?.fields ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
-            {formTemplate.fields.filter((f: any) => f.enabled !== false).map((field: any, idx: number) => {
-              const isHalf = field.width === "half";
-              const fieldOptions = parseOptions(field.options);
-              return (
-                <div key={idx} className={cn("space-y-2", isHalf ? "col-span-1" : "col-span-1 sm:col-span-2")}>
-                  <label className="text-sm font-semibold text-foreground flex items-center gap-1.5 ml-1">
-                     {field.label} {field.required && <span className="text-primary">*</span>}
-                  </label>
-                  {field.type === "textarea" ? (
-                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-muted/20 hover:bg-muted/40 focus:bg-background min-h-[100px] resize-none rounded-xl p-4 border-border/40 shadow-sm focus-visible:ring-primary/20 focus-visible:border-primary/50 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
-                  ) : field.type === "select" ? (
-                    <select required={field.required} className="w-full bg-muted/20 hover:bg-muted/40 focus:bg-background border border-border/40 text-foreground h-12 rounded-xl px-3 text-sm appearance-none outline-none focus:ring-4 focus:ring-primary/20 focus:border-primary/50 transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
-                      <option value="" disabled>Select...</option>
-                      {fieldOptions.map((opt: string, i: number) => (
-                        <option key={i} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  ) : field.type === "radio" ? (
-                    <div className="flex flex-col gap-2 pt-1">
-                      {fieldOptions.map((opt: string, i: number) => (
-                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border border-border/40 bg-muted/10 shadow-sm hover:bg-muted/30 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30">
-                          <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 group-hover:border-primary bg-background">
-                            <input type="radio" name={field.id} value={opt} required={field.required} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
-                            <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
-                          </div>
-                          <span className="text-foreground text-sm font-medium">{opt}</span>
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1 text-foreground">
-                Full Name
-              </label>
-              <Input
-                required
-                placeholder="Jane Doe"
-                value={formValues.name || ""}
-                onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
-                className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold ml-1 text-foreground">
-                Email Address
-              </label>
-              <Input
-                required
-                type="email"
-                placeholder="jane@example.com"
-                value={formValues.email || ""}
-                onChange={(e) => setFormValues({ ...formValues, email: e.target.value })}
-                className="bg-muted/20 hover:bg-muted/40 focus:bg-background h-12 rounded-xl border-border/40 shadow-sm focus:border-primary/50 focus:ring-4 focus:ring-primary/20 transition-all"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
+    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in duration-500 w-full">
       {/* PAYMENT SECURE SECTION */}
-      <div className="space-y-6 pt-8 border-t border-border/40">
+      <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Payment Method</h2>
-          <p className="text-sm text-muted-foreground mt-1">Select how you want to pay for your order.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-white">Payment</h2>
+          <p className="text-sm text-neutral-400 mt-1">
+            {isFreeOrder ? "No payment required for this order." : "All transactions are secure and encrypted."}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label
-            className={cn(
-              "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-              paymentMethod === "card"
-                ? "border-primary bg-primary/5 shadow-md"
-                : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-            )}
-            onClick={() => setPaymentMethod("card")}
-          >
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
-              </div>
-              <span className="font-semibold text-foreground">Credit Card</span>
+        <div className="border border-white/10 bg-neutral-900 rounded-md overflow-hidden shadow-sm">
+          {isFreeOrder ? (
+            <div className="p-6 bg-neutral-900/50 text-center text-sm text-neutral-400">
+              Your order total is $0.00. No payment is required.
             </div>
-            <p className="text-sm text-muted-foreground ml-7">Secure encrypted payment via Stripe.</p>
-          </label>
+          ) : (
+            <>
+              {clientSecret && (
+                <>
+                  <label
+                    className={cn(
+                      "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                      paymentMethod === "card" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                    )}
+                    onClick={() => setPaymentMethod("card")}
+                  >
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                      <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                    </div>
+                    <span className="font-medium text-white text-sm">Credit card</span>
+                  </label>
+                  {paymentMethod === "card" && (
+                    <div className="p-4 bg-neutral-900/50 border-b border-white/10">
+                      <PaymentElement />
+                    </div>
+                  )}
+                </>
+              )}
 
-          <label
-            className={cn(
-              "flex flex-col items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-              paymentMethod === "cod"
-                ? "border-primary bg-primary/5 shadow-md"
-                : "border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-primary/50"
-            )}
-            onClick={() => setPaymentMethod("cod")}
-          >
-            <div className="flex items-center gap-2">
-              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/60 bg-background">
-                <div className={cn("w-2.5 h-2.5 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
-              </div>
-              <span className="font-semibold text-foreground">Cash on Delivery</span>
-            </div>
-            <p className="text-sm text-muted-foreground ml-7">Pay in cash when your order arrives.</p>
-          </label>
+              {(paymentConfig?.cod?.enabled ?? true) && (
+                <>
+                  {clientSecret && <div className="h-px bg-white/10 w-full" />}
+                  <label
+                    className={cn(
+                      "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                      paymentMethod === "cod" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                    )}
+                    onClick={() => setPaymentMethod("cod")}
+                  >
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                      <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                    </div>
+                    <span className="font-medium text-white text-sm">Cash on Delivery</span>
+                  </label>
+                  {paymentMethod === "cod" && (
+                    <div className="p-6 bg-neutral-900/50 border-b border-white/10 text-center text-sm text-neutral-400">
+                      You will pay for your order upon delivery.
+                    </div>
+                  )}
+                </>
+              )}
+
+
+              {paymentConfig?.bank?.enabled && (
+                <>
+                  <div className="h-px bg-white/10 w-full" />
+                  <label
+                    className={cn(
+                      "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                      paymentMethod === "bank" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                    )}
+                    onClick={() => setPaymentMethod("bank")}
+                  >
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                      <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "bank" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+
+                    </div>
+                    <span className="font-medium text-white text-sm">Bank Transfer</span>
+                  </label>
+                  {paymentMethod === "bank" && (
+                    <div className="p-6 bg-neutral-900/50 border-b border-white/10">
+                      <p className="text-sm font-medium text-white mb-3 text-center">Transfer the total amount to:</p>
+                      <div className="space-y-2 text-sm text-neutral-300 bg-neutral-900 p-4 rounded-md border border-white/10 shadow-sm">
+                        <div className="flex justify-between"><span className="text-neutral-500">Bank</span><span className="font-medium text-white">{paymentConfig?.bank?.name || "N/A"}</span></div>
+                        <div className="flex justify-between"><span className="text-neutral-500">Account Holder</span><span className="font-medium text-white">{paymentConfig?.bank?.holder || "N/A"}</span></div>
+                        <div className="flex justify-between"><span className="text-neutral-500">IBAN/Account No</span><span className="font-medium text-white break-all text-right">{paymentConfig?.bank?.iban || "N/A"}</span></div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {paymentConfig?.crypto?.enabled && (
+                <>
+                  <div className="h-px bg-white/10 w-full" />
+                  <label
+                    className={cn(
+                      "flex items-center gap-3 p-4 cursor-pointer transition-colors",
+                      paymentMethod === "crypto" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                    )}
+                    onClick={() => setPaymentMethod("crypto")}
+                  >
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                      <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "crypto" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+
+                    </div>
+                    <span className="font-medium text-white text-sm">Crypto (USDC/SOL)</span>
+                  </label>
+                  {paymentMethod === "crypto" && (
+                    <div className="p-6 bg-neutral-900/50 border-b border-white/10">
+                      <p className="text-sm font-medium text-white mb-3 text-center flex items-center justify-center gap-2">
+                         Send USDC or SOL to:
+                      </p>
+                      <div className="text-sm text-neutral-300 bg-neutral-900 p-4 rounded-md border border-white/10 shadow-sm break-all text-center font-mono font-bold text-primary">
+                        {paymentConfig?.crypto?.wallet || "N/A"}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </div>
 
-        {paymentMethod === "card" && (
-          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
-            <PaymentElement />
-          </div>
-        )}
         
-        {paymentMethod === "cod" && (
-          <div className="p-5 rounded-2xl border border-border/40 bg-card/50 shadow-sm animate-in fade-in zoom-in-95">
-            <p className="text-sm text-foreground">You will pay for your order upon delivery. No payment details required now.</p>
-          </div>
-        )}
       </div>
 
       {/* ERROR HANDLER */}
       {errorMessage && (
-        <div className="p-4 bg-destructive/10 text-destructive rounded-xl text-sm border border-destructive/20 flex items-start gap-3 animate-in fade-in duration-300">
+        <div className="p-4 bg-red-500/10 text-red-400 rounded-md text-sm border border-red-500/20 flex items-start gap-3 animate-in fade-in duration-300">
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <span className="font-medium leading-relaxed">{errorMessage}</span>
         </div>
@@ -324,28 +441,135 @@ const CheckoutForm = ({
       {/* SUBMIT */}
       <Button
         type="submit"
-        disabled={(paymentMethod === "card" && (!stripe || !elements)) || isProcessing}
-        className="w-full h-14 font-bold tracking-wide text-lg rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.01] transition-all bg-primary text-primary-foreground hover:brightness-110"
+        disabled={(paymentMethod === "card" && (!stripe || !elements) && !isFreeOrder) || isProcessing}
+        className="w-full h-14 font-medium tracking-wide text-lg rounded-md shadow-sm transition-all bg-primary text-primary-foreground hover:brightness-110"
       >
         {isProcessing ? (
           <Loader2 className="animate-spin mr-2" />
-        ) : paymentMethod === "card" ? (
+        ) : paymentMethod === "card" && !isFreeOrder ? (
           <Lock size={18} className="mr-2" />
         ) : (
           <CheckCircle2 size={18} className="mr-2" />
         )}
-        {paymentMethod === "card" ? `Pay $${amount.toFixed(2)}` : "Place Order"}
+        {paymentMethod === "card" && !isFreeOrder ? `Pay $${amount.toFixed(2)}` : "Place Order"}
       </Button>
     </form>
   );
 };
 
+// --- STRIPE CHECKOUT WRAPPER ---
+const StripeCheckoutWrapper = (props: any) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  return <PaymentForm {...props} stripe={stripe} elements={elements} />;
+};
+
+
+// --- REUSABLE ORDER SUMMARY COMPONENT ---
+const OrderSummaryContent = ({ items, total, subtotal, discount, coupon, shippingCost, requiresShipping, selectedShippingRate, couponInput, setCouponInput, handleApplyCoupon, removeCoupon, isValidatingCoupon, couponError }: any) => (
+  <div className="flex flex-col h-full animate-in fade-in">
+    <div className="space-y-4 mb-6 flex-grow">
+      {items.map((item: CartItem) => (
+        <div key={item.id} className="flex items-center gap-4">
+          <div className="relative w-16 h-16 bg-neutral-900 border border-white/10 rounded-lg flex items-center justify-center shrink-0">
+            {item.image ? (
+              <img src={item.image} className="w-full h-full object-cover rounded-lg" alt={item.title} />
+            ) : (
+              <ShoppingBag className="w-6 h-6 text-neutral-600" />
+            )}
+            <span className="absolute -top-2 -right-2 bg-neutral-700/90 backdrop-blur-sm text-white text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
+              {item.quantity}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 pr-4">
+            <h4 className="font-medium text-white text-sm truncate">{item.title}</h4>
+            {item.variant && <p className="text-xs text-neutral-400 truncate mt-0.5">{item.variant}</p>}
+          </div>
+          <div className="font-medium text-white shrink-0 text-right text-sm">
+            ${(item.price * item.quantity).toFixed(2)}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <div className="border-t border-white/10 pt-5 space-y-4">
+      {/* COUPON INPUT */}
+      <div className="space-y-2">
+        {!coupon ? (
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder="Discount code"
+              value={couponInput}
+              onChange={(e) => setCouponInput(e.target.value)}
+              className="flex-1 bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-10 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all uppercase placeholder:normal-case"
+            />
+            <Button 
+              type="button"
+              variant="secondary" 
+              onClick={handleApplyCoupon} 
+              disabled={isValidatingCoupon || !couponInput.trim()} 
+              className="h-10 px-4"
+            >
+              {isValidatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-md px-3 py-2">
+            <div className="flex items-center gap-2 text-primary font-medium text-sm"><Tag size={14} /> {coupon.code}</div>
+            <button type="button" onClick={removeCoupon} className="text-primary/70 hover:text-primary transition-colors"><X size={14} /></button>
+          </div>
+        )}
+        {couponError && <p className="text-xs text-red-500 font-medium">{couponError}</p>}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex justify-between text-sm text-neutral-400">
+          <span>Subtotal</span>
+          <span className="font-medium text-white">${subtotal.toFixed(2)}</span>
+        </div>
+      {coupon && discount > 0 && (
+        <div className="flex justify-between text-sm text-primary font-medium">
+          <span className="flex items-center gap-1.5"><Tag size={14}/> {coupon.code}</span>
+          <span>-${discount.toFixed(2)}</span>
+        </div>
+      )}
+      <div className="flex justify-between text-sm text-neutral-400">
+        <span>Shipping</span>
+        {requiresShipping ? (
+          selectedShippingRate ? (
+            <span className="font-medium text-white">{shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}</span>
+          ) : (
+            <span className="text-neutral-500 text-xs">Calculated at next step</span>
+          )
+        ) : (
+          <span className="text-neutral-500 text-xs">Free</span>
+        )}
+      </div>
+      <div className="flex justify-between items-center mt-4 border-t border-white/10 pt-5">
+        <span className="text-base font-semibold text-white">Total</span>
+        <div className="flex items-end gap-2">
+          <span className="text-xs text-neutral-500 mb-1">USD</span>
+          <span className="text-2xl font-bold text-white tracking-tight">${total.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+);
+
 // --- MAIN PAGE COMPONENT ---
 const PublicCheckoutPage = () => {
   // Grab the portfolio context passed down from CheckoutLayout
   const { portfolio } = useOutletContext<{ portfolio: any }>();
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, coupon, getCartDiscount, applyCoupon, removeCoupon } = useCartStore();
   const navigate = useNavigate();
+
+  // Advanced Checkout State
+  const [checkoutStep, setCheckoutStep] = useState<1 | 2>(1);
+  const [cartProducts, setCartProducts] = useState<any[]>([]);
+  const [shippingRates, setShippingRates] = useState<any[]>([]);
+  const [selectedShippingRate, setSelectedShippingRate] = useState<any | null>(null);
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
@@ -353,6 +577,11 @@ const PublicCheckoutPage = () => {
   const [formTemplate, setFormTemplate] = useState<any>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoadingForm, setIsLoadingForm] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+
+  const [couponInput, setCouponInput] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   const MAIN_DOMAINS = [
     "ucpmaroc.com",
@@ -365,10 +594,79 @@ const PublicCheckoutPage = () => {
   const shopUrl = isCustomDomain ? '/shop' : `/pro/${portfolio.public_slug}/shop`;
   const homeUrl = isCustomDomain ? '/' : `/pro/${portfolio.public_slug}`;
 
-  const total = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const discount = getCartDiscount();
+  const total = Math.max(0, subtotal - discount);
+
+    
+  // Shipping Logic
+  const requiresShipping = cartProducts.some(p => p.requires_shipping);
+  const totalWeight = items.reduce((sum, item) => {
+    const prod = cartProducts.find(p => p.id === item.id);
+    return sum + ((prod?.weight || 0) * item.quantity);
+  }, 0);
+  
+  const userCountry = formValues.checkout_country || formValues.country || "";
+  const applicableRates = useMemo(() => {
+    if (!requiresShipping) return [];
+    return shippingRates.filter(r => {
+      const countryMatch = !r.countries || r.countries.length === 0 || r.countries.includes(userCountry);
+      if (!countryMatch) return false;
+      if (r.type === 'free_over' && r.min_order_amount_cents && (total * 100) < r.min_order_amount_cents) return false;
+      if (r.type === 'weight') {
+        if (r.min_weight && totalWeight < r.min_weight) return false;
+        if (r.max_weight && totalWeight > r.max_weight) return false;
+      }
+      return true;
+    });
+  }, [shippingRates, userCountry, total, totalWeight, requiresShipping]);
+
+  // Auto-Select Lowest Applicable Rate when entering Step 2
+  useEffect(() => {
+    if (checkoutStep === 2 && applicableRates.length > 0) {
+      if (!selectedShippingRate || !applicableRates.find(r => r.id === selectedShippingRate.id)) {
+        const lowest = [...applicableRates].sort((a,b) => (a.type === 'free_over' ? 0 : a.rate_cents) - (b.type === 'free_over' ? 0 : b.rate_cents))[0];
+        setSelectedShippingRate(lowest);
+      }
+    } else if (applicableRates.length === 0) {
+      setSelectedShippingRate(null);
+    }
+  }, [applicableRates, checkoutStep, selectedShippingRate]);
+
+  const shippingCost = selectedShippingRate ? (selectedShippingRate.type === 'free_over' ? 0 : selectedShippingRate.rate_cents / 100) : 0;
+  const finalTotal = Math.max(0, total + shippingCost);
+
+
+  const handleApplyCoupon = async () => {
+    setCouponError("");
+    if (!couponInput.trim()) return;
+    
+    setIsValidatingCoupon(true);
+    const { data, error } = await supabase
+      .from('pro_coupons')
+      .select('*')
+      .eq('code', couponInput.trim().toUpperCase())
+      .eq('is_active', true);
+    setIsValidatingCoupon(false);
+
+    if (error || !data || data.length === 0) {
+      return setCouponError("Invalid or expired coupon code.");
+    }
+
+    const storeId = items[0]?.storeId || null;
+    const validCoupon = data.find((c: any) => !c.portfolio_id || c.portfolio_id === storeId);
+
+    if (!validCoupon) return setCouponError("This coupon is not valid for this store.");
+
+    const now = new Date();
+    if (validCoupon.start_date && new Date(validCoupon.start_date) > now) return setCouponError("This coupon is not active yet.");
+    if (validCoupon.end_date && new Date(validCoupon.end_date) < now) return setCouponError("This coupon has expired.");
+    if (validCoupon.usage_limit && validCoupon.times_used >= validCoupon.usage_limit) return setCouponError("This coupon has reached its usage limit.");
+    if (validCoupon.min_order_amount_cents && (subtotal * 100) < validCoupon.min_order_amount_cents) return setCouponError(`Order must be at least $${(validCoupon.min_order_amount_cents / 100).toFixed(2)}`);
+
+    applyCoupon(validCoupon);
+    setCouponInput("");
+  };
 
   useEffect(() => {
     // If cart is empty, bounce them back to the shop
@@ -377,49 +675,67 @@ const PublicCheckoutPage = () => {
       return;
     }
 
-    // Request the Payment Intent from your Supabase Edge Function
-    const initializeCheckout = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "create-payment-intent",
-          {
-            body: { amount: total * 100, portfolioId: portfolio.id }, // Total in cents
-          }
-        );
 
-        if (error) throw error;
-        if (data.error) throw new Error(data.error);
-        if (data.clientSecret) setClientSecret(data.clientSecret);
-      } catch (err: any) {
-        if (err.message === "SELLER_NOT_CONNECTED") {
-          setInitError(
-            "This seller is currently not accepting automated payments."
-          );
-        } else {
-          setInitError(
-            "Checkout is currently unavailable. Please try again later."
-          );
-        }
-      }
-    };
-
-    const fetchForm = async () => {
+    const fetchInitialData = async () => {
       if (items.length > 0) {
         setIsLoadingForm(true);
+                // Fetch Form
+
         const { data: prod } = await supabase.from('pro_products').select('form_id').eq('id', items[0].id).maybeSingle();
         if (prod?.form_id) {
           const { data: f } = await supabase.from('forms').select('*').eq('id', prod.form_id).maybeSingle();
           if (f) setFormTemplate(f);
         }
+                
+        // Fetch Products (for weight & shipping flags)
+        const itemIds = items.map(i => i.id);
+        const { data: prods } = await supabase.from('pro_products').select('id, weight, requires_shipping').in('id', itemIds);
+        if (prods) setCartProducts(prods);
+        
+
         setIsLoadingForm(false);
+      }
+            // Fetch Shipping Rates
+      const { data: rates } = await supabase.from('pro_shipping_rates')
+        .select('*')
+        .eq('actor_id', portfolio.actor_id)
+        .order('rate_cents', { ascending: true });
+      if (rates) {
+        setShippingRates(rates.filter(r => !r.portfolio_id || r.portfolio_id === portfolio.id));
+      }
+
+    };
+
+        if (!isSuccess) fetchInitialData();
+  }, [items, portfolio.id, portfolio.actor_id, navigate, isSuccess, shopUrl]);
+
+  // Manage Payment Intent Sync
+  useEffect(() => {
+    const initializeCheckout = async () => {
+      setClientSecret(null); // Clear previous to trigger loader
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "create-payment-intent",
+          { body: { amount: Math.round(finalTotal * 100), portfolioId: portfolio.id } }
+        );
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+        if (data.clientSecret) setClientSecret(data.clientSecret);
+      } catch (err: any) {
+        if (err.message === "SELLER_NOT_CONNECTED") {
+          setInitError("This seller is currently not accepting automated payments.");
+        } else {
+          setInitError("Checkout is currently unavailable. Please try again later.");
+        }
       }
     };
 
-    if (total > 0 && !isSuccess) {
+    if (checkoutStep === 2 && finalTotal > 0 && !isSuccess) {
       initializeCheckout();
-      fetchForm();
     }
-  }, [items, total, portfolio.id, portfolio.public_slug, navigate, isSuccess]);
+  }, [checkoutStep, finalTotal, portfolio.id, isSuccess]);
+
+
 
   const handleSuccess = (orderId?: string) => {
     setIsSuccess(true);
@@ -433,90 +749,186 @@ const PublicCheckoutPage = () => {
 
   // --- CHECKOUT VIEW ---
   return (
-    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-x-12 gap-y-12 items-start mt-4 md:mt-8 pt-8 md:pt-12 pb-12 px-4 md:px-8">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-neutral-950 font-sans text-white w-full overflow-x-hidden selection:bg-primary/20 selection:text-white">
       
-      {/* LEFT COLUMN: PAYMENT GATEWAY (Primary Focus) */}
-      <div className="w-full lg:w-[55%] xl:w-3/5 order-2 lg:order-1 pt-4 lg:pt-0">
-          {initError ? (
-            <div className="p-6 bg-destructive/10 rounded-2xl border border-destructive/20 text-center">
-              <p className="text-destructive font-semibold">{initError}</p>
-            </div>
-          ) : !clientSecret ? (
-            <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
-              <Loader2 className="w-8 h-8 animate-spin mb-4" />
-              <p>Initializing secure connection...</p>
-            </div>
-          ) : (
-            <Elements
-              stripe={stripePromise}
-              options={{ clientSecret, appearance: { theme: "stripe" } }}
-            >
-              <CheckoutForm
-                amount={total}
-                portfolioId={portfolio.id}
-                actorId={portfolio.actor_id}
-                items={items}
-                onComplete={handleSuccess}
-                formTemplate={formTemplate}
-                formValues={formValues}
-                setFormValues={setFormValues}
-                isLoadingForm={isLoadingForm}
-              />
-            </Elements>
-          )}
+      {/* MOBILE ACCORDION (Hidden on Desktop) */}
+      <div className="lg:hidden bg-neutral-900/30 border-b border-white/10 w-full pt-20 sm:pt-24">
+        <div 
+          className="flex items-center justify-between p-5 sm:px-6 cursor-pointer"
+          onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
+        >
+          <div className="flex items-center gap-2 text-primary text-sm font-medium">
+            <ShoppingCart size={18} />
+            {isSummaryExpanded ? "Hide order summary" : "Show order summary"}
+            {isSummaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+          <span className="font-semibold text-white text-lg">${finalTotal.toFixed(2)}</span>
+        </div>
+        {isSummaryExpanded && (
+          <div className="p-5 sm:px-6 border-t border-white/10 bg-neutral-900/30">
+            <OrderSummaryContent items={items} total={finalTotal} subtotal={subtotal} discount={discount} coupon={coupon} shippingCost={shippingCost} requiresShipping={requiresShipping} selectedShippingRate={selectedShippingRate} couponInput={couponInput} setCouponInput={setCouponInput} handleApplyCoupon={handleApplyCoupon} removeCoupon={removeCoupon} isValidatingCoupon={isValidatingCoupon} couponError={couponError} />
+          </div>
+        )}
       </div>
 
-      {/* RIGHT COLUMN: ORDER SUMMARY (Sticky Sidebar) */}
-      <div className="w-full lg:w-[45%] xl:w-2/5 order-1 lg:order-2 bg-card/50 backdrop-blur-xl border border-border/40 shadow-2xl rounded-[2rem] p-6 md:p-10 sticky top-24">
-        
-        <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-foreground">
-          Order Summary
-        </h2>
+      {/* LEFT COLUMN: ACTIVE FORM (White Background) */}
+      <div className="w-full lg:w-[45%] xl:w-[48%] flex justify-end bg-neutral-950 pt-6 lg:pt-32">
+        <div className="w-full max-w-2xl flex flex-col px-5 pb-8 sm:px-10 sm:pb-10 lg:px-12 lg:pb-12 xl:pr-16 lg:pl-8 mx-auto lg:mx-0">
+          
+          {/* Header Link / Logo */}
+          <div className="mb-8">
+            <Link to={shopUrl} className="inline-flex items-center text-sm font-medium text-neutral-400 hover:text-white transition-colors mb-6">
+              <ChevronLeft size={16} className="mr-1" /> Return to cart
+            </Link>
+            <h1 className="text-2xl font-semibold tracking-tight text-white">{portfolio.site_name || portfolio.public_slug}</h1>
+          </div>
 
-        <div className="space-y-5 mb-8">
-          {items.map((item: CartItem) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-4"
-            >
-              <div className="relative w-16 h-16 rounded-xl border border-border/40 bg-muted/30 flex items-center justify-center shrink-0 shadow-sm">
-                 {item.image ? (
-                    <img src={item.image} className="w-full h-full object-cover rounded-xl" alt={item.title} />
-                 ) : (
-                    <ShoppingBag className="w-6 h-6 text-muted-foreground opacity-30" />
-                 )}
-                 <span className="absolute -top-2 -right-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-foreground text-[11px] font-bold text-background shadow-sm z-10">
-                    {item.quantity}
-                 </span>
-              </div>
-
-              <div className="flex-1 min-w-0 pr-4">
-                <h4 className="font-semibold text-foreground text-sm truncate">
-                  {item.title}
-                </h4>
-                {item.variant && (
-                  <p className="text-xs text-muted-foreground truncate mt-1">
-                    {item.variant}
-                  </p>
-                )}
-              </div>
-              
-              <div className="font-semibold text-foreground shrink-0 text-right">
-                ${(item.price * item.quantity).toFixed(2)}
-              </div>
+          {initError ? (
+            <div className="p-6 bg-red-500/10 rounded-md border border-red-500/20 text-center">
+              <p className="text-red-400 font-semibold">{initError}</p>
             </div>
-          ))}
-        </div>
+          ) : checkoutStep === 1 ? (
+            <ContactShippingForm 
+              formTemplate={formTemplate}
+              formValues={formValues}
+              setFormValues={setFormValues}
+              isLoadingForm={isLoadingForm}
+              allowedCountries={portfolio?.theme_config?.allowedCountries || []}
+              onSubmit={(e: React.FormEvent) => {
+                e.preventDefault();
+                setCheckoutStep(2);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          ) : (
+            <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 w-full">
+              
+              {/* REVIEW INFORMATION */}
+              <div className="border border-white/10 rounded-md p-5 bg-neutral-900/50 shadow-sm relative group overflow-hidden">
+                 <div className="absolute right-0 top-0 h-full w-2 bg-primary/20" />
+                 <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-semibold text-sm text-white uppercase tracking-widest">Contact & Shipping</h3>
+                    <button onClick={() => setCheckoutStep(1)} className="text-xs text-primary font-bold hover:underline flex items-center gap-1"><Edit2 size={12}/> Edit</button>
+                 </div>
+                 <p className="text-sm text-white font-bold truncate mb-1">{formValues.checkout_name || formValues.name || "No name provided"}</p>
+                 <p className="text-sm text-neutral-300 font-medium truncate mb-1">{formValues.checkout_email || formValues.email || "No email provided"} • {formValues.checkout_phone || formValues.phone || "No phone provided"}</p>
+                 <p className="text-sm text-neutral-400 truncate">
+                    {[formValues.checkout_address, formValues.checkout_city, formValues.checkout_country].filter(Boolean).join(", ") || 
+                     [formValues.address, formValues.city, formValues.country].filter(Boolean).join(", ") || 
+                     "No address provided"}
+                 </p>
+              </div>
 
-        <div className="border-t border-border/50 pt-5 space-y-3">
-          <div className="flex justify-between text-muted-foreground text-sm font-medium">
-            <span>Subtotal</span>
-            <span>${total.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between font-black text-2xl pt-4 border-t border-border/50 mt-4 text-foreground items-end">
-            <span className="text-lg">Total</span>
-            <span className="text-primary">${total.toFixed(2)}</span>
-          </div>
+              {/* SHIPPING METHOD SELECTION */}
+              {requiresShipping && applicableRates.length > 0 && (
+                 <div className="space-y-4">
+                    <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2"><Truck size={20} className="text-neutral-500" /> Shipping Method</h2>
+                    <div className="space-y-3">
+                       {applicableRates.map(rate => (
+                          <label key={rate.id} className={cn("flex items-center justify-between p-4 cursor-pointer border rounded-md transition-colors", selectedShippingRate?.id === rate.id ? "border-primary bg-primary/10" : "border-white/10 hover:border-white/30 bg-neutral-900")}>
+                             <div className="flex items-center gap-3">
+                                <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                                   <input type="radio" name="shippingRate" value={rate.id} checked={selectedShippingRate?.id === rate.id} onChange={() => setSelectedShippingRate(rate)} className="peer sr-only" />
+                                   <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", selectedShippingRate?.id === rate.id ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
+                                </div>
+                                <span className="font-medium text-white text-sm">{rate.name}</span>
+                             </div>
+                             <span className="font-medium text-white text-sm">
+                                {rate.type === 'free_over' ? 'Free' : `$${(rate.rate_cents / 100).toFixed(2)}`}
+                             </span>
+                          </label>
+                       ))}
+                    </div>
+                 </div>
+              )}
+
+              {/* PAYMENT SECTION */}
+              {!clientSecret && finalTotal > 0 ? (
+                 <div className="flex flex-col items-center justify-center py-20 text-neutral-500">
+                   <Loader2 className="w-8 h-8 animate-spin mb-4" />
+                   <p>Loading secure payment...</p>
+                 </div>
+              ) : finalTotal > 0 ? (
+                <Elements
+                  stripe={stripePromise}
+                  options={{ 
+                    clientSecret, 
+                    appearance: { 
+                      theme: "night",
+                      variables: {
+                        fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
+                        borderRadius: '6px',
+                        colorBackground: '#171717',
+                        colorText: '#ffffff',
+                        colorPrimary: 'var(--primary)',
+                        colorDanger: '#ef4444',
+                        colorTextPlaceholder: '#a3a3a3',
+                        colorBorder: '#333333',
+                      },
+                      rules: {
+                        '.Input': {
+                          backgroundColor: '#171717',
+                          boxShadow: 'none',
+                          padding: '12px',
+                        },
+                        '.Input:focus': {
+                          border: '1px solid var(--primary)',
+                          boxShadow: '0 0 0 1px var(--primary)',
+                        },
+                        '.Label': {
+                          fontWeight: '500',
+                          color: '#d4d4d4',
+                          marginBottom: '4px'
+                        },
+                        '.Tab--selected': {
+                        }
+                      }
+                    } 
+                  }}
+                >
+                  <StripeCheckoutWrapper
+                    amount={finalTotal}
+                    portfolioId={portfolio.id}
+                    actorId={portfolio.actor_id}
+                    items={items}
+                    onComplete={handleSuccess}
+                    formTemplate={formTemplate}
+                    formValues={formValues}
+                    clientSecret={clientSecret}
+                    paymentConfig={portfolio?.theme_config?.payments || {}}
+                    coupon={coupon}
+                    discount={discount}
+                    shippingCost={shippingCost}
+                    selectedShippingRate={selectedShippingRate}
+                  />
+                </Elements>
+              ) : (
+                <PaymentForm
+                  amount={finalTotal}
+                  portfolioId={portfolio.id}
+                  actorId={portfolio.actor_id}
+                  items={items}
+                  onComplete={handleSuccess}
+                  formTemplate={formTemplate}
+                  formValues={formValues}
+                  clientSecret={null}
+                  paymentConfig={portfolio?.theme_config?.payments || {}}
+                  coupon={coupon}
+                  discount={discount}
+                  isFreeOrder={true}
+                  shippingCost={shippingCost}
+                  selectedShippingRate={selectedShippingRate}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: PASSIVE SUMMARY (Desktop Only) */}
+      <div className="hidden lg:block flex-1 bg-neutral-900/30 border-l border-white/10 px-6 pb-12 lg:pt-32 lg:pb-12 xl:pl-16 lg:pr-12 xl:pr-16">
+        <div className="w-full max-w-xl sticky top-32">
+           <OrderSummaryContent items={items} total={finalTotal} subtotal={subtotal} discount={discount} coupon={coupon} shippingCost={shippingCost} requiresShipping={requiresShipping} selectedShippingRate={selectedShippingRate} couponInput={couponInput} setCouponInput={setCouponInput} handleApplyCoupon={handleApplyCoupon} removeCoupon={removeCoupon} isValidatingCoupon={isValidatingCoupon} couponError={couponError} />
         </div>
       </div>
 

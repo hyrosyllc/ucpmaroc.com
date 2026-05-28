@@ -163,6 +163,14 @@ const VISUAL_THEMES = [
     globalPrice: 0,
   },
   {
+    id: "modern_bright",
+    name: "Modern Bright",
+    description: "Clean whitespace, classic layout.",
+    previewColor: "#f3f4f6",
+    sitePrice: 0,
+    globalPrice: 0,
+  },
+  {
     id: "cinematic",
     name: "Cinematic Dark",
     description: "Immersive dark mode, dramatic transitions.",
@@ -559,7 +567,7 @@ const PortfolioBuilderPage = () => {
     enabled: !!actorData?.id,
   });
 
-  const globalOwnedThemes = actorWalletData?.purchased_themes || ["modern"];
+  const globalOwnedThemes = [...(actorWalletData?.purchased_themes || ["modern"]), "modern_bright"];
   const walletBalance = actorData.wallet_balance || 0;
 
   const { data: fetchedSiteList, refetch: fetchSiteList } = useQuery({
@@ -1002,7 +1010,7 @@ const PortfolioBuilderPage = () => {
           is_published: false,
           sections: template.sections,
           theme_config: {
-            templateId: "modern",
+            templateId: template.id === "blank" ? "modern" : template.id,
             primaryColor: "violet",
             font: "sans",
             radius: 0.5,

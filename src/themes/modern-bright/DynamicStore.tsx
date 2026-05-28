@@ -16,14 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCartStore } from "@/store/useCartStore";
 // 🚀 1. IMPORT INLINE EDIT
 import { InlineEdit } from "../../components/dashboard/InlineEdit";
-
-const MAIN_DOMAINS = [
-  "ucpmaroc.com",
-  "www.ucpmaroc.com",
-  "localhost",
-  "127.0.0.1",
-  "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
-];
+import { isCustomDomain as checkIsCustomDomain } from "./utils";
 
 // --- HELPER COMPONENTS ---
 
@@ -86,18 +79,16 @@ const ProductCard = ({
         quantity: 1,
         variant: "default",
         storeId: portfolioId || undefined,
-        productType: product.product_type,
-        collectionId: product.collection_id,
       });
     }
   };
 
   return (
     <div
-      className="group relative bg-neutral-900/50 border border-white/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-300 flex flex-col h-full cursor-pointer"
+      className="group relative bg-black/5 border border-black/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-300 flex flex-col h-full cursor-pointer"
       onClick={handleCardClick}
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-black/50">
+      <div className="relative aspect-[4/3] overflow-hidden bg-white/50">
         {product.images?.[0] || product.image ? (
           <img
             src={product.images?.[0] || product.image}
@@ -112,7 +103,7 @@ const ProductCard = ({
         <div className="absolute top-3 right-3">
           <Badge
             variant="secondary"
-            className="bg-black/70 backdrop-blur-md text-white border-white/10 font-bold text-sm shadow-sm"
+            className="bg-black/70 backdrop-blur-md text-neutral-900 border-black/10 font-bold text-sm shadow-sm"
           >
             ${product.price.toFixed(2)}
           </Badge>
@@ -142,10 +133,10 @@ const ProductCard = ({
         </div>
       </div>
       <div className="p-5 flex flex-col flex-grow">
-        <h3 className="text-lg font-bold mb-1 text-white leading-tight line-clamp-1">
+        <h3 className="text-lg font-bold mb-1 text-neutral-900 leading-tight line-clamp-1">
           {product.title}
         </h3>
-        <p className="text-sm text-neutral-400 line-clamp-2 flex-grow">
+        <p className="text-sm text-neutral-600 line-clamp-2 flex-grow">
           {product.description}
         </p>
       </div>
@@ -204,16 +195,14 @@ const SpotlightLayout = ({
         quantity: 1,
         variant: "default",
         storeId: portfolioId || undefined,
-        productType: product.product_type,
-        collectionId: product.collection_id,
       });
     }
   };
 
   return (
-    <div className="bg-neutral-900/30 border border-white/10 rounded-2xl overflow-hidden md:grid md:grid-cols-2 min-h-[450px] shadow-sm">
+    <div className="bg-black/5 border border-black/10 rounded-2xl overflow-hidden md:grid md:grid-cols-2 min-h-[450px] shadow-sm">
       <div
-        className="bg-black/50 relative flex flex-col h-[300px] md:h-auto group/gallery cursor-pointer"
+        className="bg-white/50 relative flex flex-col h-[300px] md:h-auto group/gallery cursor-pointer"
         onClick={(e) => {
           if (isPreview) e.preventDefault();
           else navigate(getProductUrl());
@@ -236,7 +225,7 @@ const SpotlightLayout = ({
                         (prev) => (prev - 1 + images.length) % images.length
                       );
                     }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-opacity z-20 shadow-sm"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-black/80 text-neutral-900 p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-opacity z-20 shadow-sm"
                   >
                     <ChevronLeft size={20} />
                   </button>
@@ -245,7 +234,7 @@ const SpotlightLayout = ({
                       e.stopPropagation();
                       setActiveImg((prev) => (prev + 1) % images.length);
                     }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-opacity z-20 shadow-sm"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/50 hover:bg-black/80 text-neutral-900 p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-opacity z-20 shadow-sm"
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -264,13 +253,13 @@ const SpotlightLayout = ({
         <Badge className="bg-primary/10 text-primary hover:bg-primary/20 w-max mb-4 shadow-none">
           Featured Product
         </Badge>
-        <h3 className="text-3xl md:text-4xl font-bold text-white leading-tight mb-2">
+        <h3 className="text-3xl md:text-4xl font-bold text-neutral-900 leading-tight mb-2">
           {product.title}
         </h3>
         <p className="text-2xl text-primary font-bold mb-6">
           ${product.price.toFixed(2)}
         </p>
-        <p className="text-neutral-400 leading-relaxed mb-8 text-lg line-clamp-4">
+        <p className="text-neutral-600 leading-relaxed mb-8 text-lg line-clamp-4">
           {product.description}
         </p>
 
@@ -325,9 +314,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
       }
 
       const currentHostname = window.location.hostname;
-      const isCustomDomain = !MAIN_DOMAINS.some((domain) =>
-        currentHostname.includes(domain)
-      );
+      const isCustomDomain = checkIsCustomDomain();
 
       if (isCustomDomain) {
         const { data: portData } = await supabase
@@ -394,7 +381,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
 
   return (
     <section
-      className="py-24 px-4 md:px-8 relative overflow-hidden bg-neutral-950 text-white"
+      className="py-24 px-4 md:px-8 relative overflow-hidden bg-white text-neutral-900"
       id="store"
     >
       {/* Background Atmosphere */}
@@ -407,7 +394,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
             <InlineEdit
               tagName="h2"
-              className="text-4xl md:text-5xl font-bold tracking-tight text-white block"
+              className="text-4xl md:text-5xl font-bold tracking-tight text-neutral-900 block"
               text={data.title || "Store"}
               sectionId={id}
               fieldKey="title"
@@ -415,7 +402,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
             />
             <InlineEdit
               tagName="p"
-              className="text-lg text-neutral-400 block"
+              className="text-lg text-neutral-600 block"
               text={data.subtitle || "Browse my digital and physical products."}
               sectionId={id}
               fieldKey="subtitle"
@@ -430,12 +417,12 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
           </div>
         ) : !hasProducts && isPreview ? (
           /* 🚀 5. AAA+ EMPTY STATE UX FOR BUILDER */
-          <div className="text-center py-24 border-2 border-dashed border-white/20 rounded-3xl bg-white/5 max-w-2xl mx-auto shadow-sm">
+          <div className="text-center py-24 border-2 border-dashed border-black/20 rounded-3xl bg-black/5 max-w-2xl mx-auto shadow-sm">
             <Store className="w-12 h-12 mx-auto text-neutral-500 mb-4" />
-            <h3 className="text-xl font-bold text-white mb-2">
+            <h3 className="text-xl font-bold text-neutral-900 mb-2">
               No products found
             </h3>
-            <p className="text-neutral-400 max-w-sm mx-auto">
+            <p className="text-neutral-600 max-w-sm mx-auto">
               This block automatically syncs with your Dashboard Store. Go to
               your Dashboard's Product tab to create products.
             </p>
@@ -455,7 +442,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
                 <div className="mb-12 text-center space-y-4">
                   <InlineEdit
                     tagName="h2"
-                    className="text-4xl md:text-5xl font-bold tracking-tight text-white block"
+                    className="text-4xl md:text-5xl font-bold tracking-tight text-neutral-900 block"
                     text={data.title || "Featured Product"}
                     sectionId={id}
                     fieldKey="title"
@@ -463,7 +450,7 @@ export const DynamicStore = ({ data, actorId, isPreview, id }: any) => {
                   />
                   <InlineEdit
                     tagName="p"
-                    className="text-lg text-neutral-400 block"
+                    className="text-lg text-neutral-600 block"
                     text={data.subtitle || ""}
                     sectionId={id}
                     fieldKey="subtitle"

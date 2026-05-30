@@ -200,6 +200,7 @@ const IframePreview = ({
   customPages,
   publicSlug,
   editingSectionId,
+  portfolioId,
 }: {
   sections: PortfolioSection[];
   theme: any;
@@ -211,6 +212,7 @@ const IframePreview = ({
   customPages: any[];
   publicSlug: string;
   editingSectionId?: string | null;
+  portfolioId?: string | null;
 }) => {
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -258,7 +260,7 @@ const IframePreview = ({
       iframeRef.current.contentWindow.postMessage(
         {
           type: "UPDATE_PREVIEW",
-          payload: { sections: finalSections, themeConfig: theme, actorId },
+          payload: { sections: finalSections, themeConfig: theme, actorId, portfolioId },
         },
         "*"
       );
@@ -271,6 +273,7 @@ const IframePreview = ({
     globalSections,
     customPages,
     publicSlug,
+    portfolioId,
   ]);
 
   useEffect(() => {
@@ -2117,6 +2120,7 @@ const PortfolioBuilderPage = () => {
                 sections={sections}
                 theme={themeConfig}
                 actorId={actorData?.id || ""}
+              portfolioId={activePortfolioId}
                 onEditSection={setEditingSection}
                 updateSection={updateSection}
                 activePageId={activePageId}
@@ -2135,6 +2139,7 @@ const PortfolioBuilderPage = () => {
             sections={sections}
             theme={themeConfig}
             actorId={actorData?.id || ""}
+            portfolioId={activePortfolioId}
             onEditSection={setEditingSection}
             updateSection={updateSection}
             activePageId={activePageId}

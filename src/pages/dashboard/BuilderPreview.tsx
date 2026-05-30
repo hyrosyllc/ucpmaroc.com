@@ -58,6 +58,8 @@ function hexToHSLString(hex: string): string {
 export default function BuilderPreview() {
   const [sections, setSections] = useState<PortfolioSection[]>([]);
   const [themeConfig, setThemeConfig] = useState<any>({});
+  const [actorId, setActorId] = useState<string>("preview-mode");
+  const [portfolioId, setPortfolioId] = useState<string>("preview-mode");
 
   // 1. Establish the postMessage Bridge
   useEffect(() => {
@@ -65,6 +67,8 @@ export default function BuilderPreview() {
       if (event.data?.type === "UPDATE_PREVIEW") {
         setSections(event.data.payload.sections);
         setThemeConfig(event.data.payload.themeConfig);
+        if (event.data.payload.actorId) setActorId(event.data.payload.actorId);
+        if (event.data.payload.portfolioId) setPortfolioId(event.data.payload.portfolioId);
       } else if (event.data?.type === "SCROLL_TO_SECTION") {
         const el = document.getElementById(event.data.payload);
         if (el) {
@@ -217,8 +221,8 @@ export default function BuilderPreview() {
               id: section.id,
               allSections: sections,
               isPreview: true,
-              actorId: "preview-mode",
-              portfolioId: "preview-mode",
+              actorId: actorId,
+              portfolioId: portfolioId,
             };
 
             const zIndexClass =

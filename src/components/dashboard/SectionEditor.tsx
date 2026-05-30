@@ -1854,11 +1854,40 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 
     // 🚀 THE FIX: Look for the schema in a dedicated schemas object first!
     // This bypasses the React.lazy() trap entirely.
-    const schema =
+    let schema =
       ActiveTheme.schemas?.[componentKey] ||
       SectionComponent?.schema ||
       SectionComponent?.default?.schema ||
       [];
+
+    // 🚀 DYNAMIC STORE INJECTION: Ensures the layout settings appear in the Design tab
+    if (section.type === "dynamic_store" && (!schema || schema.length === 0)) {
+      schema = [
+        {
+          id: "variant",
+          label: "Store Layout Style",
+          type: "select",
+          defaultValue: "grid",
+          options: [
+            { value: "grid", label: "Modern Grid" },
+            { value: "bento", label: "Bento Gallery" },
+            { value: "carousel", label: "Horizontal Carousel" },
+             { value: "spotlight", label: "Spotlight (Full Product View)" },
+          ]
+        }
+      ];
+      schema.push({
+        id: "spotlightAction",
+        label: "Spotlight Action Behavior",
+        type: "select",
+        defaultValue: "inline",
+        options: [
+          { value: "inline", label: "Inline Checkout & Add to Cart" },
+          { value: "redirect", label: "Redirect to Product Page" },
+        ],
+        showIf: (settings: any) => (settings.variant || "grid") === "spotlight",
+      });
+    }
 
     if (!schema || schema.length === 0) {
       return (
@@ -3107,26 +3136,6 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Layout Style</Label>
-                  <Select
-                    value={formData.variant || "grid"}
-                    onValueChange={(val) => updateField("variant", val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="grid">Grid (Standard)</SelectItem>
-                      <SelectItem value="carousel">
-                        Carousel (Horizontal)
-                      </SelectItem>
-                      <SelectItem value="spotlight">
-                        Spotlight (Single Product)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-2">
                   <Label>Max Products</Label>
                   <Input

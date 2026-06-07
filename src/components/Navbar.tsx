@@ -99,7 +99,6 @@ const allMenuItems = [
     type: "link",
   },
   { icon: Package, label: "Packages", to: "/#packages", type: "hash" },
-  { icon: Users, label: "Team", to: "/members", type: "link" },
   { icon: Phone, label: "Contact Us", to: "/contact", type: "link" },
   { icon: Heart, label: "My Shortlist", to: "/my-shortlist", type: "link" },
 ];
@@ -113,9 +112,7 @@ const serviceDropdownItems = [
 
 const desktopNavLinks = [
   { label: "Gallery", to: "/portfolio", type: "link" as const },
-  { label: "Packages", to: "/#packages", type: "hash" as const },
   { label: "Shortlist", to: "/my-shortlist", type: "link" as const },
-  { label: "Team", to: "/members", type: "link" as const },
   { label: "Contact", to: "/contact", type: "link" as const },
 ];
 

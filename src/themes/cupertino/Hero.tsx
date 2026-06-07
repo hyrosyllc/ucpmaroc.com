@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import { UCP } from "@ucp/sdk";
-import type { HeroSectionProps } from "@/types/sections";
+import type { HeroSectionProps } from "@/features/portfolio-builder/types/sections";
 
 // 1. SCHEMA: Only adds NEW logic/styling specific to Cupertino
 export const schema = [

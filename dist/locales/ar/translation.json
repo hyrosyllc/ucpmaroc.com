@@ -1,0 +1,27 @@
+{
+  "navbar": {
+    "home": "الرئيسية",
+    "services": "الخدمات",
+    "gallery": "المعرض",
+    "packages": "الباقات",
+    "shortlist": "المفضلة",
+    "team": "الفريق",
+    "contact": "اتصل بنا",
+    "login": "تسجيل الدخول / إنشاء حساب",
+    "clientPortal": "بوابة العميل",
+    "actorPortal": "بوابة المؤدي الصوتي"
+  },
+  "auth": {
+    "createClientAccount": "إنشاء حساب عميل",
+    "clientPortal": "بوابة العميل",
+    "accessOrders": "الوصول إلى جميع طلباتك في مكان واحد.",
+    "fullName": "الاسم الكامل",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "createAccountBtn": "إنشاء حساب",
+    "logInBtn": "تسجيل الدخول",
+    "alreadyHaveAccount": "هل لديك حساب بالفعل؟ تسجيل الدخول",
+    "needAccount": "تحتاج إلى حساب؟ إنشاء حساب",
+    "orContinueWith": "أو المتابعة باستخدام"
+  }
+}

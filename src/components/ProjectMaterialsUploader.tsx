@@ -1,7 +1,7 @@
 // In src/components/ProjectMaterialsUploader.tsx
 
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";

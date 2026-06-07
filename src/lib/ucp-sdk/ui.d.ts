@@ -15,6 +15,8 @@ declare module '@/components/ui/button' {
     isLoading?: boolean;
     /** The left icon for the button. */
     icon?: React.ReactNode;
+    /** Supports rendering the button as a child component via @radix-ui/react-slot. */
+    asChild?: boolean;
   }
 
   /**

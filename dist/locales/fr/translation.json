@@ -1,0 +1,27 @@
+{
+  "navbar": {
+    "home": "Accueil",
+    "services": "Services",
+    "gallery": "Galerie",
+    "packages": "Forfaits",
+    "shortlist": "Ma sélection",
+    "team": "Équipe",
+    "contact": "Contact",
+    "login": "Connexion / S'inscrire",
+    "clientPortal": "Portail Client",
+    "actorPortal": "Portail Acteur"
+  },
+  "auth": {
+    "createClientAccount": "Créer un compte client",
+    "clientPortal": "Portail Client",
+    "accessOrders": "Accédez à toutes vos commandes en un seul endroit.",
+    "fullName": "Nom complet",
+    "email": "Email",
+    "password": "Mot de passe",
+    "createAccountBtn": "Créer le compte",
+    "logInBtn": "Se connecter",
+    "alreadyHaveAccount": "Vous avez déjà un compte ? Se connecter",
+    "needAccount": "Besoin d'un compte ? S'inscrire",
+    "orContinueWith": "Ou continuer avec"
+  }
+}

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProductLayoutProps } from "../../pages/product-layouts/types";
+import { ProductLayoutProps } from "../../features/ecommerce/product-layouts/types";
 
 export default function MinimalProductLayout({
   product,

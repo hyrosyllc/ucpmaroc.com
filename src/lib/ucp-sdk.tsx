@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { InlineEdit } from "@/components/dashboard/InlineEdit";
-import { useCartStore } from "@/store/useCartStore";
+import { useCartStore } from "@/features/ecommerce/store/useCartStore";
 
 export const UCP = {
   // ==========================================

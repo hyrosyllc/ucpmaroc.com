@@ -480,29 +480,8 @@ const MembersSection: React.FC = () => {
 
 
 
-        {/* CTA to Full Team Page */}
-
-        <div className="text-center mt-16">
-
-          <Link
-
-            to="/members" // Assuming your full members page is at /members
-
-            className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-full overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/25 inline-flex items-center justify-center"
-
-          >
-
-            <div className="relative flex items-center gap-2">
-
-              <span>See All Team Members</span>
-
-              <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform duration-300" />
-
-            </div>
-
-          </Link>
-
-        </div>
+        
+       
 
       </div>
 

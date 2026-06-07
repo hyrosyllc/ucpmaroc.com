@@ -1,6 +1,6 @@
 // src/store/useBuilderStore.ts
 import { create } from "zustand";
-import { PortfolioSection } from "../types/portfolio";
+import { PortfolioSection } from "../features/portfolio-builder/types/portfolio";
 
 interface BuilderState {
   // --- Current State ---

@@ -27,6 +27,10 @@ import {
   CheckCircle2,
   AlertCircle,
   Package,
+  Plus,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -60,9 +64,8 @@ const PaymentsPage = () => {
   // Dynamic Payment Settings State
   const [codEnabled, setCodEnabled] = useState(true);
   const [bankEnabled, setBankEnabled] = useState(false);
-  const [bankName, setBankName] = useState("");
-  const [bankHolder, setBankHolder] = useState("");
-  const [bankIban, setBankIban] = useState("");
+  const [banks, setBanks] = useState<{name: string, holder: string, iban: string}[]>([{ name: "", holder: "", iban: "" }]);
+  const [activeBankIndex, setActiveBankIndex] = useState<number | null>(0);
   const [cryptoEnabled, setCryptoEnabled] = useState(false);
   const [cryptoWallet, setCryptoWallet] = useState("");
   
@@ -122,9 +125,15 @@ const PaymentsPage = () => {
 
       setCodEnabled(pConfig.cod?.enabled ?? true);
       setBankEnabled(pConfig.bank?.enabled ?? false);
-      setBankName(pConfig.bank?.name ?? "");
-      setBankHolder(pConfig.bank?.holder ?? "");
-      setBankIban(pConfig.bank?.iban ?? "");
+      
+      let loadedBanks = [];
+      if (pConfig.bank?.accounts && Array.isArray(pConfig.bank.accounts)) {
+        loadedBanks = pConfig.bank.accounts;
+      } else if (pConfig.bank?.name) {
+        loadedBanks = [{ name: pConfig.bank.name, holder: pConfig.bank.holder, iban: pConfig.bank.iban }];
+      }
+      if (loadedBanks.length === 0) loadedBanks = [{ name: "", holder: "", iban: "" }];
+      setBanks(loadedBanks);
       
       setCryptoEnabled(pConfig.crypto?.enabled ?? false);
       setCryptoWallet(pConfig.crypto?.wallet ?? "");
@@ -188,7 +197,7 @@ const PaymentsPage = () => {
     try {
       const paymentSettings = {
         cod: { enabled: codEnabled },
-        bank: { enabled: bankEnabled, name: bankName, holder: bankHolder, iban: bankIban },
+        bank: { enabled: bankEnabled, accounts: banks.filter(b => b.name || b.holder || b.iban) },
         crypto: { enabled: cryptoEnabled, wallet: cryptoWallet }
       };
 
@@ -512,10 +521,61 @@ const PaymentsPage = () => {
               </CardDescription>
             </CardHeader>
             {bankEnabled && (
-              <CardContent className="flex-grow space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                <Input placeholder="Bank Name (e.g. Wise)" value={bankName} onChange={e => setBankName(e.target.value)} />
-                <Input placeholder="Account Holder Name" value={bankHolder} onChange={e => setBankHolder(e.target.value)} />
-                <Input placeholder="IBAN / Account Number" value={bankIban} onChange={e => setBankIban(e.target.value)} />
+              <CardContent className="flex-grow space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                {banks.map((bank, index) => {
+                  const isExpanded = activeBankIndex === index;
+                  return (
+                  <div key={index} className="space-y-0 bg-muted/30 rounded-lg border relative overflow-hidden transition-all duration-200">
+                    <div 
+                      className={cn("p-4 flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors", isExpanded && "border-b border-border bg-muted/10")}
+                      onClick={() => setActiveBankIndex(isExpanded ? null : index)}
+                    >
+                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider cursor-pointer">
+                        {bank.name ? `Account ${index + 1}: ${bank.name}` : `Account ${index + 1}`}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        {banks.length > 1 && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newBanks = banks.filter((_, i) => i !== index);
+                              setBanks(newBanks);
+                              if (activeBankIndex === index) setActiveBankIndex(null);
+                              else if (activeBankIndex !== null && activeBankIndex > index) setActiveBankIndex(activeBankIndex - 1);
+                            }}
+                          >
+                            <X size={14} />
+                          </Button>
+                        )}
+                        {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="p-4 space-y-3 animate-in slide-in-from-top-2 fade-in duration-200 pt-3">
+                        <Input placeholder="Bank Name (e.g. Wise)" value={bank.name} onChange={e => {
+                          const newBanks = [...banks]; newBanks[index].name = e.target.value; setBanks(newBanks);
+                        }} />
+                        <Input placeholder="Account Holder Name" value={bank.holder} onChange={e => {
+                          const newBanks = [...banks]; newBanks[index].holder = e.target.value; setBanks(newBanks);
+                        }} />
+                        <Input placeholder="IBAN / Account Number" value={bank.iban} onChange={e => {
+                          const newBanks = [...banks]; newBanks[index].iban = e.target.value; setBanks(newBanks);
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                )})}
+                {banks.length < 5 && (
+                  <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => {
+                    setBanks([...banks, { name: "", holder: "", iban: "" }]);
+                    setActiveBankIndex(banks.length);
+                  }}>
+                    <Plus size={14} className="mr-2" /> Add Another Bank Account
+                  </Button>
+                )}
               </CardContent>
             )}
             <CardFooter className="mt-auto">

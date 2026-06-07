@@ -133,6 +133,9 @@ const PaymentForm = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cod" | "bank" | "crypto" | "free">("card");
+  
+  const bankAccounts = paymentConfig?.bank?.accounts || (paymentConfig?.bank?.name ? [{ name: paymentConfig.bank.name, holder: paymentConfig.bank.holder, iban: paymentConfig.bank.iban }] : []);
+  const [selectedBankIndex, setSelectedBankIndex] = useState(0);
 
   // Fallback selector if Card isn't available
   useEffect(() => {
@@ -233,7 +236,10 @@ const PaymentForm = ({
     if (paymentMethod !== "card") {
       notesText += `\nPayment Method: ${paymentMethod.toUpperCase()}`;
       if (paymentMethod === "bank") {
-        notesText += `\nBank Name: ${paymentConfig?.bank?.name || "N/A"}\nAccount Holder: ${paymentConfig?.bank?.holder || "N/A"}\nIBAN: ${paymentConfig?.bank?.iban || "N/A"}`;
+        const selectedBank = bankAccounts[selectedBankIndex];
+        if (selectedBank) {
+          notesText += `\nBank Name: ${selectedBank.name || "N/A"}\nAccount Holder: ${selectedBank.holder || "N/A"}\nIBAN: ${selectedBank.iban || "N/A"}`;
+        }
       }
     } else if (paymentIntentId && !isFreeOrder) {
        notesText += `\nPayment Intent: ${paymentIntentId}`;
@@ -384,12 +390,35 @@ const PaymentForm = ({
                   </label>
                   {paymentMethod === "bank" && (
                     <div className="p-6 bg-neutral-900/50 border-b border-white/10">
-                      <p className="text-sm font-medium text-white mb-3 text-center">Transfer the total amount to:</p>
-                      <div className="space-y-2 text-sm text-neutral-300 bg-neutral-900 p-4 rounded-md border border-white/10 shadow-sm">
-                        <div className="flex justify-between"><span className="text-neutral-500">Bank</span><span className="font-medium text-white">{paymentConfig?.bank?.name || "N/A"}</span></div>
-                        <div className="flex justify-between"><span className="text-neutral-500">Account Holder</span><span className="font-medium text-white">{paymentConfig?.bank?.holder || "N/A"}</span></div>
-                        <div className="flex justify-between"><span className="text-neutral-500">IBAN/Account No</span><span className="font-medium text-white break-all text-right">{paymentConfig?.bank?.iban || "N/A"}</span></div>
-                      </div>
+                      {bankAccounts.length > 1 && (
+                        <div className="mb-5 space-y-2">
+                          <p className="text-sm font-medium text-white mb-2">Select a Bank to transfer to:</p>
+                          <div className="space-y-2">
+                            {bankAccounts.map((bank: any, index: number) => (
+                              <label key={index} className={cn("flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors", selectedBankIndex === index ? "bg-primary/10 border-primary" : "border-white/10 bg-neutral-900 hover:border-white/30")}>
+                                <input type="radio" name="selected_bank" value={index} checked={selectedBankIndex === index} onChange={() => setSelectedBankIndex(index)} className="sr-only" />
+                                <div className={cn("w-4 h-4 rounded-full border flex items-center justify-center", selectedBankIndex === index ? "border-primary" : "border-white/20")}>
+                                  {selectedBankIndex === index && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                </div>
+                                <span className="font-medium text-white text-sm">{bank.name || `Account ${index + 1}`}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {bankAccounts[selectedBankIndex] && (
+                        <>
+                          {bankAccounts.length === 1 && (
+                            <p className="text-sm font-medium text-white mb-3 text-center">Transfer the total amount to:</p>
+                          )}
+                          <div className="space-y-2 text-sm text-neutral-300 bg-neutral-900 p-4 rounded-md border border-white/10 shadow-sm">
+                            <div className="flex justify-between"><span className="text-neutral-500">Bank</span><span className="font-medium text-white text-right">{bankAccounts[selectedBankIndex].name || "N/A"}</span></div>
+                            <div className="flex justify-between"><span className="text-neutral-500">Account Holder</span><span className="font-medium text-white text-right">{bankAccounts[selectedBankIndex].holder || "N/A"}</span></div>
+                            <div className="flex justify-between items-center"><span className="text-neutral-500">IBAN/Account No</span><span className="font-medium text-white break-all text-right ml-4">{bankAccounts[selectedBankIndex].iban || "N/A"}</span></div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </>

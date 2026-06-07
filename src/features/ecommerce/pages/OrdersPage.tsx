@@ -359,6 +359,12 @@ const OrdersPage = () => {
       "zip / postal code",
       "checkout_country",
       "country",
+      "payment method",
+      "bank name",
+      "account holder",
+      "iban",
+      "iban/account no",
+      "payment intent",
     ];
 
     parsedNotes.forEach((item) => {
@@ -376,6 +382,16 @@ const OrdersPage = () => {
         coreExtra.zip = item.value;
       else if (k === "checkout_country" || k === "country")
         coreExtra.country = item.value;
+      else if (k === "payment method")
+        coreExtra.paymentMethod = item.value;
+      else if (k === "bank name")
+        coreExtra.bankName = item.value;
+      else if (k === "account holder")
+        coreExtra.bankHolder = item.value;
+      else if (k === "iban" || k === "iban/account no")
+        coreExtra.bankIban = item.value;
+      else if (k === "payment intent")
+        coreExtra.paymentIntent = item.value;
       else if (!redundantKeys.includes(k) && !k.startsWith("field_")) {
         customData.push(item);
       }
@@ -1027,7 +1043,52 @@ const OrdersPage = () => {
                   </div>
                 </div>
 
-                {/* 3. Form Responses (Stripped of duplicated core fields) */}
+                {/* 3. Payment Details */}
+                {(selectedOrderDetails.coreExtra.paymentMethod || selectedOrderDetails.coreExtra.paymentIntent || selectedOrderDetails.coreExtra.bankName) && (
+                  <div className="bg-background p-5 rounded-2xl border border-border shadow-sm space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
+                      <DollarSign size={14} /> Payment Details
+                    </h4>
+                    <div className="space-y-4">
+                      {selectedOrderDetails.coreExtra.paymentMethod && (
+                        <div className="flex items-start gap-3">
+                          <div>
+                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                              Method
+                            </div>
+                            <div className="font-medium text-foreground mt-0.5">
+                              {selectedOrderDetails.coreExtra.paymentMethod}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedOrderDetails.coreExtra.bankName && (
+                        <div className="bg-muted/30 p-3 rounded-lg border space-y-1">
+                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            Bank Transfer Details Selected
+                          </Label>
+                          <div className="text-sm font-medium">Bank: {selectedOrderDetails.coreExtra.bankName}</div>
+                          <div className="text-sm font-medium">Holder: {selectedOrderDetails.coreExtra.bankHolder}</div>
+                          <div className="text-sm font-medium">IBAN: {selectedOrderDetails.coreExtra.bankIban}</div>
+                        </div>
+                      )}
+                      
+                      {selectedOrderDetails.coreExtra.paymentIntent && (
+                        <div className="bg-muted/30 p-3 rounded-lg border space-y-1">
+                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            Payment Intent ID
+                          </Label>
+                          <div className="font-medium font-mono text-xs break-all text-muted-foreground">
+                            {selectedOrderDetails.coreExtra.paymentIntent}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Form Responses (Stripped of duplicated core fields) */}
                 {selectedOrderDetails.customData.length > 0 && (
                   <div className="bg-background p-5 rounded-2xl border border-border shadow-sm">
                     <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-4">
@@ -1053,7 +1114,7 @@ const OrdersPage = () => {
                   </div>
                 )}
 
-                {/* 4. Internal Actions (Status & Notes) */}
+                {/* 5. Internal Actions (Status & Notes) */}
                 <div className="space-y-4 pt-2">
                   <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                     <TrendingUp size={14} /> Fulfillment Tracking

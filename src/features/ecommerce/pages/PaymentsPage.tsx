@@ -51,8 +51,8 @@ const PaymentsPage = () => {
   const [profile, setProfile] = useState<any>({});
   const [portfolios, setPortfolios] = useState<any[]>([]);
 
-  // 'global' means Account-Level. Otherwise, it holds the specific portfolio ID.
-  const [selectedContext, setSelectedContext] = useState<string>("global");
+  // Store the specific portfolio ID.
+  const [selectedContext, setSelectedContext] = useState<string>("");
 
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -106,15 +106,18 @@ const PaymentsPage = () => {
       .eq("actor_id", actorData.id)
       .order("created_at", { ascending: false });
 
-    if (sites) setPortfolios(sites);
+    if (sites) {
+      setPortfolios(sites);
+      if (sites.length > 0 && !selectedContext) setSelectedContext(sites[0].id);
+    }
 
     setLoading(false);
   };
 
   // Sync local form state when context switches
   useEffect(() => {
-    if (!loading && portfolios.length > 0) {
-      const source = selectedContext === "global" ? portfolios[0] : portfolios.find(p => p.id === selectedContext);
+    if (!loading && portfolios.length > 0 && selectedContext) {
+      const source = portfolios.find(p => p.id === selectedContext);
       const pConfig = source?.theme_config?.payments || {};
 
       setCodEnabled(pConfig.cod?.enabled ?? true);
@@ -124,7 +127,7 @@ const PaymentsPage = () => {
       setBankIban(pConfig.bank?.iban ?? "");
       
       setCryptoEnabled(pConfig.crypto?.enabled ?? false);
-      setCryptoWallet(pConfig.crypto?.wallet ?? profile?.crypto_wallet ?? "");
+      setCryptoWallet(pConfig.crypto?.wallet ?? "");
     }
   }, [selectedContext, portfolios, profile, loading]);
 
@@ -134,16 +137,15 @@ const PaymentsPage = () => {
 
   // --- STRIPE EXPRESS LOGIC (MANAGED PAYMENTS) ---
   const handleConnectExpress = async () => {
-    if (!actorData?.id) return;
+    if (!actorData?.id || !selectedContext) return;
     setIsConnectingStripe(true);
     try {
-      const isOverride = selectedContext !== "global";
       const { data, error } = await supabase.functions.invoke(
         "stripe-connect",
         {
           body: {
             actorId: actorData.id,
-            portfolioId: isOverride ? selectedContext : null,
+            portfolioId: selectedContext,
             returnUrl: window.location.origin + "/dashboard/payments",
           },
         }
@@ -165,13 +167,11 @@ const PaymentsPage = () => {
       return;
     }
 
-    if (!actorData?.id) return;
+    if (!actorData?.id || !selectedContext) return;
 
     const clientId = import.meta.env.VITE_STRIPE_CLIENT_ID;
-    const isOverride = selectedContext !== "global";
-    const portfolioId = isOverride ? selectedContext : "global";
     const stateString = btoa(
-      JSON.stringify({ actorId: actorData.id, portfolioId })
+      JSON.stringify({ actorId: actorData.id, portfolioId: selectedContext })
     );
 
     const stripeOAuthUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${clientId}&scope=read_write&state=${stateString}`;
@@ -180,6 +180,10 @@ const PaymentsPage = () => {
 
   // --- DYNAMIC PAYMENT SAVING ---
   const handleSavePaymentMethod = async (type: 'cod' | 'bank' | 'crypto') => {
+    if (!selectedContext) {
+      notify("error", "Save Failed", "Please select a website first.");
+      return;
+    }
     setIsSavingPayment(type);
     try {
       const paymentSettings = {
@@ -188,23 +192,12 @@ const PaymentsPage = () => {
         crypto: { enabled: cryptoEnabled, wallet: cryptoWallet }
       };
 
-      if (selectedContext === "global") {
-        const promises = portfolios.map(p => {
-          const newConfig = { ...p.theme_config, payments: paymentSettings };
-          return supabase.from("portfolios").update({ theme_config: newConfig }).eq("id", p.id);
-        });
-        await Promise.all(promises);
-        
-        if (type === "crypto") {
-          await supabase.from("actors").update({ crypto_wallet: cryptoWallet.trim() }).eq("id", actorData.id);
-        }
-      } else {
-        const p = portfolios.find(port => port.id === selectedContext);
-        if (p) {
-          const newConfig = { ...p.theme_config, payments: paymentSettings };
-          await supabase.from("portfolios").update({ theme_config: newConfig }).eq("id", p.id);
-        }
+      const p = portfolios.find(port => port.id === selectedContext);
+      if (p) {
+        const newConfig = { ...p.theme_config, payments: paymentSettings };
+        await supabase.from("portfolios").update({ theme_config: newConfig }).eq("id", p.id);
       }
+      
       notify("success", "Settings Saved", `Your ${type.toUpperCase()} settings have been updated.`);
       fetchData();
     } catch (err: any) {
@@ -223,20 +216,8 @@ const PaymentsPage = () => {
   // --- DETERMINE ACTIVE STATE ---
   const activePortfolio = portfolios.find((p) => p.id === selectedContext);
 
-  const activeStripeId =
-    selectedContext === "global"
-      ? profile.stripe_account_id
-      : activePortfolio?.stripe_account_id;
-
-  const activeStripeType =
-    selectedContext === "global"
-      ? profile.stripe_account_type
-      : activePortfolio?.stripe_account_type;
-
-  const isInheriting =
-    selectedContext !== "global" &&
-    !activePortfolio?.stripe_account_id &&
-    profile.stripe_account_id;
+  const activeStripeId = activePortfolio?.stripe_account_id;
+  const activeStripeType = activePortfolio?.stripe_account_type;
 
   // Determine which card should show the Green "Active" state
   const isStandardActive = activeStripeId && activeStripeType === "standard";
@@ -269,16 +250,10 @@ const PaymentsPage = () => {
               Configuring Settings For
             </Label>
             <Select value={selectedContext} onValueChange={setSelectedContext}>
-              <SelectTrigger className="w-full sm:w-[300px] h-11 border-2 font-semibold">
-                <SelectValue placeholder="Select context" />
+              <SelectTrigger className="w-full sm:w-[300px] h-11 border-2 font-semibold bg-background">
+                <SelectValue placeholder={portfolios.length > 0 ? "Select a site to configure" : "No sites available"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="global">
-                  <div className="flex items-center gap-2">
-                    <Globe size={16} className="text-indigo-500" /> Global
-                    Account (Default)
-                  </div>
-                </SelectItem>
                 {portfolios.map((site) => (
                   <SelectItem key={site.id} value={site.id}>
                     <div className="flex items-center gap-2">
@@ -292,16 +267,12 @@ const PaymentsPage = () => {
           </div>
 
           <div className="text-sm text-muted-foreground sm:max-w-xs sm:text-right">
-            {selectedContext === "global" ? (
-              "These defaults apply to all your websites automatically unless overridden."
-            ) : isInheriting ? (
-              <span className="flex items-center sm:justify-end gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
-                <AlertCircle size={16} /> Currently inheriting Global Settings
+            {selectedContext ? (
+              <span className="flex items-center sm:justify-end gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
+                <Zap size={16} /> Payment Settings for this Site
               </span>
             ) : (
-              <span className="flex items-center sm:justify-end gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
-                <Zap size={16} /> Using Custom Site Override
-              </span>
+              "Select a site to configure its payment methods."
             )}
           </div>
         </div>

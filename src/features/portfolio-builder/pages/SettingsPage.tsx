@@ -5,7 +5,7 @@ import {
   useSearchParams,
   useNavigate,
 } from "react-router-dom";
-import { ActorDashboardContextType } from "@/layouts/ActorDashboardLayout"; "@/features/talent-marketplace";
+import { ActorDashboardContextType } from "@/layouts/ActorDashboardLayout";
 import {
   Card,
   CardContent,
@@ -45,15 +45,14 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { PORTFOLIO_TEMPLATES } from "@/features/portfolio-builder/config/templates";
 import { cn } from "@/lib/utils";
 import {
   NotificationContainer,
   Notification,
 } from "@/components/ui/NotificationToast";
 import { useSubscription } from "@/context/SubscriptionContext";
-import TopUpModal from "@/features/portfolio-builder/components/TopUpModal";
-
+import { TopUpModal } from "@/features/portfolio-builder";
+import { CreateSiteModal } from "@/features/ecommerce/components/CreateSiteModal";
 type PlanDuration = 1 | 3 | 6 | 12;
 
 const SLOT_COST = 500;
@@ -171,16 +170,6 @@ const PLANS = [
   },
 ];
 
-const EXTENDED_TEMPLATES = [
-  {
-    id: "blank",
-    name: "Blank Canvas",
-    description: "Start from scratch and build your own custom layout.",
-    sections: [],
-  },
-  ...PORTFOLIO_TEMPLATES,
-];
-
 
 const SettingsPage = () => {
   const { actorData } = useOutletContext<ActorDashboardContextType>();
@@ -217,11 +206,6 @@ const SettingsPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [billingDuration, setBillingDuration] = useState<PlanDuration>(1);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(
-    EXTENDED_TEMPLATES[0].id
-  );
-  const [newSiteName, setNewSiteName] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -693,58 +677,11 @@ const SettingsPage = () => {
     );
   };
 
-  const handleCreateSite = async () => {
-    if (!newSiteName.trim())
-      return notify("error", "Missing Name", "Please enter a site name");
-    if (!actorData?.id) return;
-    if (siteSlots.remaining <= 0) {
-      notify(
-        "error",
-        "No Slots Available",
-        "You have used all your portfolio slots."
-      );
-      handleBuySlot();
-      return;
-    }
-
-    setIsCreating(true);
-    const template =
-      EXTENDED_TEMPLATES.find((t) => t.id === selectedTemplate) ||
-      EXTENDED_TEMPLATES[0];
-    const baseSlug = newSiteName.toLowerCase().replace(/[^a-z0-9]/g, "-");
-    const uniqueSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
-
-    const { error } = await supabase.from("portfolios").insert({
-      actor_id: actorData.id,
-      site_name: newSiteName,
-      public_slug: uniqueSlug,
-      is_published: false,
-      sections: template.sections,
-      theme_config: {
-        templateId: template.id === "blank" ? "modern" : template.id,
-        primaryColor: "violet",
-        font: "sans",
-      },
-    });
-
-    if (error)
-      notify(
-        "error",
-        "Creation Failed",
-        "Could not create website. Please try again."
-      );
-    else {
-      notify(
-        "success",
-        "Website Created",
-        `Your new site "${newSiteName}" is ready.`
-      );
-      setIsCreateOpen(false);
-      setNewSiteName("");
-      fetchData();
-      refreshSubscription();
-    }
-    setIsCreating(false);
+  const handleSiteCreated = async (portfolioId: string) => {
+    setIsCreateOpen(false);
+    notify("success", "Website Created", "Your new site is ready.");
+    fetchData();
+    refreshSubscription();
   };
 
   const handleDeleteSite = async () => {
@@ -1507,65 +1444,13 @@ const SettingsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* --- CREATE SITE MODAL --- */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="w-[95vw] rounded-2xl sm:max-w-[600px] max-h-[85vh] flex flex-col p-0">
-          <DialogHeader className="p-6 pb-2">
-            <DialogTitle>New Website</DialogTitle>
-            <DialogDescription>Pick a template to start.</DialogDescription>
-          </DialogHeader>
-          <div className="flex-grow overflow-y-auto px-6 py-2">
-            <Label>Name</Label>
-            <Input
-              placeholder="My Portfolio"
-              value={newSiteName}
-              onChange={(e) => setNewSiteName(e.target.value)}
-              className="mb-4 mt-1 h-11"
-            />
-            <Label>Template</Label>
-            <div className="grid grid-cols-1 gap-3 mt-2 pb-4">
-              {EXTENDED_TEMPLATES.map((template) => (
-                <div
-                  key={template.id}
-                  onClick={() => setSelectedTemplate(template.id)}
-                  className={cn(
-                    "flex items-center gap-4 p-3 border-2 rounded-xl cursor-pointer active:scale-95 transition-transform",
-                    selectedTemplate === template.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border"
-                  )}
-                >
-                  <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                    <LayoutTemplate size={20} />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm">{template.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {template.description}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <DialogFooter className="p-4 border-t gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              className="h-11"
-              onClick={() => setIsCreateOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="h-11"
-              onClick={handleCreateSite}
-              disabled={isCreating}
-            >
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateSiteModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        actorId={actorData.id}
+        onSuccess={handleSiteCreated}
+        siteCount={portfolios.length}
+      />
     </div>
   );
 };

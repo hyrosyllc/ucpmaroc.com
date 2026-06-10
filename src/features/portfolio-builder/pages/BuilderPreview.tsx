@@ -225,16 +225,15 @@ export default function BuilderPreview() {
               portfolioId: portfolioId,
             };
 
-            const zIndexClass =
-              section.type === "header" ? "relative z-50" : "relative z-0";
+            const isHeader = section.type === "header";
 
             return (
               <div
                 id={section.id}
                 key={section.id}
                 className={cn(
-                  zIndexClass,
-                  "group relative hover:ring-2 hover:ring-primary/40 hover:ring-inset transition-all duration-200"
+                  isHeader ? "sticky top-0 z-50 w-full" : "relative z-0 w-full",
+                  "group hover:ring-2 hover:ring-primary/40 hover:ring-inset transition-all duration-200"
                 )}
                 onClickCapture={(e) => {
                   const target = e.target as HTMLElement;

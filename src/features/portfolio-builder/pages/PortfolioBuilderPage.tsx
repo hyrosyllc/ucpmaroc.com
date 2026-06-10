@@ -103,18 +103,9 @@ import { cn } from "@/lib/utils";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { PORTFOLIO_TEMPLATES } from "@/features/portfolio-builder/config/templates";
 import { Badge } from "@/components/ui/badge";
+import { CreateSiteModal } from "@/features/ecommerce/components/CreateSiteModal";
 
-const EXTENDED_TEMPLATES = [
-  {
-    id: "blank",
-    name: "Blank Canvas",
-    description: "Start from scratch and build your own custom layout.",
-    sections: [],
-  },
-  ...PORTFOLIO_TEMPLATES,
-];
 
 // --- AVAILABLE BLOCKS LIST ---
 const AVAILABLE_BLOCKS: {
@@ -485,11 +476,6 @@ const PortfolioBuilderPage = () => {
   // Create Site / Onboarding State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newSiteName, setNewSiteName] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(
-    EXTENDED_TEMPLATES[0].id
-  );
 
   // Settings State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -984,64 +970,16 @@ const PortfolioBuilderPage = () => {
     }
   };
 
-  const handleCreateSite = async () => {
-    if (!newSiteName.trim()) return alert("Please enter a site name");
-    if (!limits || isSubLoading)
-      return alert("Subscription data is still loading. Please wait a moment.");
-
-    const maxSites = siteSlots?.total || 1;
-    if (siteList.length >= maxSites) {
-      alert(
-        `Plan limit reached. You can only have ${maxSites} site(s) on your current plan.`
-      );
+  const handleSiteCreated = async (portfolioId: string, isFirstSite: boolean) => {
       setIsCreateOpen(false);
       setShowOnboarding(false);
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const template = EXTENDED_TEMPLATES.find((t) => t.id === selectedTemplate) || EXTENDED_TEMPLATES[0];
-      const baseSlug = newSiteName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "site";
-      const uniqueSlug = `${baseSlug}-${Date.now().toString().slice(-4)}`;
-      const { data, error } = await supabase
-        .from("portfolios")
-        .insert({
-          actor_id: actorData.id,
-          site_name: newSiteName,
-          public_slug: uniqueSlug,
-          is_published: false,
-          sections: template.sections,
-          theme_config: {
-            templateId: template.id === "blank" ? "modern" : template.id,
-            primaryColor: "violet",
-            font: "sans",
-            radius: 0.5,
-            buttonStyle: "solid",
-          },
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const isFirstSite = siteList.length === 0;
-
-      setIsCreateOpen(false);
-      setShowOnboarding(false);
-      setNewSiteName("");
       await fetchSiteList();
-      navigate(`/dashboard/portfolio?id=${data.id}`);
+      navigate(`/dashboard/portfolio?id=${portfolioId}`);
 
       if (isFirstSite && walletBalance === 0) {
         setShowWelcomePrompt(true);
         localStorage.setItem(`hasSeenWelcomeGuide_${actorData?.id}`, "true");
       }
-    } catch (error: any) {
-      alert("Failed to create site: " + error.message);
-    } finally {
-      setIsCreating(false);
-    }
   };
 
   const handleCreatePage = async () => {
@@ -2451,179 +2389,16 @@ const PortfolioBuilderPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* --- CREATE NEW SITE (OR FROM ONBOARDING) MODAL --- */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-background border-border">
-          <div className="p-6 bg-muted/30 border-b border-border">
-            <DialogTitle className="text-2xl font-bold text-foreground">Create New Website</DialogTitle>
-            <DialogDescription className="text-muted-foreground mt-1">
-              Choose a starting template for your new portfolio.
-            </DialogDescription>
-          </div>
-          <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Website Name</Label>
-              <Input
-                placeholder="e.g. Acting Portfolio 2024"
-                value={newSiteName}
-                onChange={(e) => setNewSiteName(e.target.value)}
-                className="h-12 text-base font-medium bg-muted/50"
-              />
-            </div>
-            <div className="space-y-3">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Template</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {EXTENDED_TEMPLATES.map((template) => (
-                  <div
-                    key={template.id}
-                    onClick={() => setSelectedTemplate(template.id)}
-                    className={cn(
-                      "cursor-pointer border-2 rounded-xl p-4 transition-all hover:border-primary/50 relative bg-muted/20",
-                      selectedTemplate === template.id
-                        ? "border-primary bg-primary/5"
-                        : "border-muted"
-                    )}
-                  >
-                    {selectedTemplate === template.id && (
-                      <div className="absolute top-2 right-2 text-primary bg-background rounded-full">
-                        <CheckCircle2 size={16} />
-                      </div>
-                    )}
-                    <h4 className="font-bold text-sm">{template.name}</h4>
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                      {template.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="p-6 border-t border-border bg-muted/10 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateSite}
-              disabled={isCreating || isSubLoading || !limits}
-              className="font-bold shadow-sm"
-            >
-              {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{" "}
-              {isSubLoading ? "Loading Plan..." : "Create Website"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* 🚀 AAA+ ONBOARDING MODAL */}
-      <Dialog open={showOnboarding} onOpenChange={setShowOnboarding}>
-        <DialogContent className="sm:max-w-[850px] p-0 overflow-hidden bg-background border-border shadow-2xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Welcome to the Builder</DialogTitle>
-            <DialogDescription>Set up your new portfolio site.</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2">
-            <div className="bg-gradient-to-br from-primary/80 to-blue-600 p-10 flex flex-col justify-between text-white relative overflow-hidden">
-              <div className="absolute -top-24 -left-24 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-              <div className="absolute bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-
-              <div className="relative z-10">
-                <Sparkles className="w-12 h-12 mb-6 text-white/90" />
-                <h2 className="text-4xl font-black mb-3 tracking-tight leading-tight">
-                  Welcome to the Builder
-                </h2>
-                <p className="text-white/80 font-medium leading-relaxed text-lg">
-                  Launch a stunning portfolio, set up your shop, and take
-                  bookings in minutes. No coding required.
-                </p>
-              </div>
-              <div className="mt-12 space-y-4 relative z-10">
-                <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                  <MonitorPlay className="w-6 h-6 text-white" />
-                  <span className="text-base font-bold">
-                    1. Choose a template
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                  <Palette className="w-6 h-6 text-white" />
-                  <span className="text-base font-bold">
-                    2. Customize your brand
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/10">
-                  <Globe className="w-6 h-6 text-white" />
-                  <span className="text-base font-bold">
-                    3. Publish to the world
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-8 md:p-10 bg-background flex flex-col justify-center">
-              <h3 className="text-2xl font-extrabold mb-8 flex items-center gap-2 text-foreground">
-                Let's get started{" "}
-                <ArrowRight className="w-6 h-6 text-primary" />
-              </h3>
-
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground font-bold uppercase tracking-wider text-xs">
-                    Website Name
-                  </Label>
-                  <Input
-                    placeholder="e.g. My Creative Portfolio"
-                    value={newSiteName}
-                    onChange={(e) => setNewSiteName(e.target.value)}
-                    className="h-12 text-lg font-medium bg-muted/50 border-transparent focus-visible:border-primary focus-visible:bg-background transition-colors"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-muted-foreground font-bold uppercase tracking-wider text-xs">
-                    Select Template
-                  </Label>
-                  <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {EXTENDED_TEMPLATES.map((template) => (
-                      <div
-                        key={template.id}
-                        onClick={() => setSelectedTemplate(template.id)}
-                        className={cn(
-                          "cursor-pointer border-2 rounded-xl p-4 transition-all hover:border-primary/50 relative bg-muted/20",
-                          selectedTemplate === template.id
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-muted"
-                        )}
-                      >
-                        {selectedTemplate === template.id && (
-                          <div className="absolute top-1/2 -translate-y-1/2 right-4 text-primary bg-background rounded-full">
-                            <CheckCircle2 size={20} />
-                          </div>
-                        )}
-                        <h4 className="font-bold text-sm text-foreground">
-                          {template.name}
-                        </h4>
-                        <p className="text-xs text-muted-foreground mt-1 pr-6">
-                          {template.description}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <Button
-                  onClick={handleCreateSite}
-                  disabled={isCreating || isSubLoading || !limits}
-                  className="w-full h-14 text-lg font-bold mt-4 shadow-lg hover:shadow-xl transition-all"
-                >
-                  {isCreating ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-5 w-5" />
-                  )}
-                  {isSubLoading ? "Loading Plan..." : "Create My Website"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CreateSiteModal
+        isOpen={isCreateOpen || showOnboarding}
+        onClose={() => {
+          setIsCreateOpen(false);
+          setShowOnboarding(false);
+        }}
+        actorId={actorData.id}
+        onSuccess={handleSiteCreated}
+        siteCount={siteList.length}
+      />
 
       {/* --- WELCOME PROMPT MODAL --- */}
       <Dialog open={showWelcomePrompt} onOpenChange={setShowWelcomePrompt}>

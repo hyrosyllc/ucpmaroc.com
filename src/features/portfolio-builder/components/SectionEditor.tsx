@@ -211,6 +211,109 @@ const SiteReviewsManager = ({ portfolioId }: { portfolioId: string }) => {
   );
 };
 
+// 🚀 NEW: Draggable Menu Item Component
+const DraggableMenuItem = ({
+  item,
+  dragHandleProps,
+  updateMenuConfig,
+  updateCustomLink,
+  isMegaMenu,
+  megaFolders,
+}: any) => {
+  const { type, id, data } = item;
+  const { isVisible, label, url, folderId } = data;
+
+  const itemIcons = {
+    page: <FileText size={14} />,
+    custom_link: <LinkIcon size={14} />,
+    section: <Layers size={14} />,
+  };
+
+  return (
+    <div className="flex items-start gap-2 bg-background p-3 border rounded-lg shadow-sm group">
+      <div
+        {...dragHandleProps}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary transition-colors flex-shrink-0 touch-none pt-2.5"
+      >
+        <GripVertical size={16} />
+      </div>
+      <div className="flex-1 space-y-2">
+        <div className="flex items-center gap-3">
+          <Switch
+            checked={isVisible}
+            onCheckedChange={(c) => {
+              if (type === "custom_link") {
+                updateCustomLink(id, "visible", c);
+              } else {
+                updateMenuConfig(id, "visible", c);
+              }
+            }}
+          />
+          <div className="flex-1">
+            <Input
+              value={label}
+              onChange={(e) => {
+                if (type === "custom_link") {
+                  updateCustomLink(id, "label", e.target.value);
+                } else {
+                  updateMenuConfig(id, "label", e.target.value);
+                }
+              }}
+              disabled={!isVisible}
+              className="h-8 text-sm"
+            />
+          </div>
+          <Badge
+            variant="outline"
+            className="hidden sm:flex items-center gap-1.5 text-muted-foreground font-medium"
+          >
+            {itemIcons[type]}
+            <span className="text-[10px] uppercase tracking-wider">
+              {type.replace("_", " ")}
+            </span>
+          </Badge>
+        </div>
+        {type === "custom_link" && (
+          <Input
+            value={url}
+            placeholder="https:// or /page-slug"
+            onChange={(e) => updateCustomLink(id, "url", e.target.value)}
+            disabled={!isVisible}
+            className="h-8 text-xs text-muted-foreground"
+          />
+        )}
+        {isMegaMenu && (
+          <div className="pt-1">
+            <Select
+              value={folderId || "none"}
+              onValueChange={(val) => {
+                const newFolderId = val === "none" ? null : val;
+                if (type === "custom_link") {
+                  updateCustomLink(id, "folderId", newFolderId);
+                } else {
+                  updateMenuConfig(id, "folderId", newFolderId);
+                }
+              }}
+            >
+              <SelectTrigger className="w-full h-8 text-xs bg-background/50">
+                <SelectValue placeholder="Parent Folder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Folder (Root Level)</SelectItem>
+                {megaFolders.map((f: any) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.label || "Unnamed Folder"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 interface SectionEditorProps {
   section: PortfolioSection | null;
   sections: PortfolioSection[]; // Kept for backwards compatibility if needed
@@ -2369,7 +2472,6 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
-                    onClick={() => updateField("menuType", "mega")}
                     onClick={() => {
                       const newConfig = { ...(formData.menuConfig || {}) };
                       const visibleSections = sections.filter((s: any) => s.type !== "header" && s.isVisible);
@@ -2822,9 +2924,6 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     <Switch
                       id="autoMenu"
                       checked={formData.autoMenu !== false}
-                      onCheckedChange={(checked) =>
-                        updateField("autoMenu", checked)
-                      }
                       onCheckedChange={(checked) => {
                         if (!checked) {
                           const newConfig = { ...(formData.menuConfig || {}) };
@@ -2835,6 +2934,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                             }
                           });
                           const newFormData = { ...formData, autoMenu: false, menuConfig: newConfig };
+                          const newFormData = {
+                            ...formData,
+                            autoMenu: false,
+                            menuConfig: newConfig,
+                          };
                           setFormData(newFormData);
                           updateSectionInStore(section.id, { data: newFormData });
                         } else {
@@ -2880,6 +2984,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         </Label>
                         <p className="text-[10px] text-muted-foreground text-center mb-3">
                           Links to specific pages on your website.
+                  <div className="space-y-3 pt-4">
+                    {formData.autoMenu !== false ? (
+                      <div className="bg-muted/10 border border-dashed p-4 rounded-md space-y-3">
+                        <p className="text-xs text-muted-foreground text-center">
+                          Auto-Generate is <strong>ON</strong>. The menu will
+                          automatically include important sections like Hero,
+                          Shop, and Contact.
                         </p>
 
                         <div className="flex items-center gap-3">
@@ -2950,6 +3061,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                               </div>
                             );
                           })}
+                        <p className="text-[10px] text-muted-foreground text-center pt-3 border-t border-dashed mt-4">
+                          Turn off Auto-Generate to manually reorder, rename, or
+                          hide links.
+                        </p>
                       </div>
 
                       {/* --- CUSTOM EXTERNAL LINKS --- */}
@@ -2966,9 +3081,16 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 
                         {(formData.customNavLinks || []).map(
                           (link: any, index: number) => (
+                    ) : (
+                      <DragDropContext onDragEnd={onMenuDragEnd}>
+                        <Droppable droppableId="menu-items">
+                          {(provided) => (
                             <div
                               key={link.id}
                               className="flex items-start gap-3 bg-background p-2 border rounded-md relative group shadow-sm"
+                              {...provided.droppableProps}
+                              ref={provided.innerRef}
+                              className="space-y-3"
                             >
                               <Switch
                                 checked={link.visible !== false}
@@ -3028,6 +3150,46 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                               >
                                 <X size={14} />
                               </Button>
+                              {allMenuItems.map((item: any, index: number) => {
+                                const config = formData.menuConfig?.[item.id] || {};
+                                const linkData = item.linkData || {};
+                                const itemData = {
+                                  isVisible: (type: string) => type === 'custom_link' ? linkData.visible !== false : config.visible !== false,
+                                  label: (type: string) => {
+                                    if (type === 'custom_link') return linkData.label || '';
+                                    if (type === 'page') return config.label || item.pageData?.title || 'Shop';
+                                    if (type === 'section') return config.label || item.sectionData?.data?.title || item.sectionData?.type;
+                                    return '';
+                                  },
+                                  url: linkData.url || '',
+                                  folderId: config.folderId || linkData.folderId || 'none',
+                                };
+
+                                return (
+                                  <Draggable key={item.id} draggableId={item.id} index={index}>
+                                    {(providedDraggable) => (
+                                      <div ref={providedDraggable.innerRef} {...providedDraggable.draggableProps}>
+                                        <DraggableMenuItem
+                                          item={{ ...item, data: itemData }}
+                                          dragHandleProps={providedDraggable.dragHandleProps}
+                                          updateMenuConfig={updateMenuConfig}
+                                          updateCustomLink={(linkId: string, field: string, value: any) => {
+                                            const linkIndex = formData.customNavLinks.findIndex((l: any) => l.id === linkId);
+                                            if (linkIndex > -1) {
+                                              const newLinks = [...formData.customNavLinks];
+                                              newLinks[linkIndex][field] = value;
+                                              updateField("customNavLinks", newLinks);
+                                            }
+                                          }}
+                                          isMegaMenu={formData.menuType === 'mega'}
+                                          megaFolders={formData.megaMenuFolders || []}
+                                        />
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                );
+                              })}
+                              {provided.placeholder}
                             </div>
                           )
                         )}
@@ -3105,6 +3267,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                       </div>
                     </div>
                   )}
+                          )}
+                        </Droppable>
+                      </DragDropContext>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

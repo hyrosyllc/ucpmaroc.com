@@ -1339,7 +1339,9 @@ const PortfolioBuilderPage = () => {
               value="content"
               className="flex-grow flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden"
             >
-              {editingSection ? (
+              {editingSection ? (() => {
+                const liveSection = sections.find((s) => s.id === editingSection.id) || editingSection;
+                return (
                 <div className="flex flex-col h-full w-full animate-in slide-in-from-right-4 duration-200">
                   <div className="pb-3 mb-2 border-b flex items-center justify-between shrink-0">
                     <Button
@@ -1351,14 +1353,14 @@ const PortfolioBuilderPage = () => {
                       <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
                     </Button>
                     <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground mr-2 truncate">
-                      {editingSection.data._label ||
-                        editingSection.type.replace("_", " ")}
+                      {liveSection.data._label ||
+                        liveSection.type.replace("_", " ")}
                     </span>
                   </div>
                   <div className="flex-grow overflow-y-auto custom-scrollbar p-0 pb-12">
                     <SectionEditor
                       sections={sections}
-                      section={editingSection}
+                      section={liveSection}
                       isOpen={true}
                       onClose={() => setEditingSection(null)}
                       actorId={actorData?.id || ""}
@@ -1369,7 +1371,8 @@ const PortfolioBuilderPage = () => {
                     />
                   </div>
                 </div>
-              ) : (
+                );
+              })() : (
                   <div className="flex-grow overflow-y-auto min-h-[400px] lg:min-h-0 custom-scrollbar animate-in slide-in-from-left-4 duration-200 p-4 pt-2">
                     <div className={cn("mb-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center bg-card/95 sticky top-0 z-20 rounded-3xl border border-border/50 p-4 shadow-sm transition-all", tourStep === 1 && "relative z-[9999] ring-4 ring-primary shadow-2xl bg-card")}>
                       <div className="space-y-2">

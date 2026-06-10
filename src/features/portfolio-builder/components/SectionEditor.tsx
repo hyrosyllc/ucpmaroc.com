@@ -2370,6 +2370,23 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         : "text-muted-foreground hover:text-foreground"
                     )}
                     onClick={() => updateField("menuType", "mega")}
+                    onClick={() => {
+                      const newConfig = { ...(formData.menuConfig || {}) };
+                      const visibleSections = sections.filter((s: any) => s.type !== "header" && s.isVisible);
+                      visibleSections.forEach((s: any, idx: number) => {
+                        if (!newConfig[s.id]) {
+                          newConfig[s.id] = { visible: idx < 3, label: s.data.title || s.type };
+                        }
+                      });
+                      const newFormData = { 
+                        ...formData, 
+                        menuType: "mega", 
+                        autoMenu: false, 
+                        menuConfig: newConfig 
+                      };
+                      setFormData(newFormData);
+                      updateSectionInStore(section.id, { data: newFormData });
+                    }}
                   >
                     Mega Menu{" "}
                     {!hasMegaMenuAccess && (
@@ -2808,6 +2825,22 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                       onCheckedChange={(checked) =>
                         updateField("autoMenu", checked)
                       }
+                      onCheckedChange={(checked) => {
+                        if (!checked) {
+                          const newConfig = { ...(formData.menuConfig || {}) };
+                          const visibleSections = sections.filter((s: any) => s.type !== "header" && s.isVisible);
+                          visibleSections.forEach((s: any, idx: number) => {
+                            if (!newConfig[s.id]) {
+                              newConfig[s.id] = { visible: idx < 3, label: s.data.title || s.type };
+                            }
+                          });
+                          const newFormData = { ...formData, autoMenu: false, menuConfig: newConfig };
+                          setFormData(newFormData);
+                          updateSectionInStore(section.id, { data: newFormData });
+                        } else {
+                          updateField("autoMenu", true);
+                        }
+                      }}
                     />
                   </div>
 

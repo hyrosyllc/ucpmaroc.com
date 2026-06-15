@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { supabase } from "../../supabaseClient";
+import { supabase } from "@/supabaseClient";
 import { Star, ChevronLeft, ChevronRight, MessageSquareQuote, X, Loader2, Send, CheckCircle2, Pencil, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InlineEdit } from "../../components/dashboard/InlineEdit";

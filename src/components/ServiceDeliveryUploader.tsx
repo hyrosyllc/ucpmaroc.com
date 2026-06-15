@@ -1,7 +1,7 @@
 // In src/components/ServiceDeliveryUploader.tsx
 
 import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

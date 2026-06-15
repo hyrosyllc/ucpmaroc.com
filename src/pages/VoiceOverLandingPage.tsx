@@ -3,11 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mic, Heart, Users, Repeat, DollarSign, Play, Pause, RotateCcw, UserPlus, List, ArrowRight } from 'lucide-react';
-import { supabase } from '../supabaseClient';
-import GlobalAudioPlayer from '../components/GlobalAudioPlayer';
-import ActorCard, { Actor } from '../components/ActorCard'; // <-- Import ActorCard
-import DemoPlayerRow, { Demo } from '../components/DemoPlayerRow'; // --- ENHANCEMENT: Import new component
-import QuotesCarousel from '../components/QuotesCarousel';
+import { supabase } from '@/supabaseClient';
+import GlobalAudioPlayer from '@/components/GlobalAudioPlayer';
+import { ActorCard, Actor } from '@/features/talent-marketplace';
+import DemoPlayerRow, { Demo } from '@/components/DemoPlayerRow'; // --- ENHANCEMENT: Import new component
+import QuotesCarousel from '@/components/QuotesCarousel';
 
 // --- ENHANCEMENT: Import Shadcn components ---
 import { buttonVariants } from '@/components/ui/button';

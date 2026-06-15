@@ -28,7 +28,7 @@ import {
   Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProductLayoutProps } from "../../pages/product-layouts/types";
+import { ProductLayoutProps } from "../../features/ecommerce/product-layouts/types";
 import { Textarea } from "@/components/ui/textarea";
 
 const getFieldIcon = (type: string) => {

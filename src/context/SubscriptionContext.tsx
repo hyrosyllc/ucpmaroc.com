@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
-import { PLAN_LIMITS, PlanTier, PlanFeatures } from "../lib/plans";
+import { supabase } from "@/supabaseClient";
+import { PLAN_LIMITS, PlanTier, PlanFeatures } from "@/config/plans";
 
 interface SubscriptionState {
   plan: PlanTier;

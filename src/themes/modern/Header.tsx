@@ -109,7 +109,7 @@ const Header: React.FC<any> = ({
       .filter((s: any) => s.isVisible && s.type !== "header")
       .forEach((s: any) => {
         const secConfig = config[s.id];
-        if (data.autoMenu !== false) {
+        if (isAutoMenu) {
           // Auto-menu ignores manual visibility, but still respects mega-menu folders!
           if (s.data.title)
             flatItems.push({

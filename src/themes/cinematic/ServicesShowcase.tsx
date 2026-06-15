@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BlockProps } from '../types';
-import { supabase } from '../../supabaseClient';
+import { supabase } from '@/supabaseClient';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Mic, Video, PencilLine, CheckCircle2, Loader2, ArrowRight, Sparkles } from 'lucide-react';

@@ -15,81 +15,92 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
-import AdminDashboardLayout from "./layouts/AdminDashboardLayout"; // 🚀 1. NEW IMPORT
+// --- LAYOUT IMPORTS ---
+import AdminDashboardLayout from "./layouts/AdminDashboardLayout";
+import ActorDashboardLayout from "./layouts/ActorDashboardLayout";
 // --- LAZY LOADED PORTFOLIO ARCHITECTURE ---
-const PortfolioLayout = lazy(() => import("./layouts/PortfolioLayout"));
-const PortfolioHome = lazy(() => import("./pages/PortfolioHome"));
-const DynamicPage = lazy(() => import("./pages/DynamicPage"));
+const PortfolioLayout = lazy(() => import("@/features/portfolio-builder/layouts/PortfolioLayout"));
+const PortfolioHome = lazy(() => import("@/features/portfolio-builder/pages/PortfolioHome"));
+const DynamicPage = lazy(() => import("@/features/portfolio-builder/pages/DynamicPage"));
 
 // --- LAZY LOADED MAIN PAGES ---
 const HomePage = lazy(() => import("./pages/HomePage"));
 
 // --- STANDARD IMPORTS ---
-import BuilderPreview from "./pages/dashboard/BuilderPreview";
-import PortfolioPage from "./pages/PortfolioPage";
 import PrivacyPolicyPage from "./components/PrivacyPolicy.tsx";
 import ContactUsPage from "./pages/ContactUsPage";
 import TermsofService from "./components/TermsofService.tsx";
 import TermsandConditions from "./components/TermsandConditions.tsx";
 import VoiceOverLandingPage from "./pages/VoiceOverLandingPage";
-import ActorProfilePage from "./pages/ActorProfilePage";
-import ActorDashboardPage from "./pages/ActorDashboardPage";
-import ClientOrderPage from "./pages/ClientOrderPage";
-import AdminDashboardPage from "./pages/AdminDashboardPage";
-import ClientAuthPage from "./pages/ClientAuthPage";
-import ClientDashboardPage from "./pages/ClientDashboardPage";
-import ActorLoginPage from "./pages/ActorLoginPage";
-import ActorSignUpPage from "./pages/ActorSignUpPage";
-import MyShortlistPage from "./pages/MyShortlistPage";
-import AdminOrderDetailPage from "./pages/AdminOrderDetailPage";
-import AdminActorListPage from "./pages/AdminActorListPage";
-import AdminClientListPage from "./pages/AdminClientListPage";
-import CreateProfilePromptPage from "./pages/CreateProfilePromptPage";
-import FavoriteActorsPage from "./pages/FavoriteActorsPage";
-import MessagesPage from "./pages/MessagesPage";
+import {
+  AdminDashboardPage,
+  AdminOrderDetailPage,
+  AdminActorListPage,
+  AdminClientListPage,
+  AdminThemesPage,
+  AdminPayoutsPage,
+  AdminDomainListPage,
+  AdminDomainOrderDetailPage
+} from "@/features/admin-core";
 
 // --- DASHBOARD IMPORTS ---
-import ActorDashboardLayout from "./layouts/ActorDashboardLayout";
-import DashboardOrders from "./pages/dashboard/DashboardOrders";
-import DashboardProfile from "./pages/dashboard/DashboardProfile";
-import DashboardServices from "./pages/dashboard/DashboardServices";
-import DashboardDemos from "./pages/dashboard/DashboardDemos";
-import DashboardLibrary from "./pages/dashboard/DashboardLibrary";
-import ActorEarningsPage from "./pages/dashboard/ActorEarningsPage";
-import AdminPayoutsPage from "./pages/AdminPayoutsPage";
-import ActorPayoutSettingsPage from "./pages/dashboard/ActorPayoutSettingsPage";
-import PortfolioBuilderPage from "./pages/dashboard/PortfolioBuilderPage.tsx";
-import AdminDomainListPage from "./pages/AdminDomainListPage";
-import DomainMarketplace from "./pages/marketplace/DomainMarketplace";
-import DomainCheckout from "./pages/marketplace/DomainCheckout";
-import DomainThankYouPage from "./pages/marketplace/DomainThankYouPage";
-import AdminDomainOrderDetailPage from "./pages/AdminDomainOrderDetailPage";
-import DomainOrderPage from "./pages/marketplace/DomainOrderPage";
-import AnalyticsPage from "./pages/dashboard/AnalyticsPage.tsx";
-import OrdersPage from "./pages/dashboard/OrdersPage.tsx";
-import LeadsPage from "./pages/dashboard/LeadsPage.tsx";
-import SettingsPage from "./pages/dashboard/SettingsPage";
-import ProductsPage from "./pages/dashboard/ProductsPage";
-import CollectionsPage from "./pages/dashboard/CollectionsPage";
-import ShippingRatesPage from "./pages/dashboard/ShippingRatesPage";
-import CouponsPage from "./pages/dashboard/CouponsPage";
-import MarketsPage from "./pages/dashboard/MarketsPage";
-import FormsPage from "./pages/dashboard/FormsPage";
+import {
+  ActorDashboardPage,
+  ActorProfilePage,
+  FavoriteActorsPage,
+  DashboardLibrary,
+  DashboardDemos,
+  DashboardOrders,
+  ActorEarningsPage,
+  ActorPayoutSettingsPage,
+  MyShortlistPage,
+  DashboardProfile,
+  DashboardServices,
+  ClientDashboardPage,
+  ClientOrderPage,
+  PortfolioPage,
+} from "@/features/talent-marketplace";
+import { ActorLoginPage, ActorSignUpPage, ClientAuthPage, CreateProfilePromptPage } from "@/features/auth";
+import { MessagesPage, AdminChatSheet } from "@/features/messaging";
+import {
+  DomainMarketplace,
+  DomainCheckout,
+  DomainThankYouPage,
+  DomainOrderPage,
+} from "@/features/domain-marketplace";
+import {
+  AnalyticsPage,
+  OrdersPage,
+  LeadsPage,
+  FormsPage,
+  PaymentsPage,
+  StripeCallbackPage,
+} from "@/features/ecommerce";
+import { SettingsPage } from "@/features/portfolio-builder";
 
 // --- E-COMMERCE PUBLIC PAGES ---
-import PublicProductPage from "./pages/PublicProductPage";
-import PublicShopPage from "./pages/PublicShopPage.tsx";
-import PaymentsPage from "./pages/dashboard/PaymentsPage.tsx";
-import PublicCheckoutPage from "./pages/PublicCheckoutPage.tsx";
+import {
+  ProductsPage,
+  CollectionsPage,
+  ShippingRatesPage,
+  CouponsPage,
+  MarketsPage,
+  PublicShopPage,
+  PublicProductPage,
+  PublicCheckoutPage,
+  PublicThankYouPage,
+} from "@/features/ecommerce";
 import CheckoutLayout from "./themes/modern/CheckoutLayout.tsx";
-import PublicThankYouPage from "./pages/PublicThankYouPage.tsx";
 import ThankYouLayout from "./themes/modern/ThankYouLayout.tsx";
-import StripeCallbackPage from "./pages/dashboard/StripeCallbackPage.tsx";
-import ThemeStudioPage from "./pages/dashboard/ThemeStudioPage.tsx";
-import DeveloperHubPage from "./pages/dashboard/DeveloperHubPage.tsx";
-import { AdminChatSheet } from "./components/dashboard/AdminChatSheet.tsx";
-import AdminThemesPage from "./pages/dashboard/AdminThemesPage.tsx";
-import StudioPreview from "./pages/dashboard/StudioPreview.tsx";
+import {
+  BuilderPreview,
+  PortfolioBuilderPage
+} from "@/features/portfolio-builder";
+import {
+  ThemeStudioPage,
+  DeveloperHubPage,
+  StudioPreview
+} from "@/features/theme-studio";
 
 // Define main domains globally
 const MAIN_DOMAINS = [

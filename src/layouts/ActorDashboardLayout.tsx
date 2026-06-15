@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { supabase } from "../supabaseClient";
+import { supabase } from "@/supabaseClient";
 import {
   Outlet,
   Link,
@@ -62,9 +62,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SubscriptionProvider } from "../context/SubscriptionContext";
-import ThemeToggle from "../components/ThemeToggle";
-import TopUpModal from "@/components/dashboard/TopUpModal"; // 🚀 IMPORT TOPUP MODAL
+import { SubscriptionProvider } from "@/context/SubscriptionContext";
+import ThemeToggle from "@/components/ThemeToggle";
+import TopUpModal from "@/features/portfolio-builder/components/TopUpModal"; // 🚀 IMPORT TOPUP MODAL
 
 export interface ActorDashboardContextType {
   actorData: Partial<Actor>;

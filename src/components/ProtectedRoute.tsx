@@ -1,7 +1,7 @@
 // src/components/ProtectedRoute.tsx
 import React, { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { supabase } from "../supabaseClient";
+import { supabase } from "@/supabaseClient";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {

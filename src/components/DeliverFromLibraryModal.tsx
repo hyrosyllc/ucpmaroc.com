@@ -1,7 +1,7 @@
 // In src/components/DeliverFromLibraryModal.tsx
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '@/supabaseClient';
 import { X, Send, RefreshCw, CheckCircle, Mic } from 'lucide-react'; // Added icons
 import emailjs from '@emailjs/browser';
 import { 

@@ -1,0 +1,27 @@
+{
+  "navbar": {
+    "home": "Home",
+    "services": "Services",
+    "gallery": "Gallery",
+    "packages": "Packages",
+    "shortlist": "Shortlist",
+    "team": "Team",
+    "contact": "Contact",
+    "login": "Login / Sign Up",
+    "clientPortal": "Client Portal",
+    "actorPortal": "Actor Portal"
+  },
+  "auth": {
+    "createClientAccount": "Create Client Account",
+    "clientPortal": "Client Portal",
+    "accessOrders": "Access all your orders in one place.",
+    "fullName": "Full Name",
+    "email": "Email",
+    "password": "Password",
+    "createAccountBtn": "Create Account",
+    "logInBtn": "Log In",
+    "alreadyHaveAccount": "Already have an account? Log In",
+    "needAccount": "Need an account? Sign Up",
+    "orContinueWith": "Or continue with"
+  }
+}

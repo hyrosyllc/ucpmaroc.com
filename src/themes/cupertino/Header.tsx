@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UCP } from "@ucp/sdk"; // 🚀 The Platform SDK
-import type { HeaderSectionProps } from "@/types/sections";
+import type { HeaderSectionProps } from "@/features/portfolio-builder/types/sections";
 
 // ==========================================
 // 1. THEME CUSTOM SCHEMA

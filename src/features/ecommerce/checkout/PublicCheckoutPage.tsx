@@ -618,6 +618,7 @@ const PublicCheckoutPage = () => {
     "localhost",
     "127.0.0.1",
     "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
+    "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
   ];
   const isCustomDomain = !MAIN_DOMAINS.some((domain) => window.location.hostname.includes(domain));
   const shopUrl = isCustomDomain ? '/shop' : `/pro/${portfolio.public_slug}/shop`;

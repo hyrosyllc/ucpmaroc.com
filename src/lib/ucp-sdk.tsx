@@ -92,7 +92,7 @@ export const UCP = {
       if (!config.page_shop || config.page_shop.visible !== false) {
         flatItems.push({
           label: config.page_shop?.label || "Shop",
-          id: "system_shop",
+          id: "page_shop",
           type: "page",
           url: `${pathPrefix}/${username}/shop`,
           folderId: config.page_shop?.folderId,
@@ -107,7 +107,7 @@ export const UCP = {
           if (!pageConfig || pageConfig.visible !== false) {
             flatItems.push({
               label: pageConfig?.label || p.title,
-              id: p.id,
+              id: `page_${p.id}`,
               type: "page",
               url: `${pathPrefix}/${username}/${p.slug}`,
               folderId: pageConfig?.folderId,
@@ -147,6 +147,18 @@ export const UCP = {
             }
           }
         });
+
+      // Sort flatItems if menuOrder exists
+      if (data.menuOrder && Array.isArray(data.menuOrder)) {
+        flatItems.sort((a, b) => {
+          const idxA = data.menuOrder.indexOf(a.id);
+          const idxB = data.menuOrder.indexOf(b.id);
+          if (idxA === -1 && idxB === -1) return 0;
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+      }
 
       // 5. Mega Menu Stitching
       if (isMegaMenu) {

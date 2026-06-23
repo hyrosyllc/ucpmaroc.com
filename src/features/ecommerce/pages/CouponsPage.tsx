@@ -14,13 +14,12 @@ import { Loader2, Plus, Tag, Edit, Trash2, ArrowLeft, Calendar, Clock, Package, 
 import SiteFilter from "@/components/dashboard/SiteFilter";
 
 export default function CouponsPage() {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const actorId = actorData?.id;
 
   const [coupons, setCoupons] = useState<any[]>([]);
   const [portfolios, setPortfolios] = useState<{ id: string; public_slug: string; site_name?: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
   
   // Advanced Targeting Data
@@ -59,7 +58,7 @@ export default function CouponsPage() {
       // Fetch targeting dependencies
       Promise.all([
         supabase.from("pro_products").select("id, title, product_type, portfolio_id").eq("actor_id", actorId),
-        supabase.from("pro_collections").select("id, title").eq("actor_id", actorId)
+        supabase.from("pro_collections").select("id, title, portfolio_id").eq("actor_id", actorId)
       ]).then(([prodRes, colRes]) => {
         if (prodRes.data) {
           setProducts(prodRes.data);
@@ -305,7 +304,7 @@ export default function CouponsPage() {
                           <label htmlFor={`target-${item.id}`} className="text-sm font-medium leading-none cursor-pointer truncate">{item.title}</label>
                         </div>
                       ))}
-                      {formData.applies_to === "collections" && collections.map((item) => (
+                      {formData.applies_to === "collections" && collections.filter(c => !formData.portfolio_id || c.portfolio_id === formData.portfolio_id || !c.portfolio_id).map((item) => (
                         <div key={item.id} className="flex items-center space-x-2">
                           <Checkbox id={`target-${item.id}`} checked={(formData.target_ids || []).includes(item.id)} onCheckedChange={(c) => handleTargetToggle(item.id, c as boolean)}/>
                           <label htmlFor={`target-${item.id}`} className="text-sm font-medium leading-none cursor-pointer truncate">{item.title}</label>

@@ -10,9 +10,8 @@ import { Loader2, Globe, ChevronDown, ChevronUp, Save, Map } from "lucide-react"
 import { SHIPPING_REGIONS, ALL_COUNTRIES_LIST } from "@/lib/countries";
 
 export default function MarketsPage() {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const [portfolios, setPortfolios] = useState<any[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedRegions, setExpandedRegions] = useState<string[]>([]);
@@ -24,13 +23,19 @@ export default function MarketsPage() {
       const { data } = await supabase.from("portfolios").select("*").eq("actor_id", actorData.id);
       if (data && data.length > 0) {
         setPortfolios(data);
-        setSelectedSiteId(data[0].id);
-        setAllowedCountries(data[0].theme_config?.allowedCountries || ALL_COUNTRIES_LIST);
+        
+        let targetSiteId = selectedSiteId;
+        if (!targetSiteId || targetSiteId === "all" || !data.some(p => p.id === targetSiteId)) {
+           targetSiteId = data[0].id;
+           setSelectedSiteId(targetSiteId);
+        }
+        const site = data.find(p => p.id === targetSiteId) || data[0];
+        setAllowedCountries(site.theme_config?.allowedCountries || ALL_COUNTRIES_LIST);
       }
       setIsLoading(false);
     };
     fetchSites();
-  }, [actorData.id]);
+  }, [actorData.id]); // Intentional: Only run on mount
 
   const handleSiteChange = (siteId: string) => {
     setSelectedSiteId(siteId);
@@ -94,7 +99,7 @@ export default function MarketsPage() {
         <CardContent className="space-y-6">
           <div className="space-y-2 max-w-sm">
             <Label>Select Website</Label>
-            <select className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:ring-2" value={selectedSiteId} onChange={(e) => handleSiteChange(e.target.value)}>
+            <select className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:ring-2" value={selectedSiteId === "all" ? "" : selectedSiteId} onChange={(e) => handleSiteChange(e.target.value)}>
               {portfolios.map((p) => <option key={p.id} value={p.id}>{p.site_name || p.public_slug}</option>)}
             </select>
           </div>

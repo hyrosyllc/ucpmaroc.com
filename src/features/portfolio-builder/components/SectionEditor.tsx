@@ -1589,11 +1589,16 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 
   const fetchForms = async () => {
     if (!portfolioId) return;
-    const { data, error } = await supabase
+    let query = supabase
       .from("forms")
       .select("*")
-      .eq("portfolio_id", portfolioId) 
       .order("created_at", { ascending: false });
+
+    if (portfolioId) {
+        query = query.eq("portfolio_id", portfolioId);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       setSavedForms(data);

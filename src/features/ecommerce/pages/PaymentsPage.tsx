@@ -47,16 +47,13 @@ import {
 } from "@/components/ui/select";
 
 const PaymentsPage = () => {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const { plan: currentPlanId } = useSubscription();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>({});
   const [portfolios, setPortfolios] = useState<any[]>([]);
-
-  // Store the specific portfolio ID.
-  const [selectedContext, setSelectedContext] = useState<string>("");
 
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -111,7 +108,11 @@ const PaymentsPage = () => {
 
     if (sites) {
       setPortfolios(sites);
-      if (sites.length > 0 && !selectedContext) setSelectedContext(sites[0].id);
+      if (sites.length > 0) {
+        if (!selectedSiteId || selectedSiteId === "all" || !sites.find(s => s.id === selectedSiteId)) {
+           setSelectedSiteId(sites[0].id);
+        }
+      }
     }
 
     setLoading(false);
@@ -119,8 +120,8 @@ const PaymentsPage = () => {
 
   // Sync local form state when context switches
   useEffect(() => {
-    if (!loading && portfolios.length > 0 && selectedContext) {
-      const source = portfolios.find(p => p.id === selectedContext);
+    if (!loading && portfolios.length > 0 && selectedSiteId && selectedSiteId !== "all") {
+      const source = portfolios.find(p => p.id === selectedSiteId);
       const pConfig = source?.theme_config?.payments || {};
 
       setCodEnabled(pConfig.cod?.enabled ?? true);
@@ -138,7 +139,7 @@ const PaymentsPage = () => {
       setCryptoEnabled(pConfig.crypto?.enabled ?? false);
       setCryptoWallet(pConfig.crypto?.wallet ?? "");
     }
-  }, [selectedContext, portfolios, profile, loading]);
+  }, [selectedSiteId, portfolios, profile, loading]);
 
   useEffect(() => {
     fetchData();
@@ -146,7 +147,7 @@ const PaymentsPage = () => {
 
   // --- STRIPE EXPRESS LOGIC (MANAGED PAYMENTS) ---
   const handleConnectExpress = async () => {
-    if (!actorData?.id || !selectedContext) return;
+    if (!actorData?.id || !selectedSiteId || selectedSiteId === "all") return;
     setIsConnectingStripe(true);
     try {
       const { data, error } = await supabase.functions.invoke(
@@ -154,7 +155,7 @@ const PaymentsPage = () => {
         {
           body: {
             actorId: actorData.id,
-            portfolioId: selectedContext,
+            portfolioId: selectedSiteId,
             returnUrl: window.location.origin + "/dashboard/payments",
           },
         }
@@ -176,11 +177,11 @@ const PaymentsPage = () => {
       return;
     }
 
-    if (!actorData?.id || !selectedContext) return;
+    if (!actorData?.id || !selectedSiteId || selectedSiteId === "all") return;
 
     const clientId = import.meta.env.VITE_STRIPE_CLIENT_ID;
     const stateString = btoa(
-      JSON.stringify({ actorId: actorData.id, portfolioId: selectedContext })
+      JSON.stringify({ actorId: actorData.id, portfolioId: selectedSiteId })
     );
 
     const stripeOAuthUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${clientId}&scope=read_write&state=${stateString}`;
@@ -189,7 +190,7 @@ const PaymentsPage = () => {
 
   // --- DYNAMIC PAYMENT SAVING ---
   const handleSavePaymentMethod = async (type: 'cod' | 'bank' | 'crypto') => {
-    if (!selectedContext) {
+    if (!selectedSiteId || selectedSiteId === "all") {
       notify("error", "Save Failed", "Please select a website first.");
       return;
     }
@@ -201,7 +202,7 @@ const PaymentsPage = () => {
         crypto: { enabled: cryptoEnabled, wallet: cryptoWallet }
       };
 
-      const p = portfolios.find(port => port.id === selectedContext);
+      const p = portfolios.find(port => port.id === selectedSiteId);
       if (p) {
         const newConfig = { ...p.theme_config, payments: paymentSettings };
         await supabase.from("portfolios").update({ theme_config: newConfig }).eq("id", p.id);
@@ -223,7 +224,7 @@ const PaymentsPage = () => {
     );
 
   // --- DETERMINE ACTIVE STATE ---
-  const activePortfolio = portfolios.find((p) => p.id === selectedContext);
+  const activePortfolio = portfolios.find((p) => p.id === selectedSiteId);
 
   const activeStripeId = activePortfolio?.stripe_account_id;
   const activeStripeType = activePortfolio?.stripe_account_type;
@@ -258,7 +259,7 @@ const PaymentsPage = () => {
             <Label className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1 block">
               Configuring Settings For
             </Label>
-            <Select value={selectedContext} onValueChange={setSelectedContext}>
+          <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
               <SelectTrigger className="w-full sm:w-[300px] h-11 border-2 font-semibold bg-background">
                 <SelectValue placeholder={portfolios.length > 0 ? "Select a site to configure" : "No sites available"} />
               </SelectTrigger>
@@ -276,7 +277,7 @@ const PaymentsPage = () => {
           </div>
 
           <div className="text-sm text-muted-foreground sm:max-w-xs sm:text-right">
-            {selectedContext ? (
+          {selectedSiteId && selectedSiteId !== "all" ? (
               <span className="flex items-center sm:justify-end gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
                 <Zap size={16} /> Payment Settings for this Site
               </span>

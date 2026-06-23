@@ -67,6 +67,7 @@ interface FormManagerProps {
   actorId?: string;
   portfolioId: string;
   onFormsChange?: () => void;
+  initialForm?: any | null;
 }
 
 import { ALL_COUNTRIES_STRING } from "@/lib/countries";
@@ -416,11 +417,14 @@ export default function FormManager({
   actorId,
   portfolioId,
   onFormsChange,
+  initialForm,
 }: FormManagerProps) {
   const [forms, setForms] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeForm, setActiveForm] = useState<any | null>(null);
+  const [portfolios, setPortfolios] = useState<any[]>([]);
+  const [portfoliosLoaded, setPortfoliosLoaded] = useState(false);
 
   // Modals & Tabs
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
@@ -434,27 +438,36 @@ export default function FormManager({
   );
 
   const fetchForms = async () => {
-    if (!portfolioId) return;
     setLoading(true);
 
     // Fetch the site name for context
-    const { data: portData } = await supabase
-      .from("portfolios")
-      .select("site_name, public_slug")
-      .eq("id", portfolioId)
-      .maybeSingle();
-    if (portData) {
-      setSiteName(portData.site_name || portData.public_slug || "Unknown Site");
+    if (portfolioId && portfolioId !== "global" && portfolioId !== "all") {
+      const { data: portData } = await supabase
+        .from("portfolios")
+        .select("site_name, public_slug")
+        .eq("id", portfolioId)
+        .maybeSingle();
+      if (portData) {
+        setSiteName(portData.site_name || portData.public_slug || "Unknown Site");
+      }
+    } else {
+      setSiteName("All Sites");
     }
 
     let query = supabase
       .from("forms")
       .select("*")
-      .eq("portfolio_id", portfolioId)
       .order("created_at", { ascending: false });
 
-    if (actorId) {
-      query = query.eq("actor_id", actorId);
+    // If not "global", only show forms tied to this specific portfolio
+    if (portfolioId && portfolioId !== "global" && portfolioId !== "all") {
+      query = query.eq("portfolio_id", portfolioId);
+    } else if (portfolios.length > 0) {
+      query = query.in("portfolio_id", portfolios.map((p) => p.id));
+    } else {
+      setForms([]);
+      setLoading(false);
+      return;
     }
 
     const { data } = await query;
@@ -464,13 +477,37 @@ export default function FormManager({
   };
 
   useEffect(() => {
-    if (isOpen) fetchForms();
-  }, [isOpen, portfolioId]);
+    if (isOpen && actorId) {
+      supabase.from("portfolios").select("id, site_name, public_slug").eq("actor_id", actorId)
+        .then(({ data }) => {
+          if (data) setPortfolios(data);
+          setPortfoliosLoaded(true);
+        });
+    }
+  }, [isOpen, actorId]);
+
+  useEffect(() => {
+    if (isOpen && portfoliosLoaded) fetchForms();
+  }, [isOpen, portfolioId, portfolios, portfoliosLoaded]);
+
+  // 🚀 Open directly into the requested form if provided
+  useEffect(() => {
+    if (isOpen) {
+      if (initialForm) {
+        handleEdit(initialForm);
+      } else {
+        setActiveForm(null);
+      }
+    }
+  }, [isOpen, initialForm]);
 
   const handleCreateNew = (type: "contact" | "checkout") => {
     const template =
       type === "checkout" ? defaultCheckoutTemplate : defaultContactTemplate;
-    setActiveForm({ ...template });
+    setActiveForm({ 
+      ...template,
+      portfolio_id: (portfolioId && portfolioId !== "global" && portfolioId !== "all") ? portfolioId : "" 
+    });
     setActiveTab("fields");
     setIsTypeSelectorOpen(false);
   };
@@ -513,18 +550,20 @@ export default function FormManager({
   };
 
   const handleSave = async () => {
-    if (!activeForm || !portfolioId) return;
+    if (!activeForm) return;
+    if (!activeForm.portfolio_id) {
+      alert("Please select a Store / Website for this form.");
+      return;
+    }
     setSaving(true);
 
-    const payload = { ...activeForm, portfolio_id: portfolioId };
-    if (actorId) {
-      payload.actor_id = actorId;
-    } else {
-      delete payload.actor_id;
-    }
+    const payload = { ...activeForm };
+    
+    delete payload.actor_id; // Forms belong to portfolios, no actor_id column exists
 
     let res;
     if (payload.id) {
+      delete payload.created_at; // Prevent Postgres immutable column errors
       res = await supabase
         .from("forms")
         .update(payload)
@@ -540,7 +579,7 @@ export default function FormManager({
       await fetchForms();
       if (onFormsChange) onFormsChange();
     } else {
-      alert("Failed to save form.");
+      alert(`Failed to save form: ${res.error?.message || "Unknown error"}`);
     }
     setSaving(false);
   };
@@ -797,6 +836,26 @@ export default function FormManager({
                         <FileText size={16} className="text-primary" /> Customer
                         Facing Text
                       </h3>
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                          Store / Website <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={activeForm.portfolio_id || ""}
+                          onValueChange={(val) => updateActiveForm("portfolio_id", val)}
+                        >
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="Select a website..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {portfolios.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.site_name || p.public_slug}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
                           Form Title

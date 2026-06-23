@@ -1,10 +1,10 @@
 // src/components/dashboard/SectionEditor.tsx
 
 import React, { useState, useEffect } from "react";
-import { useBuilderStore } from "../../../store/useBuilderStore";
+import { useBuilderStore } from "../../../store/useBuilderStore"; // <-- ZUSTAND IMPORT
 import { supabase } from "@/supabaseClient";
 import { useSubscription } from "../../../context/SubscriptionContext";
-import { verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { verticalListSortingStrategy } from "@dnd-kit/sortable"; // 🚀 Add this next to rectSortingStrategy
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 // --- shadcn/ui Imports ---
@@ -123,8 +123,9 @@ import {
 } from "@/themes/registry";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "../../../components/ui/toggle-group";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
 import FormManager from "./FormManager";
-import { HTML_TEMPLATES } from "@/features/portfolio-builder/config/html-templates"; 
+import { HTML_TEMPLATES } from "@/features/portfolio-builder/config/html-templates"; // 🚀 Import Templates
 
 const SiteReviewsManager = ({ portfolioId }: { portfolioId: string }) => {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -210,51 +211,28 @@ const SiteReviewsManager = ({ portfolioId }: { portfolioId: string }) => {
   );
 };
 
-// 🚀 FIXED: Sortable Menu Item Component (Replaces DraggableMenuItem & DragDropContext)
-const SortableMenuItem = ({
+// 🚀 NEW: Draggable Menu Item Component
+const DraggableMenuItem = ({
   item,
+  dragHandleProps,
   updateMenuConfig,
   updateCustomLink,
-  removeCustomLink,
   isMegaMenu,
   megaFolders,
 }: any) => {
   const { type, id, data } = item;
   const { isVisible, label, url, folderId } = data;
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : 0,
-  };
-
-  const itemIcons: Record<string, React.ReactNode> = {
+  const itemIcons = {
     page: <FileText size={14} />,
     custom_link: <LinkIcon size={14} />,
     section: <Layers size={14} />,
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "flex items-start gap-2 bg-background p-3 border rounded-lg shadow-sm group relative transition-all",
-        isDragging && "ring-2 ring-primary opacity-90 scale-[0.98]"
-      )}
-    >
+    <div className="flex items-start gap-2 bg-background p-3 border rounded-lg shadow-sm group">
       <div
-        {...attributes}
-        {...listeners}
+        {...dragHandleProps}
         className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary transition-colors flex-shrink-0 touch-none pt-2.5"
       >
         <GripVertical size={16} />
@@ -274,7 +252,6 @@ const SortableMenuItem = ({
           <div className="flex-1">
             <Input
               value={label}
-              placeholder={type === "custom_link" ? "Link Name" : "Label"}
               onChange={(e) => {
                 if (type === "custom_link") {
                   updateCustomLink(id, "label", e.target.value);
@@ -333,32 +310,23 @@ const SortableMenuItem = ({
           </div>
         )}
       </div>
-      {type === "custom_link" && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-destructive/50 hover:text-destructive absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border shadow-sm rounded-full"
-          onClick={() => removeCustomLink(id)}
-        >
-          <X size={14} />
-        </Button>
-      )}
     </div>
   );
 };
 
 interface SectionEditorProps {
   section: PortfolioSection | null;
-  sections: PortfolioSection[];
+  sections: PortfolioSection[]; // Kept for backwards compatibility if needed
   isOpen: boolean;
   isInline: boolean;
   onClose: () => void;
+  // onSave is no longer needed! Zustand handles it.
   actorId: string;
   themeId?: string;
-  pages?: any[];
-  portfolioId: string;
+  pages?: any[]; // 🚀 1. ADD THIS HERE
+  portfolioId: string; // 🚀 ADD THIS PROP
 }
-
+// 🚀 NEW: Standalone Sortable Item for Shop Products (Accordion & Duplication)
 const SortableShopProduct = ({
   product,
   idx,
@@ -367,10 +335,10 @@ const SortableShopProduct = ({
   duplicateProduct,
   setActiveMediaField,
   setIsMediaPickerOpen,
-  setIsFormManagerOpen, 
+  setIsFormManagerOpen, // 🚀 ADD THIS
   savedForms = [],
 }: any) => {
-  const [isExpanded, setIsExpanded] = useState(idx === 0);
+  const [isExpanded, setIsExpanded] = useState(idx === 0); // Open the first one by default
 
   const sortableId = product.id || `shop-product-${idx}`;
   const {
@@ -418,6 +386,7 @@ const SortableShopProduct = ({
           : "hover:border-primary/30"
       )}
     >
+      {/* 🚀 ACCORDION HEADER */}
       <div
         className={cn(
           "flex items-center gap-3 p-3 cursor-pointer select-none transition-colors hover:bg-muted/30",
@@ -429,11 +398,12 @@ const SortableShopProduct = ({
           {...attributes}
           {...listeners}
           className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary transition-colors flex-shrink-0 touch-none py-2"
-          onClick={(e) => e.stopPropagation()} 
+          onClick={(e) => e.stopPropagation()} // Prevent drag from toggling accordion
         >
           <GripVertical size={16} />
         </div>
 
+        {/* Thumbnail Preview */}
         <div className="w-10 h-10 rounded bg-muted/50 border overflow-hidden shrink-0">
           {images[0] ? (
             <img
@@ -446,6 +416,7 @@ const SortableShopProduct = ({
           )}
         </div>
 
+        {/* Summary */}
         <div className="flex-1 min-w-0">
           <div className="font-bold text-sm truncate">
             {product.title || "Unnamed Product"}
@@ -461,6 +432,7 @@ const SortableShopProduct = ({
           </div>
         </div>
 
+        {/* Actions (Duplicate / Delete) */}
         <div
           className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           onClick={(e) => e.stopPropagation()}
@@ -486,8 +458,10 @@ const SortableShopProduct = ({
         </div>
       </div>
 
+      {/* 🚀 EXPANDABLE CONTENT */}
       {isExpanded && (
         <div className="p-5 space-y-6 animate-in slide-in-from-top-2 fade-in duration-200">
+          {/* 1. MEDIA GALLERY */}
           <div className="space-y-2">
             <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
               Product Gallery
@@ -559,6 +533,7 @@ const SortableShopProduct = ({
             </div>
           </div>
 
+          {/* 2. CORE DETAILS */}
           <div className="grid grid-cols-12 gap-3">
             <div className="col-span-12 space-y-1.5">
               <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -622,6 +597,7 @@ const SortableShopProduct = ({
             </div>
           </div>
 
+          {/* 3. PURCHASE ACTION */}
           <div className="p-3 bg-muted/20 border rounded-lg space-y-3">
             <div className="flex items-center gap-2 border-b border-muted-foreground/10 pb-2">
               <ShoppingCart size={14} className="text-primary" />
@@ -709,7 +685,7 @@ const SortableShopProduct = ({
                       savedForms.filter((f: any) => f.type === "checkout")
                         .length > 0 ? (
                         savedForms
-                          .filter((f: any) => f.type === "checkout") 
+                          .filter((f: any) => f.type === "checkout") // 🚀 FIX: Only show Checkout forms!
                           .map((f: any) => (
                             <SelectItem key={f.id} value={f.id}>
                               {f.name}
@@ -746,6 +722,7 @@ const SortableShopProduct = ({
             </div>
           </div>
 
+          {/* 4. ADVANCED VARIANTS (AAA+) */}
           <div className="space-y-3 pt-2 border-t border-muted-foreground/10">
             <div className="flex justify-between items-center">
               <Label className="text-xs font-semibold flex items-center gap-2">
@@ -775,6 +752,7 @@ const SortableShopProduct = ({
 
             <div className="space-y-3">
               {(product.variants || []).map((v: any, vIdx: number) => {
+                // 🚀 THE FIX: Safely parse old strings AND new objects!
                 const optionsArray = Array.isArray(v.options)
                   ? v.options.map((o: any) =>
                       typeof o === "string" ? { label: o.trim(), price: "" } : o
@@ -827,6 +805,7 @@ const SortableShopProduct = ({
                             value={opt.label}
                             onChange={(e) => {
                               const newVars = [...product.variants];
+                              // Make sure we are writing to an object array
                               newVars[vIdx].options = [...optionsArray];
                               newVars[vIdx].options[optIdx].label =
                                 e.target.value;
@@ -892,6 +871,7 @@ const SortableShopProduct = ({
             </div>
           </div>
 
+          {/* 5. FAQs / PRODUCT DETAILS */}
           <div className="space-y-3 pt-2 border-t border-muted-foreground/10">
             <div className="flex justify-between items-center">
               <Label className="text-xs font-semibold flex items-center gap-2">
@@ -963,7 +943,7 @@ const SortableShopProduct = ({
     </div>
   );
 };
-
+// 🚀 UPDATED: Standalone Sortable Item for Form Fields
 const SortableFormField = ({
   field,
   idx,
@@ -1046,6 +1026,7 @@ const SortableFormField = ({
                 <SelectItem value="email">Email Address</SelectItem>
                 <SelectItem value="tel">Phone Number</SelectItem>
                 <SelectItem value="date">Date Picker</SelectItem>
+                {/* 🚀 NEW: Advanced Field Types */}
                 <SelectItem value="select">Dropdown (Select)</SelectItem>
                 <SelectItem value="radio">Multiple Choice (Radio)</SelectItem>
               </SelectContent>
@@ -1053,6 +1034,7 @@ const SortableFormField = ({
           </div>
         </div>
 
+        {/* 🚀 NEW: Options Field for Select/Radio */}
         {needsOptions && (
           <div className="space-y-1.5 p-3 bg-primary/5 border border-primary/20 rounded-lg">
             <Label className="text-[10px] uppercase tracking-widest text-primary font-bold">
@@ -1124,13 +1106,13 @@ const SortableFormField = ({
     </div>
   );
 };
-
+// 🚀 NEW: Standalone Sortable Item for Pricing Plans (Upgraded with Form Actions)
 const SortablePricingPlan = ({
   plan,
   idx,
   updatePlan,
   removePlan,
-  setIsFormManagerOpen, 
+  setIsFormManagerOpen, // 🚀 ADD THIS
   savedForms = [],
 }: any) => {
   const sortableId = plan.id || `pricing-plan-${idx}`;
@@ -1159,6 +1141,7 @@ const SortablePricingPlan = ({
         plan.isPopular && "border-primary/50 bg-primary/5"
       )}
     >
+      {/* Drag Handle */}
       <div
         {...attributes}
         {...listeners}
@@ -1168,6 +1151,7 @@ const SortablePricingPlan = ({
       </div>
 
       <div className="flex-1 space-y-4">
+        {/* Remove Button */}
         <Button
           size="icon"
           variant="ghost"
@@ -1231,6 +1215,7 @@ const SortablePricingPlan = ({
           />
         </div>
 
+        {/* 🚀 UPGRADED CHECKOUT / ACTION SETTINGS */}
         <div className="p-3 bg-muted/20 border rounded-md space-y-3">
           <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
             Button Action
@@ -1267,6 +1252,7 @@ const SortablePricingPlan = ({
             </div>
           </div>
 
+          {/* Conditional Input based on Action Type */}
           {plan.actionType === "form" ? (
             <div className="space-y-1.5 pt-1 animate-in fade-in slide-in-from-top-1">
               <Label className="text-[10px] text-primary font-bold">
@@ -1292,6 +1278,7 @@ const SortablePricingPlan = ({
                   )}
                 </SelectContent>
               </Select>
+              {/* 🚀 NEW: Button explicitly placed here */}
               <Button
                 size="sm"
                 variant="outline"
@@ -1338,7 +1325,6 @@ const SortablePricingPlan = ({
     </div>
   );
 };
-
 const SortableMediaItem = ({ img, idx, isVid, ytId, onDelete }: any) => {
   const {
     attributes,
@@ -1347,7 +1333,7 @@ const SortableMediaItem = ({ img, idx, isVid, ytId, onDelete }: any) => {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: img.url });
+  } = useSortable({ id: img.url }); // Use URL as unique ID
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1401,6 +1387,7 @@ const SortableMediaItem = ({ img, idx, isVid, ytId, onDelete }: any) => {
         />
       )}
 
+      {/* Delete Button - Needs onPointerDown stopPropagation to allow clicking inside a draggable area */}
       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <Button
           variant="destructive"
@@ -1415,7 +1402,7 @@ const SortableMediaItem = ({ img, idx, isVid, ytId, onDelete }: any) => {
     </div>
   );
 };
-
+// 🚀 NEW: Standalone Sortable Item for Team Members
 const SortableTeamMember = ({
   member,
   idx,
@@ -1424,6 +1411,7 @@ const SortableTeamMember = ({
   setActiveMediaField,
   setIsMediaPickerOpen,
 }: any) => {
+  // Use a fallback ID if the member doesn't have a unique ID yet
   const sortableId = member.id || `team-member-${idx}`;
   const {
     attributes,
@@ -1449,6 +1437,7 @@ const SortableTeamMember = ({
         isDragging && "ring-2 ring-primary shadow-2xl opacity-90 scale-[0.98]"
       )}
     >
+      {/* Drag Handle - Only this part triggers the drag! */}
       <div
         {...attributes}
         {...listeners}
@@ -1458,6 +1447,7 @@ const SortableTeamMember = ({
       </div>
 
       <div className="flex-1 space-y-4">
+        {/* Remove Button */}
         <Button
           size="icon"
           variant="ghost"
@@ -1469,6 +1459,7 @@ const SortableTeamMember = ({
         </Button>
 
         <div className="flex gap-4 items-start pr-8">
+          {/* Image Picker */}
           <div
             className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-full flex-shrink-0 relative overflow-hidden cursor-pointer border-2 border-transparent hover:border-primary transition-colors group/img"
             onPointerDown={(e) => e.stopPropagation()}
@@ -1491,6 +1482,7 @@ const SortableTeamMember = ({
             </div>
           </div>
 
+          {/* Basic Info */}
           <div className="flex-grow space-y-2">
             <Input
               placeholder="Full Name"
@@ -1509,6 +1501,7 @@ const SortableTeamMember = ({
           </div>
         </div>
 
+        {/* Bio */}
         <div className="space-y-1">
           <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">
             Short Bio
@@ -1523,6 +1516,7 @@ const SortableTeamMember = ({
           />
         </div>
 
+        {/* Social Links */}
         <div className="grid grid-cols-2 gap-3 pt-2 border-t border-dashed">
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-[10px]">
@@ -1553,20 +1547,22 @@ const SortableTeamMember = ({
     </div>
   );
 };
-
 const SectionEditor: React.FC<SectionEditorProps> = ({
   section,
   sections,
-  pages = [],
+  pages = [], // 🚀 2. EXTRACT IT HERE (with a default empty array)
   isOpen,
-  isInline,
+  isInline, // 🚀 YOU MUST ADD THIS HERE!
   onClose,
   actorId,
   themeId = "modern",
-  portfolioId,
+  portfolioId, // 🚀 2. DESTRUCTURE THIS
 }) => {
+  // --- ZUSTAND HOOK ---
+  // We grab the update action from the store.
   const updateSectionInStore = useBuilderStore((state) => state.updateSection);
 
+  // --- LOCAL UI STATE ---
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [isFormManagerOpen, setIsFormManagerOpen] = useState(false);
   const [activeMediaField, setActiveMediaField] = useState<string>("");
@@ -1574,7 +1570,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [formData, setFormData] = useState(section?.data || {});
   const [isHtmlDocsOpen, setIsHtmlDocsOpen] = useState(false);
-  const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false);
+  const [isTemplateLibraryOpen, setIsTemplateLibraryOpen] = useState(false); // 🚀 Template Modal State
 
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -1583,22 +1579,20 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
-  
+  // Tier 2 is eCommerce, Tier 3 is Pro
   const hasMegaMenuAccess = limits?.hasMegaMenu === true;
-  const [savedForms, setSavedForms] = useState<any[]>([]);
 
+  // Put this near the top of your SectionEditor component
+  const [savedForms, setSavedForms] = useState<any[]>([]); // 🚀 STATE FOR FETCHED FORMS
+
+  // 🚀 FIXED: Fetch by portfolioId because the forms table doesn't use actorId!
   const fetchForms = async () => {
     if (!portfolioId) return;
-    let query = supabase
+    const { data, error } = await supabase
       .from("forms")
       .select("*")
+      .eq("portfolio_id", portfolioId) // Changed from actor_id
       .order("created_at", { ascending: false });
-
-    if (portfolioId) {
-        query = query.eq("portfolio_id", portfolioId);
-    }
-
-    const { data, error } = await query;
 
     if (!error && data) {
       setSavedForms(data);
@@ -1609,6 +1603,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     fetchForms();
   }, [portfolioId]);
 
+  // 🚀 AAA+ GLOBAL TEMPLATE AUTO-SAVE ENGINE
   useEffect(() => {
     if (
       section?.type !== "lead_form" ||
@@ -1626,12 +1621,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
           button_text: formData.buttonText,
           success_title: formData.successTitle,
           success_message: formData.successMessage,
-          variant: formData.variant, 
-          image: formData.image, 
+          variant: formData.variant, // 🚀 Now saving layout
+          image: formData.image, // 🚀 Now saving image
           fields: formData.fields || [],
         })
         .eq("id", formData.formId);
 
+      // Update the local list so the renaming/duplicating uses the freshest data
       setSavedForms((prev) =>
         prev.map((f) =>
           f.id === formData.formId
@@ -1678,8 +1674,16 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     }
   }, [actorId, section?.type, portfolioId]);
 
+  if (!section) return null;
+  // =========================================================
+  // THE LOCAL STATE BUFFER (Fixes cursor jumping & freezing!)
+  // =========================================================
+
+  // 1. We keep a local copy of the data so typing is buttery smooth
   const [settingsData, setSettingsData] = useState(section?.settings || {});
 
+  // 2. If the user clicks a DIFFERENT section, or if the canvas iframe
+  // sends an inline-edit update, we sync the local state to match.
   useEffect(() => {
     if (section) {
       setFormData(section.data || {});
@@ -1687,18 +1691,35 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     }
   }, [section]);
 
+  // =========================================================
+  // CORE UPDATE HANDLERS (Zustand Connected)
+  // =========================================================
+
+  // Update Core Content (Zone A)
   const updateField = (key: string, value: any) => {
+    // 1. Update Local UI instantly
     const newFormData = { ...formData, [key]: value };
     setFormData(newFormData);
-    updateSectionInStore(section!.id, { data: newFormData });
+
+    // 2. Send to Zustand in the background
+    updateSectionInStore(section.id, {
+      data: newFormData,
+    });
   };
 
+  // Update Theme Settings (Zone B)
   const updateSetting = (key: string, value: any) => {
+    // 1. Update Local UI instantly
     const newSettingsData = { ...settingsData, [key]: value };
     setSettingsData(newSettingsData);
-    updateSectionInStore(section!.id, { settings: newSettingsData });
+
+    // 2. Send to Zustand in the background
+    updateSectionInStore(section.id, {
+      settings: newSettingsData,
+    });
   };
 
+  // 🚀 Apply Template Helper
   const handleApplyTemplate = (template: any) => {
     if (formData.code?.trim() && !window.confirm("Loading this template will overwrite your current code. Are you sure you want to continue?")) {
       return;
@@ -1712,10 +1733,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     };
     
     setFormData(newFormData);
-    updateSectionInStore(section!.id, { data: newFormData });
+    updateSectionInStore(section.id, { data: newFormData });
     setIsTemplateLibraryOpen(false);
   };
 
+  // =========================================================
+  // MEDIA HANDLER (Adapted to Zustand)
+  // =========================================================
   const handleMediaSelect = (item: UnifiedMediaItem) => {
     if (activeMediaField === "logoImage") {
       updateField("logoImage", item.url);
@@ -1738,7 +1762,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         { url: item.url, type: item.type },
       ]);
     } else if (activeMediaField === "backgroundImage") {
-      if (section!.type === "header") {
+      if (section.type === "header") {
         updateSetting("backgroundImage", item.url);
       } else {
         updateField("backgroundImage", item.url);
@@ -1768,20 +1792,27 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         updateField("products", currentProducts);
       }
     }
+    // 2. Special Case for Header Background (saves to settings instead of data)
     else if (
       activeMediaField === "backgroundImage" &&
-      section!.type === "header"
+      section.type === "header"
     ) {
       updateSetting("backgroundImage", item.url);
     }
+    // 🚀 3. THE MAGIC CATCH-ALL FOR STANDARD FIELDS
     else if (activeMediaField) {
+      // This automatically handles "logoImage", "image", "backgroundImage",
+      // "videoUrl", "mobileBackgroundImage", "mobileVideoUrl", etc!
       updateField(activeMediaField, item.url);
     }
 
+    // 4. Close the modal and reset
     setIsMediaPickerOpen(false);
     setActiveMediaField("");
   };
-
+  // =========================================================
+  // ARRAY HELPERS (Adapted to use formData directly)
+  // =========================================================
   const addStat = () =>
     updateField("customStats", [
       ...(formData.customStats || []),
@@ -1896,34 +1927,44 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
     const currentProducts = formData.products || [];
     const productToCopy = currentProducts[idx];
 
+    // Deep clone the object so modifying the copy doesn't affect the original
     const newProduct = JSON.parse(JSON.stringify(productToCopy));
 
+    // Append " (Copy)" to the title
     if (newProduct.title) {
       newProduct.title = `${newProduct.title} (Copy)`;
     }
 
+    // Generate a new unique ID for DndKit
     newProduct.id = `shop-product-${Date.now()}`;
 
     const newProducts = [...currentProducts];
-    newProducts.splice(idx + 1, 0, newProduct); 
+    newProducts.splice(idx + 1, 0, newProduct); // Insert it right after the original
 
     updateField("products", newProducts);
   };
-
+  // =========================================================
+  // DYNAMIC FORM BUILDER (Theme Settings)
+  // =========================================================
   const renderThemeSettings = () => {
+    // We now know this is correctly resolving to "cupertino"
     const ActiveTheme = THEME_REGISTRY[themeId];
     if (!ActiveTheme) return <p>Theme not found.</p>;
 
-    const SectionComponent = resolveThemeComponent(ActiveTheme, section!.type);
-    const componentKey = SECTION_COMPONENT_MAP[section!.type];
+    // 🚀 Look how clean this is using your new helper!
+    const SectionComponent = resolveThemeComponent(ActiveTheme, section.type);
+    const componentKey = SECTION_COMPONENT_MAP[section.type];
 
+    // 🚀 THE FIX: Look for the schema in a dedicated schemas object first!
+    // This bypasses the React.lazy() trap entirely.
     let schema =
       ActiveTheme.schemas?.[componentKey] ||
       SectionComponent?.schema ||
       SectionComponent?.default?.schema ||
       [];
 
-    if (section!.type === "dynamic_store" && (!schema || schema.length === 0)) {
+    // 🚀 DYNAMIC STORE INJECTION: Ensures the layout settings appear in the Design tab
+    if (section.type === "dynamic_store" && (!schema || schema.length === 0)) {
       schema = [
         {
           id: "variant",
@@ -2056,148 +2097,17 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       </div>
     );
   };
-
+  // =========================================================
+  // CORE CONTENT FIELDS
+  // =========================================================
   const renderFields = () => {
-    if (!section) return null;
-
     switch (section.type) {
       case "header":
-        const megaFolders = formData.megaMenuFolders || []; 
-
-        const allMenuItems = [
-          {
-            type: "page",
-            id: "page_shop",
-            data: {
-              isVisible: formData.menuConfig?.page_shop?.visible !== false,
-              label: formData.menuConfig?.page_shop?.label || "Shop",
-              folderId: formData.menuConfig?.page_shop?.folderId || "none",
-              url: "/shop"
-            }
-          },
-          ...(pages || []).filter((p: any) => !p.isHome).map((p: any) => {
-            const configKey = `page_${p.id}`;
-            const config = formData.menuConfig?.[configKey] || {};
-            return {
-              type: "page",
-              id: configKey,
-              data: {
-                isVisible: config.visible !== false,
-                label: config.label || p.title,
-                folderId: config.folderId || "none",
-                url: `/${p.slug}`
-              }
-            };
-          }),
-          ...sections.filter((s: any) => s.type !== "header" && s.isVisible).map((s: any) => {
-            const config = formData.menuConfig?.[s.id] || {};
-            return {
-              type: "section",
-              id: s.id,
-              data: {
-                isVisible: config.visible !== false,
-                label: config.label || s.data?.title || s.type,
-                folderId: config.folderId || "none",
-                url: `#${s.id}`
-              }
-            };
-          }),
-          ...(formData.customNavLinks || []).map((link: any) => ({
-            type: "custom_link",
-            id: link.id,
-            data: {
-              isVisible: link.visible !== false,
-              label: link.label || "",
-              folderId: link.folderId || "none",
-              url: link.url || ""
-            }
-          }))
-        ];
-
-        if (formData.menuOrder && Array.isArray(formData.menuOrder)) {
-          allMenuItems.sort((a, b) => {
-            const idxA = formData.menuOrder.indexOf(a.id);
-            const idxB = formData.menuOrder.indexOf(b.id);
-            if (idxA === -1 && idxB === -1) return 0;
-            if (idxA === -1) return 1;
-            if (idxB === -1) return -1;
-            return idxA - idxB;
-          });
-        }
-
-        const renderUnifiedMenuEditor = (isMegaMenu: boolean) => (
-          <div className="space-y-4">
-            <p className="text-[10px] text-muted-foreground mb-3">
-              Drag and drop to reorder your navigation links.
-            </p>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={(event) => {
-                const { active, over } = event;
-                if (over && active.id !== over.id) {
-                  const oldIndex = allMenuItems.findIndex((i) => i.id === active.id);
-                  const newIndex = allMenuItems.findIndex((i) => i.id === over.id);
-                  const newOrder = arrayMove(allMenuItems, oldIndex, newIndex).map((i) => i.id);
-                  updateField("menuOrder", newOrder);
-                }
-              }}
-            >
-              <SortableContext
-                items={allMenuItems.map((i) => i.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {allMenuItems.map((item) => (
-                  <SortableMenuItem
-                    key={item.id}
-                    item={item}
-                    isMegaMenu={isMegaMenu}
-                    megaFolders={megaFolders}
-                    updateMenuConfig={updateMenuConfig}
-                    updateCustomLink={(linkId: string, field: string, value: any) => {
-                      const newLinks = [...(formData.customNavLinks || [])];
-                      const linkIndex = newLinks.findIndex((l: any) => l.id === linkId);
-                      if (linkIndex > -1) {
-                        newLinks[linkIndex][field] = value;
-                        updateField("customNavLinks", newLinks);
-                      }
-                    }}
-                    removeCustomLink={(linkId: string) => {
-                      const newLinks = (formData.customNavLinks || []).filter(
-                        (l: any) => l.id !== linkId
-                      );
-                      updateField("customNavLinks", newLinks);
-                    }}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full border-dashed text-xs bg-background mt-2"
-              onClick={() => {
-                const currentLinks = formData.customNavLinks || [];
-                updateField("customNavLinks", [
-                  ...currentLinks,
-                  {
-                    id: `link_${Date.now()}`,
-                    label: "",
-                    url: "",
-                    visible: true,
-                    folderId: null,
-                  },
-                ]);
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" /> Add Custom Link
-            </Button>
-          </div>
-        );
+        const megaFolders = formData.megaMenuFolders || []; // Helper for the dropdowns
 
         return (
           <div className="space-y-6">
+            {/* --- UPGRADED: AAA+ ANNOUNCEMENT BAR (MULTIPLE MESSAGES) --- */}
             <div className="space-y-4 p-4 border rounded-lg bg-indigo-500/5 border-indigo-500/20">
               <div className="flex items-center justify-between">
                 <Label className="text-base font-semibold text-indigo-400">
@@ -2577,7 +2487,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         menuConfig: newConfig 
                       };
                       setFormData(newFormData);
-                      updateSectionInStore(section!.id, { data: newFormData });
+                      updateSectionInStore(section.id, { data: newFormData });
                     }}
                   >
                     Mega Menu{" "}
@@ -2597,6 +2507,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 
               {formData.menuType === "mega" ? (
                 hasMegaMenuAccess ? (
+                  /* --- 🚀 ACTIVE MEGA MENU BUILDER --- */
                   <div className="space-y-4 p-4 border rounded-lg bg-primary/5 animate-in slide-in-from-right-2">
                     <div className="flex items-center gap-3 border-b border-primary/10 pb-3">
                       <div className="p-2 bg-primary/10 text-primary rounded-md">
@@ -2668,14 +2579,317 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                       </Button>
                     </div>
 
+                    {/* 🚀 NEW: LINK ASSIGNMENT UI */}
                     <div className="pt-4 mt-4 border-t border-primary/10 space-y-4">
                       <Label className="text-xs font-bold text-primary">
-                        2. Organize Links
+                        2. Assign Links to Folders
                       </Label>
-                      {renderUnifiedMenuEditor(true)}
+
+                      {/* Mega Menu Pages */}
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase text-muted-foreground">
+                          Pages
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={
+                              formData.menuConfig?.page_shop?.visible !== false
+                            }
+                            onCheckedChange={(c) =>
+                              updateMenuConfig("page_shop", "visible", c)
+                            }
+                          />
+                          <Input
+                            value={
+                              formData.menuConfig?.page_shop?.label || "Shop"
+                            }
+                            onChange={(e) =>
+                              updateMenuConfig(
+                                "page_shop",
+                                "label",
+                                e.target.value
+                              )
+                            }
+                            disabled={
+                              formData.menuConfig?.page_shop?.visible === false
+                            }
+                            className="h-8 text-xs flex-1"
+                          />
+                          <Select
+                            value={
+                              formData.menuConfig?.page_shop?.folderId || "none"
+                            }
+                            onValueChange={(val) =>
+                              updateMenuConfig(
+                                "page_shop",
+                                "folderId",
+                                val === "none" ? null : val
+                              )
+                            }
+                          >
+                            <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+                              <SelectValue placeholder="Parent" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No Folder</SelectItem>
+                              {megaFolders.map((f: any) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.label || "Unnamed"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {(pages || [])
+                          .filter((p) => !p.isHome)
+                          .map((page) => {
+                            const configKey = `page_${page.id}`;
+                            const config =
+                              formData.menuConfig?.[configKey] || {};
+                            return (
+                              <div
+                                key={page.id}
+                                className="flex items-center gap-2"
+                              >
+                                <Switch
+                                  checked={config.visible !== false}
+                                  onCheckedChange={(c) =>
+                                    updateMenuConfig(configKey, "visible", c)
+                                  }
+                                />
+                                <Input
+                                  value={config.label || page.title}
+                                  onChange={(e) =>
+                                    updateMenuConfig(
+                                      configKey,
+                                      "label",
+                                      e.target.value
+                                    )
+                                  }
+                                  disabled={config.visible === false}
+                                  className="h-8 text-xs flex-1"
+                                />
+                                <Select
+                                  value={config.folderId || "none"}
+                                  onValueChange={(val) =>
+                                    updateMenuConfig(
+                                      configKey,
+                                      "folderId",
+                                      val === "none" ? null : val
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+                                    <SelectValue placeholder="Parent" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">
+                                      No Folder
+                                    </SelectItem>
+                                    {megaFolders.map((f: any) => (
+                                      <SelectItem key={f.id} value={f.id}>
+                                        {f.label || "Unnamed"}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            );
+                          })}
+                      </div>
+
+                      {/* Mega Menu Custom Links */}
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase text-muted-foreground">
+                          Custom Links
+                        </Label>
+                        {(formData.customNavLinks || []).map(
+                          (link: any, index: number) => (
+                            <div
+                              key={link.id}
+                              className="flex items-start gap-2 bg-background p-2 border rounded-md relative group shadow-sm"
+                            >
+                              <Switch
+                                checked={link.visible !== false}
+                                className="mt-2"
+                                onCheckedChange={(c) => {
+                                  const newLinks = formData.customNavLinks.map(
+                                    (l: any, i: number) =>
+                                      i === index ? { ...l, visible: c } : l
+                                  );
+                                  updateField("customNavLinks", newLinks);
+                                }}
+                              />
+                              <div className="flex-grow space-y-2">
+                                <div className="flex gap-2">
+                                  <Input
+                                    value={link.label}
+                                    placeholder="Link Name"
+                                    onChange={(e) => {
+                                      const newLinks =
+                                        formData.customNavLinks.map(
+                                          (l: any, i: number) =>
+                                            i === index
+                                              ? { ...l, label: e.target.value }
+                                              : l
+                                        );
+                                      updateField("customNavLinks", newLinks);
+                                    }}
+                                    className="h-8 text-xs"
+                                  />
+                                  <Select
+                                    value={link.folderId || "none"}
+                                    onValueChange={(val) => {
+                                      const newLinks =
+                                        formData.customNavLinks.map(
+                                          (l: any, i: number) =>
+                                            i === index
+                                              ? {
+                                                  ...l,
+                                                  folderId:
+                                                    val === "none" ? null : val,
+                                                }
+                                              : l
+                                        );
+                                      updateField("customNavLinks", newLinks);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-[130px] h-8 text-xs">
+                                      <SelectValue placeholder="Parent" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">
+                                        No Folder
+                                      </SelectItem>
+                                      {megaFolders.map((f: any) => (
+                                        <SelectItem key={f.id} value={f.id}>
+                                          {f.label || "Unnamed"}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <Input
+                                  value={link.url}
+                                  placeholder="https://..."
+                                  onChange={(e) => {
+                                    const newLinks =
+                                      formData.customNavLinks.map(
+                                        (l: any, i: number) =>
+                                          i === index
+                                            ? { ...l, url: e.target.value }
+                                            : l
+                                      );
+                                    updateField("customNavLinks", newLinks);
+                                  }}
+                                  className="h-8 text-xs text-muted-foreground"
+                                />
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive/50 hover:text-destructive absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border shadow-sm rounded-full"
+                                onClick={() => {
+                                  const newLinks =
+                                    formData.customNavLinks.filter(
+                                      (l: any) => l.id !== link.id
+                                    );
+                                  updateField("customNavLinks", newLinks);
+                                }}
+                              >
+                                <X size={14} />
+                              </Button>
+                            </div>
+                          )
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-dashed text-xs bg-background"
+                          onClick={() => {
+                            const currentLinks = formData.customNavLinks || [];
+                            updateField("customNavLinks", [
+                              ...currentLinks,
+                              {
+                                id: `link_${Date.now()}`,
+                                label: "",
+                                url: "",
+                                visible: true,
+                                folderId: null,
+                              },
+                            ]);
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-2" /> Add Custom Link
+                        </Button>
+                      </div>
+
+                      {/* Mega Menu Sections */}
+                      <div className="space-y-2">
+                        <Label className="text-[10px] uppercase text-muted-foreground">
+                          On-Page Sections
+                        </Label>
+                        {sections
+                          .filter(
+                            (s: any) => s.type !== "header" && s.isVisible
+                          )
+                          .map((s: any) => {
+                            const config = formData.menuConfig?.[s.id] || {};
+                            return (
+                              <div
+                                key={s.id}
+                                className="flex items-center gap-2"
+                              >
+                                <Switch
+                                  checked={config.visible !== false}
+                                  onCheckedChange={(c) =>
+                                    updateMenuConfig(s.id, "visible", c)
+                                  }
+                                />
+                                <Input
+                                  value={config.label || s.data.title || s.type}
+                                  onChange={(e) =>
+                                    updateMenuConfig(
+                                      s.id,
+                                      "label",
+                                      e.target.value
+                                    )
+                                  }
+                                  disabled={config.visible === false}
+                                  className="h-8 text-xs flex-1"
+                                />
+                                <Select
+                                  value={config.folderId || "none"}
+                                  onValueChange={(val) =>
+                                    updateMenuConfig(
+                                      s.id,
+                                      "folderId",
+                                      val === "none" ? null : val
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger className="w-[130px] h-8 text-xs bg-background">
+                                    <SelectValue placeholder="Parent" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">
+                                      No Folder
+                                    </SelectItem>
+                                    {megaFolders.map((f: any) => (
+                                      <SelectItem key={f.id} value={f.id}>
+                                        {f.label || "Unnamed"}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            );
+                          })}
+                      </div>
                     </div>
                   </div>
                 ) : (
+                  /* --- 🚀 LOCKED MEGA MENU STATE (Starter / Free) --- */
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center space-y-3 animate-in slide-in-from-right-2">
                     <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-2 text-amber-600">
                       <Layers size={24} />
@@ -2698,6 +2912,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                   </div>
                 )
               ) : (
+                /* --- 🚀 SIMPLE MENU BUILDER --- */
                 <div className="space-y-4 animate-in slide-in-from-left-2">
                   <div className="flex items-center justify-between bg-muted/30 p-3 rounded-md border">
                     <Label
@@ -2718,13 +2933,14 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                               newConfig[s.id] = { visible: idx < 3, label: s.data.title || s.type };
                             }
                           });
+                          const newFormData = { ...formData, autoMenu: false, menuConfig: newConfig };
                           const newFormData = {
                             ...formData,
                             autoMenu: false,
                             menuConfig: newConfig,
                           };
                           setFormData(newFormData);
-                          updateSectionInStore(section!.id, { data: newFormData });
+                          updateSectionInStore(section.id, { data: newFormData });
                         } else {
                           updateField("autoMenu", true);
                         }
@@ -2759,16 +2975,303 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     </div>
                   ) : (
                     <div className="space-y-6 bg-muted/20 p-4 rounded-md border">
+                      {/* --- PAGES --- */}
                       <div className="space-y-2">
                         <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                           <span className="h-px bg-border flex-grow"></span>{" "}
-                          Menu Organizer{" "}
+                          Pages{" "}
                           <span className="h-px bg-border flex-grow"></span>
                         </Label>
-                        {renderUnifiedMenuEditor(false)}
+                        <p className="text-[10px] text-muted-foreground text-center mb-3">
+                          Links to specific pages on your website.
+                  <div className="space-y-3 pt-4">
+                    {formData.autoMenu !== false ? (
+                      <div className="bg-muted/10 border border-dashed p-4 rounded-md space-y-3">
+                        <p className="text-xs text-muted-foreground text-center">
+                          Auto-Generate is <strong>ON</strong>. The menu will
+                          automatically include important sections like Hero,
+                          Shop, and Contact.
+                        </p>
+
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={
+                              formData.menuConfig?.page_shop?.visible !== false
+                            }
+                            onCheckedChange={(c) =>
+                              updateMenuConfig("page_shop", "visible", c)
+                            }
+                          />
+                          <Input
+                            value={
+                              formData.menuConfig?.page_shop?.label || "Shop"
+                            }
+                            onChange={(e) =>
+                              updateMenuConfig(
+                                "page_shop",
+                                "label",
+                                e.target.value
+                              )
+                            }
+                            disabled={
+                              formData.menuConfig?.page_shop?.visible === false
+                            }
+                            className="h-8 text-sm"
+                          />
+                          <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest w-16 text-right">
+                            System
+                          </span>
+                        </div>
+
+                        {(pages || [])
+                          .filter((p) => !p.isHome)
+                          .map((page) => {
+                            const configKey = `page_${page.id}`;
+                            const config =
+                              formData.menuConfig?.[configKey] || {};
+                            const isSelected = config.visible !== false;
+                            const label = config.label || page.title;
+
+                            return (
+                              <div
+                                key={page.id}
+                                className="flex items-center gap-3"
+                              >
+                                <Switch
+                                  checked={isSelected}
+                                  onCheckedChange={(c) =>
+                                    updateMenuConfig(configKey, "visible", c)
+                                  }
+                                />
+                                <Input
+                                  value={label}
+                                  onChange={(e) =>
+                                    updateMenuConfig(
+                                      configKey,
+                                      "label",
+                                      e.target.value
+                                    )
+                                  }
+                                  disabled={!isSelected}
+                                  className="h-8 text-sm"
+                                />
+                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest w-16 text-right truncate">
+                                  Custom
+                                </span>
+                              </div>
+                            );
+                          })}
+                        <p className="text-[10px] text-muted-foreground text-center pt-3 border-t border-dashed mt-4">
+                          Turn off Auto-Generate to manually reorder, rename, or
+                          hide links.
+                        </p>
+                      </div>
+
+                      {/* --- CUSTOM EXTERNAL LINKS --- */}
+                      <div className="space-y-3">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                          <span className="h-px bg-border flex-grow"></span>{" "}
+                          Custom Links{" "}
+                          <span className="h-px bg-border flex-grow"></span>
+                        </Label>
+                        <p className="text-[10px] text-muted-foreground text-center mb-3">
+                          Link to specific products, collections, or external
+                          websites.
+                        </p>
+
+                        {(formData.customNavLinks || []).map(
+                          (link: any, index: number) => (
+                    ) : (
+                      <DragDropContext onDragEnd={onMenuDragEnd}>
+                        <Droppable droppableId="menu-items">
+                          {(provided) => (
+                            <div
+                              key={link.id}
+                              className="flex items-start gap-3 bg-background p-2 border rounded-md relative group shadow-sm"
+                              {...provided.droppableProps}
+                              ref={provided.innerRef}
+                              className="space-y-3"
+                            >
+                              <Switch
+                                checked={link.visible !== false}
+                                className="mt-2"
+                                onCheckedChange={(c) => {
+                                  const newLinks = formData.customNavLinks.map(
+                                    (l: any, i: number) =>
+                                      i === index ? { ...l, visible: c } : l
+                                  );
+                                  updateField("customNavLinks", newLinks);
+                                }}
+                              />
+                              <div className="flex-grow space-y-2">
+                                <Input
+                                  value={link.label}
+                                  placeholder="Link Name (e.g. My IMDb)"
+                                  onChange={(e) => {
+                                    const newLinks =
+                                      formData.customNavLinks.map(
+                                        (l: any, i: number) =>
+                                          i === index
+                                            ? { ...l, label: e.target.value }
+                                            : l
+                                      );
+                                    updateField("customNavLinks", newLinks);
+                                  }}
+                                  className="h-8 text-sm"
+                                />
+                                <Input
+                                  value={link.url}
+                                  placeholder="https:// or /shop/product"
+                                  onChange={(e) => {
+                                    const newLinks =
+                                      formData.customNavLinks.map(
+                                        (l: any, i: number) =>
+                                          i === index
+                                            ? { ...l, url: e.target.value }
+                                            : l
+                                      );
+                                    updateField("customNavLinks", newLinks);
+                                  }}
+                                  className="h-8 text-sm text-muted-foreground"
+                                />
+                              </div>
+                              {/* Delete Button */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive/50 hover:text-destructive absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border shadow-sm rounded-full"
+                                onClick={() => {
+                                  const newLinks =
+                                    formData.customNavLinks.filter(
+                                      (l: any) => l.id !== link.id
+                                    );
+                                  updateField("customNavLinks", newLinks);
+                                }}
+                              >
+                                <X size={14} />
+                              </Button>
+                              {allMenuItems.map((item: any, index: number) => {
+                                const config = formData.menuConfig?.[item.id] || {};
+                                const linkData = item.linkData || {};
+                                const itemData = {
+                                  isVisible: (type: string) => type === 'custom_link' ? linkData.visible !== false : config.visible !== false,
+                                  label: (type: string) => {
+                                    if (type === 'custom_link') return linkData.label || '';
+                                    if (type === 'page') return config.label || item.pageData?.title || 'Shop';
+                                    if (type === 'section') return config.label || item.sectionData?.data?.title || item.sectionData?.type;
+                                    return '';
+                                  },
+                                  url: linkData.url || '',
+                                  folderId: config.folderId || linkData.folderId || 'none',
+                                };
+
+                                return (
+                                  <Draggable key={item.id} draggableId={item.id} index={index}>
+                                    {(providedDraggable) => (
+                                      <div ref={providedDraggable.innerRef} {...providedDraggable.draggableProps}>
+                                        <DraggableMenuItem
+                                          item={{ ...item, data: itemData }}
+                                          dragHandleProps={providedDraggable.dragHandleProps}
+                                          updateMenuConfig={updateMenuConfig}
+                                          updateCustomLink={(linkId: string, field: string, value: any) => {
+                                            const linkIndex = formData.customNavLinks.findIndex((l: any) => l.id === linkId);
+                                            if (linkIndex > -1) {
+                                              const newLinks = [...formData.customNavLinks];
+                                              newLinks[linkIndex][field] = value;
+                                              updateField("customNavLinks", newLinks);
+                                            }
+                                          }}
+                                          isMegaMenu={formData.menuType === 'mega'}
+                                          megaFolders={formData.megaMenuFolders || []}
+                                        />
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                );
+                              })}
+                              {provided.placeholder}
+                            </div>
+                          )
+                        )}
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-dashed text-xs"
+                          onClick={() => {
+                            const currentLinks = formData.customNavLinks || [];
+                            updateField("customNavLinks", [
+                              ...currentLinks,
+                              {
+                                id: `link_${Date.now()}`,
+                                label: "",
+                                url: "",
+                                visible: true,
+                              },
+                            ]);
+                          }}
+                        >
+                          <Plus className="w-4 h-4 mr-2" /> Add Custom Link
+                        </Button>
+                      </div>
+
+                      {/* --- ON-PAGE SECTIONS --- */}
+                      <div className="space-y-2">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                          <span className="h-px bg-border flex-grow"></span>{" "}
+                          On-Page Sections{" "}
+                          <span className="h-px bg-border flex-grow"></span>
+                        </Label>
+                        <p className="text-[10px] text-muted-foreground text-center mb-3">
+                          Links that scroll down to sections on the Home page.
+                        </p>
+
+                        {sections
+                          .filter(
+                            (s: any) => s.type !== "header" && s.isVisible
+                          )
+                          .map((s: any) => {
+                            const config = formData.menuConfig?.[s.id] || {};
+                            const isSelected = config.visible !== false;
+                            const label =
+                              config.label || s.data.title || s.type;
+                            return (
+                              <div
+                                key={s.id}
+                                className="flex items-center gap-3"
+                              >
+                                <Switch
+                                  checked={isSelected}
+                                  onCheckedChange={(c) =>
+                                    updateMenuConfig(s.id, "visible", c)
+                                  }
+                                />
+                                <Input
+                                  value={label}
+                                  onChange={(e) =>
+                                    updateMenuConfig(
+                                      s.id,
+                                      "label",
+                                      e.target.value
+                                    )
+                                  }
+                                  disabled={!isSelected}
+                                  className="h-8 text-sm"
+                                />
+                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest w-16 text-right truncate">
+                                  Section
+                                </span>
+                              </div>
+                            );
+                          })}
                       </div>
                     </div>
                   )}
+                          )}
+                        </Droppable>
+                      </DragDropContext>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -2920,6 +3423,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
 
         return (
           <div className="space-y-6">
+            {/* 🚀 0. GLOBAL TEMPLATE MANAGEMENT */}
             <div className="space-y-4 p-4 border rounded-xl bg-primary/5 border-primary/20 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-2xl rounded-full pointer-events-none" />
 
@@ -2955,7 +3459,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         if (section)
                           updateSectionInStore(section.id, {
                             data: newFormData,
-                          }); 
+                          }); // 🚀 INSTANT SYNC
                       } else {
                         const template = savedForms.find((f) => f.id === val);
                         if (template) {
@@ -2976,7 +3480,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                           if (section)
                             updateSectionInStore(section.id, {
                               data: newFormData,
-                            }); 
+                            }); // 🚀 INSTANT SYNC
                         }
                       }
                     }}
@@ -3003,6 +3507,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     </SelectContent>
                   </Select>
 
+                  {/* 🚀 DYNAMIC ACTION BUTTONS */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     {isCustomForm ? (
                       <Button
@@ -3044,7 +3549,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                             if (section)
                               updateSectionInStore(section.id, {
                                 data: newFormData,
-                              }); 
+                              }); // 🚀 INSTANT SYNC
 
                             alert("Template saved successfully!");
                           } catch (err: any) {
@@ -3121,7 +3626,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                               if (section)
                                 updateSectionInStore(section.id, {
                                   data: newFormData,
-                                }); 
+                                }); // 🚀 INSTANT SYNC
                             }
                           }}
                         >
@@ -3158,7 +3663,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                               if (section)
                                 updateSectionInStore(section.id, {
                                   data: newFormData,
-                                }); 
+                                }); // 🚀 INSTANT SYNC
                             }
                           }}
                         >
@@ -3177,6 +3682,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 1. TEXT CONTENT */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Type size={16} className="text-primary" />
@@ -3222,6 +3728,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* SUCCESS MESSAGE SETTINGS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1">
@@ -3252,6 +3759,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 2. MEDIA MANAGER */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/10">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <ImageIcon size={16} className="text-primary" />
@@ -3286,6 +3794,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                   </div>
             </div>
 
+            {/* 3. FORM FIELDS BUILDER */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <div className="flex justify-between items-center border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -3416,6 +3925,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 1. PRODUCT MANAGER (WITH DND) */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <div className="flex justify-between items-center border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -3473,7 +3983,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                           duplicateProduct={duplicateProduct}
                           setActiveMediaField={setActiveMediaField}
                           setIsMediaPickerOpen={setIsMediaPickerOpen}
-                          setIsFormManagerOpen={setIsFormManagerOpen} 
+                          setIsFormManagerOpen={setIsFormManagerOpen} // 🚀 Ensure this is passed!
                           savedForms={savedForms}
                         />
                       )
@@ -3501,6 +4011,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       case "hero":
         return (
           <div className="space-y-6">
+            {/* --- CONTENT & TYPOGRAPHY --- */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <Label className="text-base font-semibold">
                 Content & Typography
@@ -3548,6 +4059,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* --- 🚀 NEW: TRUST SIGNALS (Conversion Booster) --- */}
             <div className="space-y-4 p-4 border rounded-lg border-amber-500/20 bg-amber-500/5">
               <div className="flex items-center justify-between border-b border-amber-500/10 pb-2">
                 <div className="flex items-center gap-2">
@@ -3579,6 +4091,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               )}
             </div>
 
+            {/* --- MEDIA BACKGROUND --- */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
               <Label className="text-base font-semibold">
                 Background Media
@@ -3620,8 +4133,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 </button>
               </div>
 
+              {/* 🚀 OPTION 1: VIDEO (Upgraded for Mobile) */}
               {formData.variant === "video" ? (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                  {/* Desktop Video Block */}
                   <div className="grid gap-4 p-3 border rounded-md bg-background">
                     <div className="grid gap-2">
                       <Label className="flex items-center gap-2">
@@ -3700,6 +4215,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     </div>
                   </div>
 
+                  {/* Mobile Video Block */}
                   <div className="grid gap-4 p-3 border rounded-md bg-background">
                     <div className="grid gap-2">
                       <Label className="flex items-center gap-2">
@@ -3806,7 +4322,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     )}
                   </div>
                 </div>
-              ) : formData.variant === "color" ? (
+              ) : /* 🚀 OPTION 2: COLOR / GRADIENT */
+              formData.variant === "color" ? (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 p-3 border rounded-md bg-background">
                   <div className="space-y-2">
                     <Label>Background Type</Label>
@@ -3911,6 +4428,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                   )}
                 </div>
               ) : (
+                /* 🚀 OPTION 3: STATIC IMAGE */
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                   <div className="grid gap-2 p-3 border rounded-md bg-background">
                     <Label className="flex items-center gap-2">
@@ -4022,6 +4540,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* --- CALL TO ACTION --- */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <Label className="text-base font-semibold">
                 Call to Action Buttons
@@ -4070,6 +4589,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       case "team":
         return (
           <div className="space-y-6">
+            {/* 1. TEXT CONTENT */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Type size={16} className="text-primary" />
@@ -4090,6 +4610,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 />
               </div>
 
+              {/* 🚀 NEW: Subheadline added here! */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                   Subtitle / Note
@@ -4104,6 +4625,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 2. MEMBER MANAGER */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <div className="flex justify-between items-center border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -4122,6 +4644,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 </Button>
               </div>
 
+              {/* 🚀 DND-KIT LIST */}
               <div className="space-y-4 pt-2">
                 <DndContext
                   sensors={sensors}
@@ -4129,6 +4652,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                   onDragEnd={(event) => {
                     const { active, over } = event;
                     if (over && active.id !== over.id) {
+                      // We map by the same ID logic used in the SortableTeamMember
                       const oldIndex = formData.members.findIndex(
                         (m: any, idx: number) =>
                           (m.id || `team-member-${idx}`) === active.id
@@ -4148,7 +4672,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     items={(formData.members || []).map(
                       (m: any, idx: number) => m.id || `team-member-${idx}`
                     )}
-                    strategy={verticalListSortingStrategy} 
+                    strategy={verticalListSortingStrategy} // 🚀 1D Vertical list math!
                   >
                     {(formData.members || []).map(
                       (member: any, idx: number) => (
@@ -4181,10 +4705,11 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
           </div>
-        ); 
+        ); // --- MAP SECTION EDITOR ---
       case "map":
         return (
           <div className="space-y-6">
+            {/* 1. TEXT CONTENT */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <MapPinned size={16} className="text-primary" />
@@ -4222,6 +4747,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 2. EMBED CONFIGURATION */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5 border-l-4 border-l-primary">
               <div className="flex items-center justify-between mb-2 border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -4279,6 +4805,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       case "pricing":
         return (
           <div className="space-y-6">
+            {/* 1. TEXT CONTENT */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Type size={16} className="text-primary" />
@@ -4313,6 +4840,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 2. RATE CARD FOOTER CTA */}
             <div className="space-y-4 p-4 border rounded-lg bg-primary/5 animate-in fade-in slide-in-from-top-2 border-primary/20">
                 <div className="flex items-center gap-2 mb-2 border-b border-primary/20 pb-2">
                   <ExternalLink size={16} className="text-primary" />
@@ -4349,6 +4877,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 </p>
               </div>
 
+            {/* 3. PLANS MANAGER */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <div className="flex justify-between items-center border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -4367,6 +4896,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 </Button>
               </div>
 
+              {/* DND-KIT LIST */}
               <div className="space-y-4 pt-2">
                 <DndContext
                   sensors={sensors}
@@ -4402,7 +4932,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         idx={idx}
                         updatePlan={updatePlan}
                         removePlan={removePlan}
-                        setIsFormManagerOpen={setIsFormManagerOpen} 
+                        setIsFormManagerOpen={setIsFormManagerOpen} // 🚀 Ensure this is passed!
                         savedForms={savedForms}
                       />
                     ))}
@@ -4428,6 +4958,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       case "about":
         return (
           <div className="space-y-6">
+            {/* 2. TEXT CONTENT */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Type size={16} className="text-primary" />
@@ -4471,6 +5002,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 3. MEDIA PICKER */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/10">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <ImageIcon size={16} className="text-primary" />
@@ -4483,6 +5015,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </p>
 
                 <div className="flex gap-4 items-center p-3 bg-background border rounded-md">
+                  {/* Smart Preview (Video or Image) */}
                   <div
                     className="h-24 w-24 rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/30 shrink-0 bg-muted/50 relative group cursor-pointer hover:border-primary/50 transition-colors"
                     onClick={() => {
@@ -4546,6 +5079,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 </div>
               </div>
 
+            {/* 4. KEY FEATURES LIST */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex justify-between items-center border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -4610,6 +5144,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 5. PROFILE STATS */}
             <div className="space-y-4 p-4 border rounded-lg bg-primary/5 animate-in fade-in slide-in-from-top-2">
               <div className="flex justify-between items-center border-b border-primary/10 pb-2">
                 <div className="flex items-center gap-2">
@@ -4690,6 +5225,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 </p>
               </div>
 
+            {/* 6. CALL TO ACTION */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/10">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <LinkIcon size={16} className="text-primary" />
@@ -4902,6 +5438,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               />
             </div>
 
+            {/* 1. SLIDES MANAGER */}
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
                 <Label>Slides</Label>
@@ -4919,6 +5456,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     key={idx}
                     className="flex gap-3 items-start border p-3 rounded-md bg-background shadow-sm group"
                   >
+                    {/* Image Preview & Picker */}
                     <div
                       className="w-20 h-20 bg-muted rounded-md flex-shrink-0 relative overflow-hidden cursor-pointer border"
                       onClick={() => {
@@ -4940,6 +5478,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                       </div>
                     </div>
 
+                    {/* Caption Input */}
                     <div className="flex-grow space-y-2">
                       <Label className="text-xs text-muted-foreground">
                         Caption
@@ -4959,6 +5498,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                       />
                     </div>
 
+                    {/* Remove Button */}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -4991,6 +5531,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               />
             </div>
 
+            {/* 1. VIDEO MANAGER */}
             <div className="space-y-3 pt-2">
               <div className="flex justify-between items-center">
                 <Label>Video Clips</Label>
@@ -5009,6 +5550,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     key={idx}
                     className="flex flex-col gap-3 border p-4 rounded-lg bg-background shadow-sm relative group"
                   >
+                    {/* Remove Button (Top Right) */}
                     <Button
                       size="icon"
                       variant="ghost"
@@ -5019,6 +5561,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     </Button>
 
                     <div className="flex gap-4 items-start">
+                      {/* Thumbnail / Library Picker */}
                       <div
                         className="w-32 h-20 bg-black rounded-md flex-shrink-0 relative overflow-hidden cursor-pointer flex items-center justify-center border border-border"
                         onClick={() => {
@@ -5042,6 +5585,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                         </div>
                       </div>
 
+                      {/* Text Inputs */}
                       <div className="flex-grow space-y-3">
                         <div className="grid gap-1.5">
                           <Label className="text-xs">
@@ -5107,6 +5651,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       case "gallery":
         return (
           <div className="space-y-6">
+            {/* 1. TEXT CONTENT */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Type size={16} className="text-primary" />
@@ -5127,6 +5672,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 2. MEDIA MANAGER */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <div className="flex justify-between items-center border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -5148,6 +5694,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 </Button>
               </div>
 
+              {/* 🚀 QUICK ADD URL */}
               <div className="flex gap-2 items-center bg-background p-1.5 rounded-md border shadow-sm">
                 <div className="bg-muted/50 p-1.5 rounded text-muted-foreground">
                   <LinkIcon size={14} />
@@ -5172,6 +5719,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 />
               </div>
 
+              {/* 🚀 FLAWLESS DND-KIT GRID */}
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -5194,7 +5742,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-2">
                   <SortableContext
                     items={(formData.images || []).map((i: any) => i.url)}
-                    strategy={rectSortingStrategy} 
+                    strategy={rectSortingStrategy} // 🚀 THIS ENABLES FLAWLESS 2D GRID SORTING
                   >
                     {(formData.images || []).map((img: any, idx: number) => {
                       const isVid = img.url.match(/\.(mp4|webm|mov)$/i);
@@ -5221,6 +5769,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                     })}
                   </SortableContext>
 
+                  {/* Add Button sits cleanly at the end of the CSS grid! */}
                   <div
                     className="relative group aspect-square bg-background rounded-lg overflow-hidden border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors text-muted-foreground hover:text-primary"
                     onClick={() => {
@@ -5246,6 +5795,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       case "contact":
         return (
           <div className="space-y-6">
+            {/* 1. MESSAGING & TYPOGRAPHY */}
             <div className="space-y-4 p-4 border rounded-lg bg-background shadow-sm">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Type size={16} className="text-primary" />
@@ -5278,6 +5828,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 2. DIRECT CONTACT INFO */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Mail size={16} className="text-primary" />
@@ -5337,6 +5888,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
               </div>
             </div>
 
+            {/* 3. MEDIA MANAGER */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5 animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between mb-2 border-b pb-2">
                 <div className="flex items-center gap-2">
@@ -5400,6 +5952,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 )}
               </div>
 
+            {/* 4. SOCIAL PROFILES */}
             <div className="space-y-4 p-4 border rounded-lg bg-muted/5">
               <div className="flex items-center gap-2 mb-2 border-b pb-2">
                 <Share2 size={16} className="text-primary" />
@@ -5471,6 +6024,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 <Label className="text-base font-semibold">Custom HTML/CSS</Label>
               </div>
 
+              {/* 🚀 NEW: JS SANDBOX TOGGLE */}
               <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl mb-3">
                 <div className="space-y-0.5">
                   <Label className="text-amber-700 dark:text-amber-500 font-bold">Sandboxed JavaScript</Label>
@@ -5505,7 +6059,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                   <div className="flex items-center justify-between bg-sky-500/10 border border-sky-500/20 p-3 rounded-xl shadow-sm">
                     <div className="space-y-0.5">
                       <Label className="text-sky-700 dark:text-sky-400 font-bold">Full Page Mode</Label>
-                      <p className="text-[10px] text-sky-700/70 dark:text-sky-400/70">                        Sets sandbox height to 100% of the viewport.
+                      <p className="text-[10px] text-sky-700/70 dark:text-sky-400/70">
+                        Sets sandbox height to 100% of the viewport.
                       </p>
                     </div>
                     <Switch
@@ -5703,15 +6258,15 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 <h4 className="font-bold text-foreground">The Radio Button Hack (For Tabs/Modals)</h4>
                 <p>Use hidden HTML radio buttons combined with the CSS <code>:checked</code> pseudo-class to toggle visibility.</p>
                 <div className="bg-zinc-950 text-zinc-300 p-4 rounded-xl border border-zinc-800 font-mono text-xs overflow-x-auto">
-                <pre>{`<!-- HTML -->
-                <input type="radio" id="tab1" name="tabs" class="hidden" checked>
-                <label for="tab1">Click Me</label>
-                <div id="content1" class="tab-content">Hello!</div>
+<pre>{`<!-- HTML -->
+<input type="radio" id="tab1" name="tabs" class="hidden" checked>
+<label for="tab1">Click Me</label>
+<div id="content1" class="tab-content">Hello!</div>
 
-                /* CSS */
-                .hidden { display: none; }
-                .tab-content { display: none; }
-                #tab1:checked ~ #content1 { display: block; }`}</pre>
+/* CSS */
+.hidden { display: none; }
+.tab-content { display: none; }
+#tab1:checked ~ #content1 { display: block; }`}</pre>
                 </div>
               </div>
 

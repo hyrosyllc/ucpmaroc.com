@@ -14,13 +14,12 @@ import { SHIPPING_REGIONS, ALL_COUNTRIES_LIST } from "@/lib/countries";
 
 
 export default function ShippingRatesPage() {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const actorId = actorData?.id;
 
   const [rates, setRates] = useState<any[]>([]);
   const [portfolios, setPortfolios] = useState<{ id: string; public_slug: string; site_name?: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
 
   const [view, setView] = useState<"list" | "form">("list");

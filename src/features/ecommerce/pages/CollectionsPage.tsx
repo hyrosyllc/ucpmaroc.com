@@ -19,6 +19,7 @@ import {
   UploadCloud,
   Layers,
 } from "lucide-react";
+import SiteFilter from "@/components/dashboard/SiteFilter";
 
 interface Collection {
   id: string;
@@ -27,13 +28,15 @@ interface Collection {
   description: string;
   image: string;
   status: string;
+  portfolio_id?: string | null;
 }
 
 export default function CollectionsPage() {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const actorId = actorData?.id;
 
   const [collections, setCollections] = useState<Collection[]>([]);
+  const [portfolios, setPortfolios] = useState<{ id: string; public_slug: string; site_name?: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -66,6 +69,15 @@ export default function CollectionsPage() {
 
   useEffect(() => {
     fetchCollections();
+    if (actorId) {
+      supabase
+        .from("portfolios")
+        .select("id, public_slug, site_name")
+        .eq("actor_id", actorId)
+        .then(({ data }) => {
+          if (data) setPortfolios(data);
+        });
+    }
   }, [fetchCollections]);
 
   const initForm = (col?: Collection) => {
@@ -76,6 +88,7 @@ export default function CollectionsPage() {
       image: col?.image || "",
       status: col?.status || "active",
       slug: col?.slug || "",
+      portfolio_id: col?.portfolio_id || (selectedSiteId !== "all" ? selectedSiteId : ""),
     });
     setView("form");
   };
@@ -101,6 +114,11 @@ export default function CollectionsPage() {
       return;
     }
 
+    if (!formData.portfolio_id) {
+      alert("Please select a Store / Website for this collection.");
+      return;
+    }
+
     setIsSaving(true);
 
     const payload = {
@@ -110,6 +128,7 @@ export default function CollectionsPage() {
       image: formData.image || null,
       status: formData.status,
       slug: formData.slug || generateSlug(formData.title),
+      portfolio_id: formData.portfolio_id,
     };
 
     let error;
@@ -180,9 +199,16 @@ export default function CollectionsPage() {
           </p>
         </div>
         {view === "list" && (
-          <Button onClick={() => initForm()} className="shadow-sm">
-            <Plus className="w-4 h-4 mr-2" /> Create Collection
-          </Button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <SiteFilter
+              sites={portfolios.map(p => ({ id: p.id, site_name: p.site_name || p.public_slug }))}
+              selectedSiteId={selectedSiteId}
+              onChange={setSelectedSiteId}
+            />
+            <Button onClick={() => initForm()} className="shadow-sm">
+              <Plus className="w-4 h-4 mr-2" /> Create Collection
+            </Button>
+          </div>
         )}
       </div>
 
@@ -220,6 +246,27 @@ export default function CollectionsPage() {
             <div className="lg:col-span-2 space-y-6">
               <Card className="shadow-sm">
                 <CardContent className="p-6 space-y-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Store / Website <span className="text-destructive">*</span>
+                    </Label>
+                    <select
+                      className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
+                      value={formData.portfolio_id || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, portfolio_id: e.target.value })
+                      }
+                    >
+                      <option value="" disabled>
+                        -- Select a Store / Website --
+                      </option>
+                      {portfolios.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.site_name || p.public_slug}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="space-y-2">
                     <Label>
                       Title <span className="text-destructive">*</span>
@@ -378,36 +425,42 @@ export default function CollectionsPage() {
               <thead className="bg-muted/50 border-b text-muted-foreground">
                 <tr>
                   <th className="px-6 py-4 font-medium">Collection</th>
+                  <th className="px-6 py-4 font-medium">Store</th>
                   <th className="px-6 py-4 font-medium">URL Slug</th>
                   <th className="px-6 py-4 font-medium">Status</th>
                   <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {collections.map((col) => (
-                  <tr
-                    key={col.id}
-                    className="hover:bg-muted/30 transition-colors group"
-                  >
-                    <td className="px-6 py-4 flex items-center gap-4">
-                      <div className="w-16 h-12 rounded-md border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {col.image ? (
-                          <img
-                            src={col.image}
-                            alt={col.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <ImageIcon className="w-5 h-5 text-muted-foreground opacity-30" />
-                        )}
-                      </div>
-                      <div className="font-semibold text-base">{col.title}</div>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      /{col.slug}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge
+                {collections.filter((c) => selectedSiteId === "all" || c.portfolio_id === selectedSiteId).map((col) => {
+                  const port = portfolios.find(p => p.id === col.portfolio_id);
+                  return (
+                    <tr
+                      key={col.id}
+                      className="hover:bg-muted/30 transition-colors group"
+                    >
+                      <td className="px-6 py-4 flex items-center gap-4">
+                        <div className="w-16 h-12 rounded-md border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {col.image ? (
+                            <img
+                              src={col.image}
+                              alt={col.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 text-muted-foreground opacity-30" />
+                          )}
+                        </div>
+                        <div className="font-semibold text-base">{col.title}</div>
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground text-sm">
+                        {port?.site_name || port?.public_slug || "Orphaned"}
+                      </td>
+                      <td className="px-6 py-4 text-muted-foreground">
+                        /{col.slug}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge
                         variant={
                           col.status === "active" ? "default" : "secondary"
                         }
@@ -440,7 +493,8 @@ export default function CollectionsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

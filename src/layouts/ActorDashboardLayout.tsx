@@ -69,6 +69,8 @@ import TopUpModal from "@/features/portfolio-builder/components/TopUpModal"; // 
 export interface ActorDashboardContextType {
   actorData: Partial<Actor>;
   role: string;
+  selectedSiteId: string;
+  setSelectedSiteId: React.Dispatch<React.SetStateAction<string>>;
 }
 
 // --- 1. Interface ---
@@ -242,6 +244,7 @@ const ActorDashboardLayout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false); // 🚀 TOPUP MODAL STATE
   const [isEcommerceOpen, setIsEcommerceOpen] = useState(false);
+  const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -712,7 +715,7 @@ const ActorDashboardLayout = () => {
               isMessagesPage ? "pb-[88px] md:pb-0" : "pb-[96px] md:pb-8"
             )}
           >
-            <Outlet context={{ actorData, role: "actor" }} />
+        <Outlet context={{ actorData, role: "actor", selectedSiteId, setSelectedSiteId }} />
           </main>
         </div>
 

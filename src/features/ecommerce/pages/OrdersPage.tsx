@@ -105,13 +105,12 @@ interface ProOrder {
 }
 
 const OrdersPage = () => {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const [allOrders, setAllOrders] = useState<ProOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters & Search
   const [sites, setSites] = useState<any[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
 

@@ -16,6 +16,7 @@ export default async function handler(req: Request) {
     "www.ucpmaroc.com",
     "localhost",
     "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
+    "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
   ];
   const isCustomDomain = !MAIN_DOMAINS.some((domain) =>
     hostname.includes(domain)

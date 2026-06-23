@@ -684,7 +684,7 @@ const PortfolioBuilderPage = () => {
   const isLoading = isPortfolioLoading;
 
   // 🚀 FETCH ACTIVE SUBSCRIPTION TO CHECK TRIAL EXPIRY
-  const { data: activeSub } = useQuery({
+  const { data: activeSub, isLoading: isActiveSubLoading } = useQuery({
     queryKey: ["activeSubscription", activePortfolioId],
     queryFn: async () => {
       if (!activePortfolioId) return null;
@@ -699,8 +699,8 @@ const PortfolioBuilderPage = () => {
   });
 
   const hasActiveSub = activeSub && activeSub.status === "active" && new Date(activeSub.current_period_end) > new Date();
-  const isTrialEnded = !hasActiveSub && fetchedPortfolio && new Date().getTime() > new Date(fetchedPortfolio.created_at).getTime() + 14 * 24 * 60 * 60 * 1000;
-  const trialDaysLeft = !hasActiveSub && !isTrialEnded && fetchedPortfolio ? Math.max(0, Math.ceil((new Date(fetchedPortfolio.created_at).getTime() + 14 * 24 * 60 * 60 * 1000 - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
+  const isTrialEnded = !isActiveSubLoading && !hasActiveSub && fetchedPortfolio && new Date().getTime() > new Date(fetchedPortfolio.created_at).getTime() + 14 * 24 * 60 * 60 * 1000;
+  const trialDaysLeft = !isActiveSubLoading && !hasActiveSub && !isTrialEnded && fetchedPortfolio ? Math.max(0, Math.ceil((new Date(fetchedPortfolio.created_at).getTime() + 14 * 24 * 60 * 60 * 1000 - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
   const subDaysLeft = hasActiveSub && activeSub ? Math.max(0, Math.ceil((new Date(activeSub.current_period_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0;
 
   // 🚀 NEW: SHOW WELCOME PROMPT TO ANY EXISTING USER WITH 0 BALANCE WHO HASN'T SEEN IT YET
@@ -726,11 +726,12 @@ const PortfolioBuilderPage = () => {
   };
 
   useEffect(() => {
+    if (isActiveSubLoading) return; // Prevent race condition mutations
     if (isTrialEnded && isPublished) {
       supabase.from("portfolios").update({ is_published: false }).eq("id", activePortfolioId).then();
       setIsPublished(false);
     }
-  }, [isTrialEnded, isPublished, activePortfolioId]);
+  }, [isTrialEnded, isPublished, activePortfolioId, isActiveSubLoading]);
 
   useEffect(() => {
     if (!hasUnsavedChanges || isLoading || !activePortfolioId) return;

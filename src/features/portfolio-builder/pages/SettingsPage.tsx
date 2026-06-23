@@ -274,7 +274,14 @@ const SettingsPage = () => {
       .eq("actor_id", actorData.id);
     if (subs) {
       const subMap: Record<string, any> = {};
-      subs.forEach((s) => (subMap[s.portfolio_id] = s));
+      // Prioritize active subscriptions so an old expired sub doesn't overwrite an active one
+      subs.forEach((s) => {
+        if (s.status === "active" && new Date(s.current_period_end) > new Date()) {
+          subMap[s.portfolio_id] = s;
+        } else if (!subMap[s.portfolio_id]) {
+          subMap[s.portfolio_id] = s;
+        }
+      });
       setSubscriptions(subMap);
     }
 
@@ -284,8 +291,8 @@ const SettingsPage = () => {
       let promptSiteId = null;
 
       const updatedSites = sites.map((site) => {
-        const sub = subs.find((s: any) => s.portfolio_id === site.id);
-        const isPro = sub && sub.status === "active" && new Date(sub.current_period_end) > new Date();
+        const sub = subs.find((s: any) => s.portfolio_id === site.id && s.status === "active" && new Date(s.current_period_end) > new Date());
+        const isPro = !!sub;
         const isTrialEnded = !isPro && new Date().getTime() > new Date(site.created_at).getTime() + 14 * 24 * 60 * 60 * 1000;
         
         if (isTrialEnded) {

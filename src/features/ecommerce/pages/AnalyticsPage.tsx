@@ -10,10 +10,15 @@ import {
   TrendingUp,
   Users,
   ShoppingBag,
+  Activity,
+  ShoppingCart,
+  MessageCircle,
+  Link as LinkIcon,
+  FileText,
 } from "lucide-react";
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -21,39 +26,14 @@ import {
   CartesianGrid,
 } from "recharts";
 import SiteFilter from "@/components/dashboard/SiteFilter";
-
-// Simple Badge Helper
-const Badge = ({ children, variant, className }: any) => (
-  <span
-    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted ${className}`}
-  >
-    {children}
-  </span>
-);
-const MessageCircleIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="text-green-500"
-  >
-    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-  </svg>
-);
+import { Badge } from "@/components/ui/badge";
 
 const AnalyticsPage = () => {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const [loading, setLoading] = useState(true);
 
   // Filter State
   const [sites, setSites] = useState<any[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
 
   // Raw Data (Fetched Once)
   const [allEvents, setAllEvents] = useState<any[]>([]);
@@ -64,6 +44,11 @@ const AnalyticsPage = () => {
     totalClicks: 0,
     viewsTrend: [] as any[],
     recentEvents: [] as any[],
+    whatsappClicks: 0,
+    cartClicks: 0,
+    linkClicks: 0,
+    formClicks: 0,
+    topProducts: [] as any[],
   });
 
   useEffect(() => {
@@ -115,12 +100,15 @@ const AnalyticsPage = () => {
 
     // 3. Compute Chart Data (Group by Date)
     const dailyMap = new Map<string, number>();
+    const clicksMap = new Map<string, number>();
 
     // Initialize last 30 days with 0
     for (let i = 29; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      dailyMap.set(d.toISOString().split("T")[0], 0);
+      const dateStr = d.toISOString().split("T")[0];
+      dailyMap.set(dateStr, 0);
+      clicksMap.set(dateStr, 0);
     }
 
     views.forEach((v) => {
@@ -130,10 +118,40 @@ const AnalyticsPage = () => {
       }
     });
 
-    const trendData = Array.from(dailyMap.entries()).map(([date, count]) => ({
+    let whatsappClicks = 0;
+    let cartClicks = 0;
+    let linkClicks = 0;
+    let formClicks = 0;
+    const productCounts: Record<string, number> = {};
+
+    clicks.forEach((c) => {
+      const dateKey = c.created_at.split("T")[0];
+      if (clicksMap.has(dateKey)) {
+        clicksMap.set(dateKey, (clicksMap.get(dateKey) || 0) + 1);
+      }
+
+      if (c.event_type === "whatsapp_click") whatsappClicks++;
+      else if (c.event_type === "add_to_cart") cartClicks++;
+      else if (c.event_type === "link_click") linkClicks++;
+      else if (c.event_type === "form_open" || c.event_type === "form_submit") formClicks++;
+      else linkClicks++;
+
+      const pName = c.metadata?.product_name;
+      if (pName) {
+        productCounts[pName] = (productCounts[pName] || 0) + 1;
+      }
+    });
+
+    const trendData = Array.from(dailyMap.entries()).map(([date, view_count]) => ({
       date,
-      view_count: count,
+      view_count,
+      click_count: clicksMap.get(date) || 0,
     }));
+
+    const topProducts = Object.entries(productCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
 
     // 4. Update State
     setStats({
@@ -141,6 +159,11 @@ const AnalyticsPage = () => {
       totalClicks: clicks.length,
       viewsTrend: trendData,
       recentEvents: clicks.slice(0, 10), // Show last 10 interactions
+      whatsappClicks,
+      cartClicks,
+      linkClicks,
+      formClicks,
+      topProducts,
     });
   }, [selectedSiteId, allEvents, loading]);
 
@@ -152,81 +175,108 @@ const AnalyticsPage = () => {
     );
 
   return (
-    <div className="p-4 md:p-8 space-y-8 w-full max-w-8xl mx-auto ">
+    <div className="p-4 md:p-8 space-y-6 w-full max-w-8xl mx-auto bg-muted/20 min-h-[calc(100vh-4rem)] rounded-3xl">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between md:items-end gap-4 mb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-          <p className="text-muted-foreground mt-1">
-            Track your portfolio performance and shop engagement.
+          <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">Analytics & Insights</h1>
+          <p className="text-muted-foreground mt-2 font-medium">
+            Deep tracking of your portfolio performance and engagement.
           </p>
         </div>
-        <SiteFilter
-          sites={sites}
-          selectedSiteId={selectedSiteId}
-          onChange={setSelectedSiteId}
-        />
+        <div className="flex items-center gap-3">
+          <SiteFilter
+            sites={sites}
+            selectedSiteId={selectedSiteId}
+            onChange={setSelectedSiteId}
+          />
+        </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <Card className="rounded-2xl border-border shadow-sm overflow-hidden relative">
+          <div className="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-            <Eye className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Total Views</CardTitle>
+            <Eye className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalViews}</div>
-            <p className="text-xs text-muted-foreground">Last 30 Days</p>
+            <div className="text-3xl font-black text-foreground">{stats.totalViews.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Past 30 Days</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-border shadow-sm overflow-hidden relative">
+          <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Interactions</CardTitle>
-            <MousePointerClick className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Interactions</CardTitle>
+            <MousePointerClick className="h-4 w-4 text-indigo-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalClicks}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-3xl font-black text-foreground">{stats.totalClicks.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">
               Clicks on Shop/Links
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl border-border shadow-sm overflow-hidden relative">
+          <div className="absolute right-0 top-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full -mr-4 -mt-4" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conv. Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Conv. Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-black text-foreground">
               {stats.totalViews > 0
                 ? ((stats.totalClicks / stats.totalViews) * 100).toFixed(1)
                 : 0}
               %
             </div>
-            <p className="text-xs text-muted-foreground">Page View to Click</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Visitor to Interaction</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-border shadow-sm overflow-hidden relative">
+          <div className="absolute right-0 top-0 w-24 h-24 bg-amber-500/10 rounded-bl-full -mr-4 -mt-4" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Cart & Orders</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-black text-foreground">{stats.cartClicks + stats.whatsappClicks}</div>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">Checkout Intents</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Main Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Traffic Overview</CardTitle>
+        <Card className="lg:col-span-2 rounded-2xl shadow-sm border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2"><Activity size={18} className="text-primary"/> Traffic & Engagement</CardTitle>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[320px] pt-4">
             {stats.viewsTrend.some((d) => d.view_count > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.viewsTrend}>
+                <AreaChart data={stats.viewsTrend}>
+                  <defs>
+                    <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
-                    stroke="#333"
-                    opacity={0.2}
+                    stroke="hsl(var(--muted-foreground))"
+                    opacity={0.1}
                   />
                   <XAxis
                     dataKey="date"
@@ -236,19 +286,22 @@ const AnalyticsPage = () => {
                         month: "short",
                       })
                     }
-                    stroke="#888888"
-                    fontSize={12}
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={11}
                     minTickGap={30}
+                    axisLine={false}
+                    tickLine={false}
                   />
-                  <YAxis stroke="#888888" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#1f2937",
-                      border: "none",
-                      borderRadius: "8px",
-                      color: "#fff",
+                      backgroundColor: "hsl(var(--background))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "12px",
+                      color: "hsl(var(--foreground))",
+                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
                     }}
-                    cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                    cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "3 3" }}
                     labelFormatter={(val) =>
                       new Date(val).toLocaleDateString("en-US", {
                         weekday: "long",
@@ -257,50 +310,118 @@ const AnalyticsPage = () => {
                       })
                     }
                   />
-                  <Bar
+                  <Area
+                    type="monotone"
                     dataKey="view_count"
-                    fill="#8b5cf6"
-                    radius={[4, 4, 0, 0]}
+                    name="Page Views"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    fill="url(#colorViews)"
                   />
-                </BarChart>
+                  <Area
+                    type="monotone"
+                    dataKey="click_count"
+                    name="Interactions"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                    fill="url(#colorClicks)"
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground text-sm border-2 border-dashed rounded-lg">
-                No traffic data yet. Share your link!
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground bg-muted/20 border-2 border-dashed rounded-xl">
+                <Activity className="w-8 h-8 mb-2 opacity-50" />
+                <span className="text-sm font-medium">No traffic data yet. Share your link!</span>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Recent Activity Feed */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+        {/* Interaction Breakdown */}
+        <Card className="rounded-2xl shadow-sm border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2"><MousePointerClick size={18} className="text-primary"/> Action Breakdown</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
+          <CardContent className="pt-4 space-y-5">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="flex items-center gap-2 font-medium text-muted-foreground"><MessageCircle size={14} className="text-green-500" /> WhatsApp Orders</span>
+                <span className="font-bold">{stats.whatsappClicks}</span>
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-green-500 rounded-full transition-all duration-1000" style={{ width: `${stats.totalClicks > 0 ? (stats.whatsappClicks / stats.totalClicks) * 100 : 0}%` }} />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="flex items-center gap-2 font-medium text-muted-foreground"><ShoppingCart size={14} className="text-blue-500" /> Add to Cart</span>
+                <span className="font-bold">{stats.cartClicks}</span>
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 rounded-full transition-all duration-1000" style={{ width: `${stats.totalClicks > 0 ? (stats.cartClicks / stats.totalClicks) * 100 : 0}%` }} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="flex items-center gap-2 font-medium text-muted-foreground"><FileText size={14} className="text-amber-500" /> Form Submissions</span>
+                <span className="font-bold">{stats.formClicks}</span>
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-amber-500 rounded-full transition-all duration-1000" style={{ width: `${stats.totalClicks > 0 ? (stats.formClicks / stats.totalClicks) * 100 : 0}%` }} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="flex items-center gap-2 font-medium text-muted-foreground"><LinkIcon size={14} className="text-purple-500" /> Link Clicks</span>
+                <span className="font-bold">{stats.linkClicks}</span>
+              </div>
+              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-purple-500 rounded-full transition-all duration-1000" style={{ width: `${stats.totalClicks > 0 ? (stats.linkClicks / stats.totalClicks) * 100 : 0}%` }} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8 pb-8">
+        {/* Recent Activity Feed */}
+        <Card className="lg:col-span-2 rounded-2xl shadow-sm border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Activity size={18} className="text-primary"/> Live Activity Feed</CardTitle>
+          </CardHeader>
+          <CardContent className="px-6 pb-6 pt-0">
+            <div className="space-y-0">
               {stats.recentEvents.length > 0 ? (
                 stats.recentEvents.map((event, i) => (
-                  <div key={event.id || i} className="flex items-start gap-4">
-                    <div className="bg-primary/10 p-2 rounded-full mt-1">
+                  <div key={event.id || i} className="flex items-start gap-4 py-4 border-b border-border last:border-0 last:pb-0 hover:bg-muted/10 transition-colors rounded-xl px-2">
+                    <div className={cn("p-2.5 rounded-xl mt-0.5 shadow-sm", event.event_type.includes("whatsapp") ? "bg-green-100 text-green-600" : event.event_type.includes("cart") ? "bg-blue-100 text-blue-600" : event.event_type.includes("form") ? "bg-amber-100 text-amber-600" : "bg-purple-100 text-purple-600")}>
                       {event.event_type.includes("whatsapp") ? (
-                        <MessageCircleIcon />
+                        <MessageCircle size={18} />
+                      ) : event.event_type.includes("form") ? (
+                        <FileText size={18} />
+                      ) : event.event_type.includes("link") ? (
+                        <LinkIcon size={18} />
                       ) : (
-                        <ShoppingBag className="w-4 h-4 text-primary" />
+                        <ShoppingCart size={18} />
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">
+                      <p className="text-sm font-bold text-foreground">
                         {event.event_type === "whatsapp_click"
                           ? "Started WhatsApp Order"
+                          : event.event_type === "form_submit" || event.event_type === "form_open"
+                          ? "Interacted with Form"
                           : "Clicked Product Link"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground font-medium mt-0.5 uppercase tracking-wider">
                         {new Date(event.created_at).toLocaleDateString()} at{" "}
                         {new Date(event.created_at).toLocaleTimeString()}
                       </p>
                       {event.metadata?.product_name && (
-                        <Badge variant="outline" className="mt-1 text-[10px]">
+                        <Badge variant="secondary" className="mt-2 text-[10px] bg-muted font-bold text-muted-foreground">
                           {event.metadata.product_name}
                         </Badge>
                       )}
@@ -308,9 +429,39 @@ const AnalyticsPage = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No recent interactions.
-                </p>
+                <div className="py-8 text-center text-sm text-muted-foreground font-medium">
+                  No recent interactions. Share your portfolio to get started!
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Products */}
+        <Card className="rounded-2xl shadow-sm border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><ShoppingBag size={18} className="text-primary"/> Top Products</CardTitle>
+          </CardHeader>
+          <CardContent className="px-6 pb-6 pt-0">
+            <div className="space-y-4">
+              {stats.topProducts.length > 0 ? (
+                stats.topProducts.map((prod, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-muted/20 p-3 rounded-xl border border-border/50">
+                    <div className="flex items-center gap-3 overflow-hidden pr-3">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-black shrink-0">
+                        {idx + 1}
+                      </div>
+                      <span className="font-bold text-sm truncate" title={prod.name}>{prod.name}</span>
+                    </div>
+                    <Badge variant="outline" className="font-mono bg-background shadow-sm shrink-0">
+                      {prod.count} clicks
+                    </Badge>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center text-sm text-muted-foreground font-medium">
+                  Not enough data to rank products.
+                </div>
               )}
             </div>
           </CardContent>

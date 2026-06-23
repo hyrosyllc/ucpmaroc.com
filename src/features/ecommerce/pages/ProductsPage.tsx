@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Loader2,
   Plus,
@@ -68,19 +69,19 @@ interface Product {
 }
 
 export default function ProductsPage() {
-  const { actorData } = useOutletContext<ActorDashboardContextType>();
+  const { actorData, selectedSiteId, setSelectedSiteId } = useOutletContext<ActorDashboardContextType>();
   const actorId = actorData?.id;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [collections, setCollections] = useState<
-    { id: string; title: string }[]
+    { id: string; title: string; portfolio_id?: string | null }[]
   >([]);
   const [savedForms, setSavedForms] = useState<any[]>([]);
   const [globalCartForms, setGlobalCartForms] = useState<Record<string, string | null>>({});
   const [portfolios, setPortfolios] = useState<{ id: string; public_slug: string; site_name?: string }[]>([]);
   const [localDirectForm, setLocalDirectForm] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isFormManagerOpen, setIsFormManagerOpen] = useState(false);
@@ -130,16 +131,16 @@ export default function ProductsPage() {
   }, [actorId]);
 
   const fetchForms = useCallback(() => {
-    if (!actorId) return;
+    if (portfolios.length === 0) return;
     supabase
       .from("forms")
       .select("id, name, type, portfolio_id")
       .eq("type", "checkout")
-      .eq("actor_id", actorId)
+      .in("portfolio_id", portfolios.map((p) => p.id))
       .then(({ data }) => {
         if (data) setSavedForms(data);
       });
-  }, [actorId]);
+  }, [portfolios]);
 
   useEffect(() => {
     fetchProducts();
@@ -148,7 +149,7 @@ export default function ProductsPage() {
     if (actorId) {
       supabase
         .from("pro_collections")
-        .select("id, title")
+        .select("id, title, portfolio_id")
         .eq("actor_id", actorId)
         .then(({ data }) => {
           if (data) setCollections(data);
@@ -161,16 +162,18 @@ export default function ProductsPage() {
           .then(({ data }) => {
             if (data) setPortfolios(data);
           });
-
-        fetchForms();
     }
-  }, [fetchProducts, actorId, fetchForms]);
+  }, [fetchProducts, actorId]);
+
+  useEffect(() => {
+    fetchForms();
+  }, [fetchForms]);
 
   const initForm = (prod?: Product) => {
     setEditingId(prod?.id || null);
     
     const initialActionType = prod?.action_type || "cart";
-    const initialPortfolioId = prod?.portfolio_id || "";
+    const initialPortfolioId = prod?.portfolio_id || (selectedSiteId !== "all" ? selectedSiteId : "");
     let initialFormId = prod?.form_id || "";
     if (!prod && initialActionType === "cart") {
       const siteKey = initialPortfolioId || "global";
@@ -281,6 +284,11 @@ export default function ProductsPage() {
   const handleSave = async () => {
     if (!formData.title || formData.price === undefined) {
       alert("Title and Price are required.");
+      return;
+    }
+
+    if (!formData.portfolio_id) {
+      alert("Please select a Store / Website for this product.");
       return;
     }
 
@@ -487,6 +495,16 @@ export default function ProductsPage() {
         </div>
         {view === "list" && (
           <div className="flex items-center gap-3 flex-wrap">
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-[140px] bg-background">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
             <SiteFilter
               sites={portfolios.map(p => ({ id: p.id, site_name: p.site_name || p.public_slug }))}
               selectedSiteId={selectedSiteId}
@@ -1011,14 +1029,12 @@ export default function ProductsPage() {
                           value={formData.form_id || ""}
                           onChange={(e) => {
                             const newFormId = e.target.value;
-                        if (window.confirm("⚠️ WARNING: This will replace the global checkout form for ALL 'Add to Cart' products on this site. Are you sure you want to change it?")) {
                           setFormData({
                             ...formData,
                             form_id: newFormId,
                           });
                           const siteKey = formData.portfolio_id || "global";
                           setGlobalCartForms(prev => ({ ...prev, [siteKey]: newFormId }));
-                        }
                           }}
                         >
                           <option value="">-- Select a Global Cart Form --</option>
@@ -1029,7 +1045,7 @@ export default function ProductsPage() {
                           ))}
                         </select>
                         <p className="text-xs text-amber-700 dark:text-amber-500 font-medium leading-relaxed">
-                          ⚠️ <strong>Warning:</strong> This form is used globally for the entire cart during checkout. Changing this selection will automatically update the checkout form for <strong>all products</strong> set to "Add to Cart" on this website.
+                          ⚠️ <strong>Warning:</strong> This form is used globally for the entire cart during checkout. Changing this selection and saving will automatically update the checkout form for <strong>all products</strong> set to "Add to Cart" on this website.
                         </p>
                       </div>
                     </div>
@@ -1063,7 +1079,9 @@ export default function ProductsPage() {
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-4">
                   <div className="space-y-2">
-                    <Label>Store / Website</Label>
+                <Label>
+                  Store / Website <span className="text-destructive">*</span>
+                </Label>
                     <select
                       className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
                       value={formData.portfolio_id || ""}
@@ -1071,7 +1089,7 @@ export default function ProductsPage() {
                         const newPortfolioId = e.target.value;
                         let newFormId = formData.form_id;
                         if (formData.action_type === "cart") {
-                          const siteKey = newPortfolioId || "global";
+                      const siteKey = newPortfolioId;
                           newFormId = globalCartForms[siteKey] || "";
                         }
                         setFormData({
@@ -1081,7 +1099,9 @@ export default function ProductsPage() {
                         });
                       }}
                     >
-                      <option value="">Global (All Sites)</option>
+                  <option value="" disabled>
+                    -- Select a Store / Website --
+                  </option>
                       {portfolios.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.site_name || p.public_slug}
@@ -1133,7 +1153,9 @@ export default function ProductsPage() {
                       }
                     >
                       <option value="">No Collection</option>
-                      {collections.map((c) => (
+                    {collections
+                      .filter((c) => !formData.portfolio_id || c.portfolio_id === formData.portfolio_id || !c.portfolio_id)
+                      .map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.title}
                         </option>
@@ -1184,17 +1206,20 @@ export default function ProductsPage() {
               <thead className="bg-muted/50 border-b text-muted-foreground">
                 <tr>
                   <th className="px-6 py-4 font-medium">Product</th>
+                  <th className="px-6 py-4 font-medium">Store</th>
                   <th className="px-6 py-4 font-medium">Status</th>
-                  <th className="px-6 py-4 font-medium">Inventory</th>
+                  <th className="px-6 py-4 font-medium">Collection</th>
                   <th className="px-6 py-4 font-medium">Type</th>
+                  <th className="px-6 py-4 font-medium">Action</th>
                   <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {products.filter((p) => selectedSiteId === "all" || p.portfolio_id === selectedSiteId).map((product) => {
+                {products.filter((p) => (selectedSiteId === "all" || p.portfolio_id === selectedSiteId) && (selectedStatus === "all" || p.status === selectedStatus)).map((product) => {
                   const productPortfolio = portfolios.find((p) => p.id === product.portfolio_id);
                   const siteSlug = productPortfolio ? productPortfolio.public_slug : (portfolios[0]?.public_slug || "portfolio");
                   const productUrl = `/pro/${siteSlug}/product/${product.slug || product.id}`;
+                  const collection = collections.find((c) => c.id === product.collection_id);
 
                   return (
                   <tr
@@ -1214,13 +1239,19 @@ export default function ProductsPage() {
                         )}
                       </div>
                       <div>
-                        <div className="font-semibold text-base">
+                        <div className="font-semibold text-base truncate max-w-[200px]" title={product.title}>
                           {product.title}
                         </div>
-                        <div className="text-muted-foreground">
-                          ${product.price.toFixed(2)}
+                        <div className="text-muted-foreground flex items-center gap-2 mt-0.5">
+                          <span className="font-mono font-medium">${product.price.toFixed(2)}</span>
+                          <Badge variant="outline" className={`text-[9px] px-1.5 py-0 h-4 uppercase tracking-wider bg-muted/50 ${product.track_inventory && product.stock_count <= 0 ? 'border-destructive text-destructive bg-destructive/10' : ''}`}>
+                            {product.track_inventory ? `Qty: ${product.stock_count}` : 'Qty: ∞'}
+                          </Badge>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-muted-foreground text-sm">
+                      {productPortfolio?.site_name || productPortfolio?.public_slug || "Global"}
                     </td>
                     <td className="px-6 py-4">
                       <Badge
@@ -1236,25 +1267,16 @@ export default function ProductsPage() {
                         {product.status}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4">
-                      {product.track_inventory ? (
-                        <span
-                          className={
-                            product.stock_count <= 0
-                              ? "text-destructive font-medium"
-                              : ""
-                          }
-                        >
-                          {product.stock_count} in stock
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Not tracked
-                        </span>
-                      )}
+                    <td className="px-6 py-4 text-muted-foreground text-sm">
+                      {collection?.title || "—"}
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground capitalize">
-                      {product.product_type}
+                    <td className="px-6 py-4">
+                      <div className="capitalize font-medium text-foreground text-sm">{product.product_type || "Physical"}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                        {product.action_type === 'whatsapp' ? 'WhatsApp' : product.action_type === 'form_order' ? 'Direct Form' : product.action_type === 'link' ? 'Ext. Link' : 'Cart'}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

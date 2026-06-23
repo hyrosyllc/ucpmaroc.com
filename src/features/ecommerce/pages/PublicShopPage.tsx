@@ -15,6 +15,7 @@ const MAIN_DOMAINS = [
   "localhost",
   "127.0.0.1",
   "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
+    "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
 ];
 
 export default function PublicShopPage() {
@@ -101,14 +102,22 @@ export default function PublicShopPage() {
         );
       }
 
+      let collectionsQuery = supabase
+        .from("pro_collections")
+        .select("*")
+        .eq("actor_id", currentActorId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+
+      if (currentPortfolioId) {
+        collectionsQuery = collectionsQuery.or(
+          `portfolio_id.eq.${currentPortfolioId},portfolio_id.is.null`
+        );
+      }
+
       const [productsRes, collectionsRes] = await Promise.all([
         productsQuery,
-        supabase
-          .from("pro_collections")
-          .select("*")
-          .eq("actor_id", currentActorId)
-          .eq("status", "active")
-          .order("created_at", { ascending: false }),
+        collectionsQuery,
       ]);
 
       if (productsRes.data) setProducts(productsRes.data);

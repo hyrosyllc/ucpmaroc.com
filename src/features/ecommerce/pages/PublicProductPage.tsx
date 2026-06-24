@@ -61,6 +61,13 @@ export default function PublicProductPage() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoadingForm, setIsLoadingForm] = useState(false);
 
+  // Store & Customer State
+  const [themeConfig, setThemeConfig] = useState<any>({});
+  const [customer, setCustomer] = useState<any>(null);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', content: '' });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
   useEffect(() => {
     const fetchProductAndTheme = async () => {
       if (!productSlug) return;
@@ -75,6 +82,7 @@ export default function PublicProductPage() {
       let currentPortfolioId = null; // <-- NEW: Track this for store separation
       let currentTheme = "modern";
       let currentPublicSlug = slug || "";
+      let currentThemeConfig = {};
 
       // 1. ENVIRONMENT-AWARE ACTOR LOOKUP (FIXED 406 CRASH)
       if (isCustomDomain) {
@@ -89,6 +97,7 @@ export default function PublicProductPage() {
           currentActorId = portData.actor_id;
           currentTheme = portData.theme_config?.templateId || "modern";
           if (portData.public_slug) currentPublicSlug = portData.public_slug;
+          currentThemeConfig = portData.theme_config || {};
         }
       } else if (slug) {
         // ✅ CORRECT LOOKUP: Query PORTFOLIOS using public_slug!
@@ -103,6 +112,7 @@ export default function PublicProductPage() {
           currentActorId = portData.actor_id;
           currentTheme = portData.theme_config?.templateId || "modern";
           currentPublicSlug = portData.public_slug;
+          currentThemeConfig = portData.theme_config || {};
         }
       }
 
@@ -115,6 +125,14 @@ export default function PublicProductPage() {
       setTheme(currentTheme);
       setResolvedPublicSlug(currentPublicSlug);
       setPortfolioId(currentPortfolioId);
+      setThemeConfig(currentThemeConfig);
+
+      // Check for Customer Session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user && currentPortfolioId) {
+         const { data: custData } = await supabase.from('pro_customers').select('id, name, email').eq('user_id', session.user.id).eq('portfolio_id', currentPortfolioId).maybeSingle();
+         if (custData) setCustomer(custData);
+      }
 
       // 2. FETCH EXACT PRODUCT (WITH STORE SEPARATION LOGIC)
       let productQuery = supabase
@@ -157,6 +175,16 @@ export default function PublicProductPage() {
           if (fData) setFormTemplate(fData);
           setIsLoadingForm(false);
         }
+
+        // Fetch Approved Product Reviews
+        const { data: reviewsData } = await supabase
+          .from("pro_product_reviews")
+          .select(`*, pro_customers(name, email)`)
+          .eq("product_id", productData.id)
+          .eq("is_published", true)
+          .order("created_at", { ascending: false });
+        
+        if (reviewsData) productData.reviews = reviewsData;
       }
       setLoading(false);
     };
@@ -284,6 +312,27 @@ export default function PublicProductPage() {
     }
   };
 
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customer || !product) return;
+    setIsSubmittingReview(true);
+    const { error } = await supabase.from('pro_product_reviews').insert({
+      product_id: product.id,
+      customer_id: customer.id,
+      rating: reviewForm.rating,
+      title: reviewForm.title,
+      content: reviewForm.content,
+      is_published: false
+    });
+    setIsSubmittingReview(false);
+    if (!error) {
+      setReviewSuccess(true);
+      setReviewForm({ rating: 5, title: '', content: '' });
+    } else {
+      alert("Failed to submit review. Try again.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -328,6 +377,14 @@ export default function PublicProductPage() {
     formValues,
     setFormValues,
     isLoadingForm,
+    themeConfig,
+    customer,
+    reviewForm,
+    setReviewForm,
+    isSubmittingReview,
+    reviewSuccess,
+    handleReviewSubmit,
+
   };
 
   return (

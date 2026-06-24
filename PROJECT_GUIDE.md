@@ -7,14 +7,14 @@ At its core, the platform is a **Multi-Tenant Portfolio Builder & E-Commerce CRM
 ---
 
 ## 🌟 1. The Portfolio Builder (CMS)
-The heart of the application is a deeply interactive, real-time website builder featuring a live iframe canvas and drag-and-drop mechanics.
+The heart of the application is a deeply interactive, real-time website builder featuring a live iframe canvas, drag-and-drop mechanics, and a 3-tab architecture (Content, Design, Store).
 
 ### 🎨 Live Canvas & Multi-Device Preview
 - **Perfect Scaling Engine:** Real-time iframe preview that math-perfectly scales to fit the viewport.
 - **Device Toggling:** Instantly switch between Desktop, Tablet, and Mobile preview modes.
 - **Two-Way Sync:** Changes in the builder instantly reflect in the iframe using cross-window `postMessage` architecture.
 
-### 🧱 Rich Section Library
+### 🧱 Rich Section Library (The Content Tab)
 Users can drag, drop, and configure various functional blocks using `@dnd-kit`:
 - **Dynamic Store:** Automatically grids products with 'Bento', 'Carousel', or 'Spotlight' layouts.
 - **Lead & Checkout Forms:** Map custom forms directly into the page to capture customer data.
@@ -23,14 +23,18 @@ Users can drag, drop, and configure various functional blocks using `@dnd-kit`:
 - **Pricing & Rate Cards:** Sortable pricing tiers with "Popular" highlighting and direct checkout links.
 - **Custom HTML/CSS/JS Sandbox:** A fully isolated Monaco Editor instance allowing developers to inject custom Tailwind CSS and scoped JavaScript interacting directly with the native `window.UCP` SDK.
 
-### 🖌️ Global Theming
+### 🖌️ Global Theming (The Design Tab)
 - **Theme Store:** Users can unlock premium themes (e.g., Cinematic Dark, Cupertino) using their Wallet Coins.
 - **Brand Controls:** Global hex color overrides, border-radius manipulation (Sharp to Round), and typography selection.
+
+### 🛒 E-Commerce Templates (The Store Tab)
+- To prevent users from accidentally deleting critical conversion funnels, the Shop, Product, Checkout, and Thank You pages are maintained as **hardcoded, high-performance templates**.
+- Users customize these funnels via toggles in the "Store" tab (e.g., hiding sidebar filters, enabling related products, or turning on authenticated reviews).
 
 ---
 
 ## 🛍️ 2. Advanced E-Commerce Engine
-A highly flexible digital and physical storefront system supporting multi-site management.
+A highly flexible digital and physical storefront system supporting multi-site management and dedicated customer portals.
 
 ### 📦 Product & Inventory Management
 - **Variant Engine:** Support for complex product options (e.g., Size, Color) with distinct price overrides.
@@ -46,6 +50,12 @@ A highly flexible digital and physical storefront system supporting multi-site m
 ### 🌍 Markets & Shipping
 - **Regional Toggles:** Turn specific countries and global regions on or off for selling.
 - **Smart Shipping Rules:** Flat rate, weight-based calculations, and conditional Free Shipping thresholds.
+
+### 🔐 The Customer Portal
+- **Passwordless Authentication:** Customers log in to their favorite creator's store using Supabase OTP (One-Time Password) magic links sent to their email.
+- **Tenant Isolation:** A bridging table (`pro_customers`) ensures a user is securely tied only to the specific `portfolio_id` they purchased from.
+- **Order History & Tracking:** Customers have their own secure dashboard (`/pro/:slug/dashboard`) to view past purchases and current fulfillment statuses.
+- **Authenticated Product Reviews:** Only logged-in customers can leave reviews on products. These are held in "Pending" status until the store owner approves them.
 
 ---
 
@@ -66,10 +76,15 @@ A complete back-office to manage customer interactions.
 ### 📦 Direct Orders
 - **Unified Status Flow:** Pending, In Progress, Completed, Cancelled, Refunded.
 - **Intelligent Data Extraction:** Automatically parses custom checkout forms to extract Names, Emails, Cities, and Payment Intents cleanly into the UI.
+- **Real-Time Customer Chat:** Using **Supabase Realtime**, store owners and customers can chat live on a specific order. The UI updates instantly across both the Owner's and Customer's dashboards without refreshing.
 - **Bulk Actions:** Update statuses or delete multiple orders simultaneously.
 - **CSV Exports:** One-click export of complex order data, dynamically generating columns for custom form fields.
 
-### 📨 Leads & Inbox
+### 👥 Customer CRM
+- **Lifetime Value (LTV) Calculation:** The system dynamically calculates how much a specific client has spent across all their historic orders, minus refunds/cancellations.
+- **Unified Profiles:** Merges all previous guest checkouts using the same email into a single unified Customer profile once they authenticate.
+
+###  Leads & Inbox
 - **Smart Parsing:** Guesses Name/Email/Phone even from wildly varying custom form inputs.
 - **Custom Tagging:** Apply specific colored tags (e.g., `VIP`, `FOLLOW_UP`) directly to leads.
 - **Global Filtering:** Filter inbox by Portfolio, Source (Pricing vs Contact), Status, or Custom Tags.
@@ -94,7 +109,10 @@ Deep visual tracking of portfolio performance.
 ## ⚙️ 6. System Architecture & Context
 
 ### 🏢 Multi-Tenant Context (`selectedSiteId`)
-A sophisticated "Sticky Filter" mechanism lives in the `ActorDashboardLayout`. Once a user selects a specific brand or website from the top dropdown, that filter seamlessly propagates across Products, Orders, Leads, Analytics, and Forms—ensuring they never accidentally mix up data from two different businesses.
+A sophisticated "Sticky Filter" mechanism lives in the `ActorDashboardLayout`. Once a user selects a specific brand or website from the top dropdown, that filter seamlessly propagates across Products, Orders, Leads, Analytics, Customers, Reviews, and Forms—ensuring they never accidentally mix up data from two different businesses.
+
+### 🔄 App Switcher
+To keep the sidebar perfectly clean, a toggle allows users approved for the internal UCP Agency to switch entirely between the **"Store Builder"** (B2C) and the **"Agency Hub"** (B2B).
 
 ### 🪙 Wallet & Billing System
 - **Coins Currency:** The platform runs on an internal "Coin" system to buy site slots and premium themes.

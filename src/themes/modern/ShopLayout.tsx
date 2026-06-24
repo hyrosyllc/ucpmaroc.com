@@ -14,7 +14,10 @@ export default function ModernShopLayout({
   searchQuery,
   setSearchQuery,
   filteredProducts,
-}: ShopLayoutProps) {
+  themeConfig,
+}: ShopLayoutProps & { themeConfig?: any }) {
+  const showFilters = themeConfig?.store_shop_filters !== false;
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans selection:bg-primary selection:text-black pt-20">
       {/* SHOP HEADER */}
@@ -35,6 +38,7 @@ export default function ModernShopLayout({
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-12 flex flex-col md:flex-row gap-8 items-start relative z-10">
         {/* LEFT SIDEBAR: FILTERS */}
+        {showFilters && (
         <aside className="w-full md:w-64 flex-shrink-0 md:sticky md:top-24 space-y-8">
           <div className="relative">
             <Search className="absolute left-3 top-3.5 h-4 w-4 text-neutral-500" />
@@ -110,6 +114,7 @@ export default function ModernShopLayout({
             ))}
           </div>
         </aside>
+        )}
 
         {/* RIGHT CONTENT: PRODUCT GRID */}
         <div className="flex-1 w-full">

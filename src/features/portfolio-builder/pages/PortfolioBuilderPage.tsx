@@ -70,6 +70,8 @@ import {
   Briefcase,
   Store,
   Gift,
+  ChevronRight,
+  Package,
 } from "lucide-react";
 import {
   type PortfolioSection,
@@ -493,6 +495,7 @@ const PortfolioBuilderPage = () => {
   const [activePageId, setActivePageId] = useState<string | "home">("home");
   const [lastLoadedKey, setLastLoadedKey] = useState<string | null>(null);
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
+  const [editingStorePage, setEditingStorePage] = useState<string | null>(null);
   const [newPageName, setNewPageName] = useState("");
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
@@ -631,6 +634,7 @@ const PortfolioBuilderPage = () => {
         setActivePortfolioId(fetchedPortfolio.id);
         setActivePageId("home");
         setEditingSection(null);
+        setEditingStorePage(null);
       }
 
       setIsPublished(prev => prev !== fetchedPortfolio.is_published ? fetchedPortfolio.is_published : prev);
@@ -1314,7 +1318,7 @@ const PortfolioBuilderPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 flex-grow overflow-hidden min-h-0 relative pb-2">
         <div className="lg:col-span-1 flex flex-col h-full min-h-0 overflow-hidden pr-1">
           <Tabs defaultValue="content" className="flex flex-col h-full min-h-0">
-            <TabsList className="w-full grid grid-cols-3 lg:grid-cols-2 gap-2 shrink-0 rounded-3xl bg-muted/40 p-2 h-12 mb-4">
+            <TabsList className="w-full grid grid-cols-4 lg:grid-cols-3 gap-2 shrink-0 rounded-3xl bg-muted/40 p-2 h-12 mb-4">
               <TabsTrigger
                 value="content"
                 className="h-full rounded-2xl border border-transparent bg-muted/80 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:text-primary"
@@ -1326,6 +1330,12 @@ const PortfolioBuilderPage = () => {
                 className="h-full rounded-2xl border border-transparent bg-muted/80 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:text-primary"
               >
                 <Palette className="w-4 h-4 mr-2 hidden sm:inline" /> Design
+              </TabsTrigger>
+              <TabsTrigger
+                value="store"
+                className="h-full rounded-2xl border border-transparent bg-muted/80 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:text-primary"
+              >
+                <Store className="w-4 h-4 mr-2 hidden sm:inline" /> Store
               </TabsTrigger>
               <TabsTrigger
                 value="preview"
@@ -2048,6 +2058,85 @@ const PortfolioBuilderPage = () => {
                         )}
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* STORE TAB */}
+            <TabsContent
+              value="store"
+              className="flex-grow flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden"
+            >
+              {editingStorePage ? (
+                <div className="flex flex-col h-full w-full animate-in slide-in-from-right-4 duration-200">
+                  <div className="pb-3 mb-2 border-b flex items-center justify-between shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingStorePage(null)}
+                      className="h-8 px-3 rounded-full"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+                    </Button>
+                    <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground mr-2 truncate">
+                      {editingStorePage} Settings
+                    </span>
+                  </div>
+                  <div className="flex-grow overflow-y-auto custom-scrollbar p-0 pb-12 space-y-6 animate-in fade-in">
+                     {editingStorePage === 'Product Page' && (
+                       <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                          <div className="flex justify-between items-center">
+                             <Label className="font-bold">Show Product Reviews</Label>
+                             <Switch 
+                               checked={themeConfig.store_product_reviews !== false} 
+                               onCheckedChange={(c) => updateThemeConfig({ store_product_reviews: c })}
+                             />
+                          </div>
+                          <p className="text-xs text-muted-foreground -mt-2">Allow logged in customers to leave reviews directly on the product page.</p>
+                          
+                          <div className="flex justify-between items-center pt-4 border-t border-border/50">
+                             <Label className="font-bold">Show Related Products</Label>
+                             <Switch 
+                               checked={themeConfig.store_related_products !== false} 
+                               onCheckedChange={(c) => updateThemeConfig({ store_related_products: c })}
+                             />
+                          </div>
+                       </div>
+                     )}
+                     {editingStorePage === 'Shop Page' && (
+                       <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                          <div className="flex justify-between items-center">
+                             <Label className="font-bold">Show Sidebar Filters</Label>
+                             <Switch 
+                               checked={themeConfig.store_shop_filters !== false} 
+                               onCheckedChange={(c) => updateThemeConfig({ store_shop_filters: c })}
+                             />
+                          </div>
+                       </div>
+                     )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-grow overflow-y-auto min-h-[400px] lg:min-h-0 custom-scrollbar animate-in slide-in-from-left-4 duration-200 p-4 pt-2">
+                  <div className="mb-4 space-y-2">
+                    <h3 className="font-bold text-lg">Store Pages</h3>
+                    <p className="text-xs text-muted-foreground">Manage layouts and features for your e-commerce pages.</p>
+                  </div>
+                  <div className="space-y-3">
+                    {['Shop Page', 'Product Page'].map(page => (
+                       <Card key={page} className="cursor-pointer hover:bg-muted/30 hover:border-primary/50 transition-colors" onClick={() => setEditingStorePage(page)}>
+                         <CardContent className="p-4 flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                               {page === 'Shop Page' ? <Store size={18}/> : <Package size={18}/>}
+                             </div>
+                             <span className="font-bold text-sm">{page}</span>
+                           </div>
+                           <ChevronRight size={16} className="text-muted-foreground"/>
+                         </CardContent>
+                       </Card>
+                    ))}
                   </div>
                 </div>
               )}

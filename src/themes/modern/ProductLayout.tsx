@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ChevronRight,
   MessageCircle,
+  Star,
   MessageSquare,
   Calendar,
   FileText,
@@ -67,6 +68,13 @@ export default function ModernProductLayout({
   formValues = {},
   setFormValues,
   isLoadingForm,
+  themeConfig,
+  customer,
+  reviewForm,
+  setReviewForm,
+  isSubmittingReview,
+  reviewSuccess,
+  handleReviewSubmit,
 }: ProductLayoutProps) {
   // AAA+ Fix: Check both array images and legacy single image string
   const images = product?.images?.length
@@ -77,6 +85,8 @@ export default function ModernProductLayout({
 
   // AAA+ Fix: Safely determine if the item is sold out
   const isOutOfStock = product?.track_inventory && product?.stock_count <= 0;
+
+  const showReviews = themeConfig?.store_product_reviews !== false;
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans pt-20">
@@ -488,6 +498,88 @@ export default function ModernProductLayout({
             )}
           </div>
         </div>
+
+        {showReviews && (
+          <div className="mt-20 pt-16 border-t border-white/10 max-w-4xl mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+               <div>
+                 <h3 className="text-3xl font-bold text-white tracking-tight">Customer Reviews</h3>
+                 <p className="text-neutral-400 mt-2">See what others are saying about this product.</p>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
+              <div className="md:col-span-7 space-y-6">
+                {product.reviews && product.reviews.length > 0 ? (
+                  product.reviews.map((r: any) => (
+                    <div key={r.id} className="bg-white/5 p-6 rounded-2xl border border-white/10">
+                       <div className="flex items-center justify-between mb-4">
+                         <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold">
+                               {(r.pro_customers?.name || "C").charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                               <div className="font-bold text-sm text-white">{r.pro_customers?.name || "Customer"}</div>
+                               <div className="text-[10px] text-neutral-500">{new Date(r.created_at).toLocaleDateString()}</div>
+                            </div>
+                         </div>
+                         <div className="flex gap-1">
+                           {[...Array(5)].map((_, i) => <Star key={i} size={14} className={cn(i < r.rating ? "text-amber-500 fill-amber-500" : "text-neutral-700")} />)}
+                         </div>
+                       </div>
+                       {r.title && <h4 className="font-bold mb-2 text-white">{r.title}</h4>}
+                       <p className="text-sm text-neutral-300 leading-relaxed">"{r.content}"</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10 text-neutral-400">
+                     <Star className="w-10 h-10 mx-auto mb-4 opacity-20" />
+                     <p className="font-medium">No reviews yet.</p>
+                     <p className="text-sm opacity-60 mt-1">Be the first to review this product!</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="md:col-span-5">
+                <div className="bg-neutral-900/50 p-6 md:p-8 rounded-2xl border border-white/10 sticky top-24">
+                  <h4 className="text-xl font-bold text-white mb-6">Write a Review</h4>
+                  {customer ? (
+                    reviewSuccess ? (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                        <p className="font-bold text-white">Review Submitted!</p>
+                        <p className="text-sm text-neutral-400 mt-2">Thank you! Your review is pending approval.</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleReviewSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-neutral-400 text-xs uppercase tracking-widest font-bold">Rating</Label>
+                          <div className="flex gap-1">
+                            {[1,2,3,4,5].map(num => (
+                              <Star key={num} size={24} className={cn("cursor-pointer transition-all hover:scale-110", reviewForm?.rating >= num ? "text-amber-500 fill-amber-500" : "text-neutral-600")} onClick={() => setReviewForm?.({...reviewForm, rating: num})} />
+                            ))}
+                          </div>
+                        </div>
+                        <Input placeholder="Review Title" required value={reviewForm?.title} onChange={e => setReviewForm?.({...reviewForm, title: e.target.value})} className="bg-black/50 border-white/10 text-white" />
+                        <Textarea placeholder="Share your experience..." required value={reviewForm?.content} onChange={e => setReviewForm?.({...reviewForm, content: e.target.value})} className="bg-black/50 border-white/10 text-white min-h-[100px] resize-none" />
+                        <Button type="submit" disabled={isSubmittingReview} className="w-full bg-primary text-black hover:bg-primary/90 font-bold">
+                          {isSubmittingReview ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MessageSquare className="w-4 h-4 mr-2"/>} Submit Review
+                        </Button>
+                      </form>
+                    )
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-neutral-400 mb-4">You must be logged in to leave a review.</p>
+                      <Button asChild variant="outline" className="w-full border-white/20 text-white hover:bg-white/10">
+                        <Link to={`/${username ? username + '/' : ''}login`}>Log in to Account</Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

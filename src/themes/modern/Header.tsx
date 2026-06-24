@@ -11,6 +11,7 @@ import {
   Youtube,
   Film,
   ChevronDown, // 🚀 NEW: Added for the dropdown arrows
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/useCartStore";
@@ -473,6 +474,21 @@ const Header: React.FC<any> = ({
     </button>
   );
 
+  const AccountButton = () => (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isPreview) return;
+        navigate(`${pathPrefix}/${username}/dashboard`);
+      }}
+      className="relative p-2 text-white/70 hover:text-white transition-colors shrink-0"
+      title="My Account"
+    >
+      <User className="w-5 h-5 md:w-6 md:h-6" />
+    </button>
+  );
+
   const RenderAnnouncement = ({ ann }: { ann: any }) =>
     ann.link ? (
       <a
@@ -584,6 +600,7 @@ const Header: React.FC<any> = ({
                     <SocialLinks />
                   </div>
                 )}
+                <AccountButton />
                 <CartButton />
                 <div className="pl-4 ml-2 border-l border-white/10 hidden md:block">
                   <CTA />
@@ -618,6 +635,7 @@ const Header: React.FC<any> = ({
                 <Logo />
               </div>
               <div className="justify-self-end flex items-center gap-2 md:gap-4">
+                <AccountButton />
                 <CartButton />
                 <div className="hidden md:block">
                   <CTA />
@@ -634,6 +652,7 @@ const Header: React.FC<any> = ({
               </div>
               <div className="flex items-center gap-1 md:gap-3">
                 {hasSocial && <SocialLinks />}
+                <AccountButton />
                 <CartButton />
                 <div className="hidden md:block">
                   <CTA />

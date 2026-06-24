@@ -43,6 +43,9 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Globe,
+  Store,
+  Users,
+  Star,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -88,19 +91,20 @@ interface Actor {
 // --- NAVIGATION STRUCTURE ---
 const NAV_GROUPS = [
   {
-    label: "Portfolio & Shop",
+    label: "Admin",
+    app: "builder",
     items: [
-      {
-        to: "/dashboard/portfolio",
-        name: "Website Editor",
-        icon: LayoutTemplate,
-        description: "Edit your site",
-      },
       {
         to: "/dashboard",
         name: "Overview",
         icon: BarChart3,
         description: "Traffic & Shop Stats",
+      },
+      {
+        to: "/dashboard/orders",
+        name: "Orders",
+        icon: Package,
+        description: "Manage sales",
       },
       {
         to: "/dashboard/products",
@@ -109,10 +113,16 @@ const NAV_GROUPS = [
         description: "Manage inventory",
       },
       {
-        to: "/dashboard/orders",
-        name: "Direct Orders",
-        icon: Package,
-        description: "Manage sales",
+        to: "/dashboard/customers",
+        name: "Customers",
+        icon: Users,
+        description: "Manage client accounts",
+      },
+      {
+        to: "/dashboard/product-reviews",
+        name: "Reviews",
+        icon: Star,
+        description: "Approve store reviews",
       },
       {
         to: "/dashboard/leads",
@@ -123,44 +133,62 @@ const NAV_GROUPS = [
     ],
   },
   {
-        label: "e-Commerce Manager",
-        isAccordion: true,
-        icon: ShoppingCart,
-        items: [
-          {
-            to: "/dashboard/payments",
-            name: "Payments & Integrations",
-            icon: CreditCard,
-            description: "Stripe & Payouts",
-          },
-          {
-            to: "/dashboard/markets",
-            name: "Markets & Regions",
-            icon: Globe,
-            description: "Where you sell",
-          },
-          {
-            to: "/dashboard/shipping",
-            name: "Shipping Rates",
-            icon: Truck,
-            description: "Manage shipping rules",
-          },
-          {
-            to: "/dashboard/coupons",
-            name: "Coupons",
-            icon: Tag,
-            description: "Discounts & Promos",
-          },
-          {
-            to: "/dashboard/forms",
-            name: "Forms & Checkout",
-            icon: FileText,
-            description: "Checkout fields",
-          },
-        ],
+    label: "Sales Channels",
+    app: "builder",
+    items: [
+      {
+        to: "/dashboard/portfolio",
+        name: "Website Editor",
+        icon: LayoutTemplate,
+        description: "Edit your site",
+      },
+    ],
+  },
+  {
+    label: "Marketing & Tools",
+    app: "builder",
+    items: [
+      {
+        to: "/dashboard/coupons",
+        name: "Coupons",
+        icon: Tag,
+        description: "Discounts & Promos",
       },
       {
+        to: "/dashboard/forms",
+        name: "Forms & Checkout",
+        icon: FileText,
+        description: "Checkout fields",
+      },
+    ],
+  },
+  {
+    label: "Store Configuration",
+    app: "builder",
+    items: [
+      {
+        to: "/dashboard/payments",
+        name: "Payments & Integrations",
+        icon: CreditCard,
+        description: "Stripe & Payouts",
+      },
+      {
+        to: "/dashboard/markets",
+        name: "Markets & Regions",
+        icon: Globe,
+        description: "Where you sell",
+      },
+      {
+        to: "/dashboard/shipping",
+        name: "Shipping Rates",
+        icon: Truck,
+        description: "Manage shipping rules",
+      },
+    ],
+  },
+  {
     label: "Account & Settings",
+    app: "both",
     items: [
       {
         to: "/dashboard/settings",
@@ -190,6 +218,7 @@ const NAV_GROUPS = [
   },
   {
     label: "UCP Agency (Marketplace)",
+    app: "marketplace",
     marketplaceOnly: true, // 🚀 NEW FLAG FOR GATING
     items: [
       {
@@ -243,8 +272,8 @@ const ActorDashboardLayout = () => {
   const [loading, setLoading] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false); // 🚀 TOPUP MODAL STATE
-  const [isEcommerceOpen, setIsEcommerceOpen] = useState(false);
   const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
+  const [appMode, setAppMode] = useState<"builder" | "marketplace">("builder");
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -265,17 +294,6 @@ const ActorDashboardLayout = () => {
       setIsCollapsed(true);
     } else {
       setIsCollapsed(false);
-    }
-  }, [location.pathname]);
-
-  useEffect(() => {
-    if (
-      location.pathname.includes("/dashboard/payments") ||
-      location.pathname.includes("/dashboard/shipping") ||
-      location.pathname.includes("/dashboard/coupons") ||
-      location.pathname.includes("/dashboard/forms")
-    ) {
-      setIsEcommerceOpen(true);
     }
   }, [location.pathname]);
 
@@ -503,72 +521,49 @@ const ActorDashboardLayout = () => {
             )}
           >
             <nav className="flex-1 overflow-y-auto py-6 space-y-6 custom-scrollbar overflow-x-hidden">
+            {/* 🚀 APP SWITCHER */}
+            {isApprovedMarketplace && !isCollapsed && (
+              <div className="px-4 mb-2 animate-in fade-in">
+                <div className="flex bg-muted/50 p-1 rounded-xl border">
+                  <button
+                    onClick={() => setAppMode("builder")}
+                    className={cn(
+                      "flex-1 text-xs font-bold py-2 rounded-lg transition-all flex items-center justify-center gap-1.5",
+                      appMode === "builder"
+                        ? "bg-background shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Store size={14} /> Builder
+                  </button>
+                  <button
+                    onClick={() => setAppMode("marketplace")}
+                    className={cn(
+                      "flex-1 text-xs font-bold py-2 rounded-lg transition-all flex items-center justify-center gap-1.5",
+                      appMode === "marketplace"
+                        ? "bg-background shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Briefcase size={14} /> Agency
+                  </button>
+                </div>
+              </div>
+            )}
+            {isApprovedMarketplace && isCollapsed && (
+              <div className="px-3 mb-2 flex justify-center">
+                 <Button variant="ghost" size="icon" onClick={() => setAppMode(appMode === "builder" ? "marketplace" : "builder")} title={`Switch to ${appMode === "builder" ? "Agency" : "Builder"}`}>
+                    <ArrowRightLeft size={18} />
+                 </Button>
+              </div>
+            )}
               {NAV_GROUPS.map((group, idx) => {
                 // 🚀 MARKETPLACE GATING LOGIC
                 if (group.marketplaceOnly && !isApprovedMarketplace)
                   return null;
-
-                if (group.isAccordion) {
-                  return (
-                    <div key={idx} className="space-y-1 mb-2">
-                      <div className="px-3">
-                        <button
-                          onClick={() => setIsEcommerceOpen(!isEcommerceOpen)}
-                          className={cn(
-                            "w-full flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors text-sm font-medium text-foreground",
-                            isCollapsed && "justify-center"
-                          )}
-                          title={isCollapsed ? group.label : undefined}
-                        >
-                          <div className="flex items-center gap-3">
-                            {group.icon && <group.icon className={cn("shrink-0 transition-colors text-primary", isCollapsed ? "h-5 w-5" : "h-4 w-4")} />}
-                            {!isCollapsed && <span>{group.label}</span>}
-                          </div>
-                          {!isCollapsed && (
-                            <ChevronDown
-                              size={14}
-                              className={cn(
-                                "transition-transform duration-200 text-muted-foreground",
-                                isEcommerceOpen && "rotate-180 text-primary"
-                              )}
-                            />
-                          )}
-                        </button>
-          
-                        <div
-                          className={cn(
-                            "overflow-hidden transition-all duration-300",
-                            isEcommerceOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
-                          )}
-                        >
-                          <div className={cn("flex flex-col space-y-1", !isCollapsed && "pl-3 border-l-2 border-border/40 ml-4 mt-1 mb-2")}>
-                            {group.items.map((item) => (
-                              <NavLink
-                                key={item.name}
-                                to={item.to}
-                                end={["/dashboard", "/dashboard/settings", "/dashboard/payments"].includes(item.to)}
-                                className={({ isActive }) =>
-                                  cn(
-                                    "group flex items-center rounded-lg transition-all duration-200 outline-none select-none relative gap-3 py-2 w-full",
-                                    !isCollapsed && "px-3",
-                                    isCollapsed && "justify-center h-10 w-10 mx-auto",
-                                    isActive
-                                      ? "bg-primary/10 text-primary font-semibold"
-                                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                  )
-                                }
-                                title={isCollapsed ? item.name : undefined}
-                              >
-                                <item.icon className={cn("shrink-0 transition-colors", isCollapsed ? "h-5 w-5" : "h-4 w-4")} />
-                                {!isCollapsed && <span className="text-sm truncate">{item.name}</span>}
-                              </NavLink>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
+              // 🚀 APP MODE GATING LOGIC
+              if (group.app !== "both" && group.app !== appMode)
+                return null;
 
                 return (
                   <div key={idx} className="space-y-1">
@@ -799,8 +794,23 @@ const ActorDashboardLayout = () => {
                         </p>
                       </div>
                     </div>
+                    {/* Mobile App Switcher */}
+                    {isApprovedMarketplace && (
+                       <div className="px-2">
+                         <div className="flex bg-muted/50 p-1 rounded-xl border">
+                           <button onClick={() => setAppMode("builder")} className={cn("flex-1 text-xs font-bold py-2 rounded-lg transition-all", appMode === "builder" ? "bg-background shadow-sm" : "text-muted-foreground")}>
+                             Store Builder
+                           </button>
+                           <button onClick={() => setAppMode("marketplace")} className={cn("flex-1 text-xs font-bold py-2 rounded-lg transition-all", appMode === "marketplace" ? "bg-background shadow-sm" : "text-muted-foreground")}>
+                             Agency Hub
+                           </button>
+                         </div>
+                       </div>
+                    )}
                     {NAV_GROUPS.map((group, idx) => {
                       if (group.marketplaceOnly && !isApprovedMarketplace)
+                        return null;
+                      if (group.app !== "both" && group.app !== appMode)
                         return null;
                       return (
                         <div key={idx}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/supabaseClient";
 import { useOutletContext } from "react-router-dom";
 import { ActorDashboardContextType } from "@/layouts/ActorDashboardLayout"; "@/features/talent-marketplace";
@@ -30,6 +30,8 @@ import {
   X as CloseIcon,
   Trash2,
   Mail,
+  Send,
+  MessageSquare,
 } from "lucide-react";
 import {
   Table,
@@ -52,6 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SiteFilter from "@/components/dashboard/SiteFilter";
 import { cn } from "@/lib/utils";
 
@@ -126,6 +129,12 @@ const OrdersPage = () => {
   const [internalNotes, setInternalNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // Chat State
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSendingMsg, setIsSendingMsg] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const fetchData = async () => {
     if (!actorData.id) return;
     setLoading(true);
@@ -178,6 +187,29 @@ const OrdersPage = () => {
       return true;
     });
   }, [allOrders, selectedSiteId, statusFilter, searchQuery]);
+
+  // --- CHAT EFFECT ---
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const fetchMessages = async () => {
+      const { data } = await supabase.from("pro_order_messages").select("*").eq("order_id", selectedOrder.id).order("created_at", { ascending: true });
+      if (data) setMessages(data);
+    };
+    fetchMessages();
+
+    const channel = supabase
+      .channel(`admin_order_chat_${selectedOrder.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "pro_order_messages", filter: `order_id=eq.${selectedOrder.id}` }, (payload) => {
+        setMessages((prev) => [...prev, payload.new]);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedOrder?.id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isSheetOpen]);
 
   // --- METRICS CALCULATION ---
   const metrics = useMemo(() => {
@@ -296,6 +328,21 @@ const OrdersPage = () => {
       );
     }
     setIsSaving(false);
+  };
+
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedOrder) return;
+    setIsSendingMsg(true);
+    const tempMsg = newMessage;
+    setNewMessage("");
+
+    await supabase.from("pro_order_messages").insert({
+      order_id: selectedOrder.id,
+      sender_type: "owner",
+      message: tempMsg,
+    });
+    setIsSendingMsg(false);
   };
 
   const getSiteName = (id?: string) => {
@@ -888,6 +935,13 @@ const OrdersPage = () => {
 
               {/* Sheet Body (Scrollable) */}
               <div className="p-6 md:p-8 space-y-6 flex-grow overflow-y-auto">
+                <Tabs defaultValue="details" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="details">Order Details</TabsTrigger>
+                    <TabsTrigger value="chat">Customer Chat</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="details" className="space-y-6 mt-0">
                 {/* 1. Order Summary */}
                 <div className="bg-background p-5 rounded-2xl border border-border shadow-sm space-y-4">
                   <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
@@ -1174,6 +1228,37 @@ const OrdersPage = () => {
                     </Button>
                   </div>
                 </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="chat" className="mt-0">
+                    <Card className="rounded-2xl border-border shadow-sm flex flex-col h-[500px]">
+                      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background/50">
+                        {messages.length === 0 ? (
+                          <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                            <MessageSquare size={32} className="mb-2" />
+                            <p className="text-sm">No messages yet.</p>
+                          </div>
+                        ) : (
+                          messages.map((msg) => (
+                            <div key={msg.id} className={cn("flex flex-col max-w-[80%]", msg.sender_type === "owner" ? "ml-auto items-end" : "items-start")}>
+                              <div className={cn("p-3 rounded-2xl text-sm", msg.sender_type === "owner" ? "bg-primary text-primary-foreground rounded-br-none" : "bg-muted text-foreground rounded-bl-none")}>
+                                {msg.message}
+                              </div>
+                              <span className="text-[9px] text-muted-foreground mt-1 uppercase font-bold tracking-wider">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                          ))
+                        )}
+                        <div ref={messagesEndRef} />
+                      </div>
+                      <form onSubmit={sendMessage} className="p-3 border-t bg-background flex items-center gap-2 shrink-0 rounded-b-2xl">
+                        <Input placeholder="Type your message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} className="rounded-full bg-muted/50 border-transparent focus-visible:ring-primary h-10" />
+                        <Button type="submit" size="icon" className="rounded-full shrink-0 h-10 w-10 shadow-sm" disabled={!newMessage.trim() || isSendingMsg}>
+                          {isSendingMsg ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        </Button>
+                      </form>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
           )}

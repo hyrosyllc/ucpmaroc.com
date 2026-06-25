@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCartStore } from "@/store/useCartStore"; // Adjust path if needed
+import { useCartStore } from "@/features/ecommerce/store/useCartStore";
 import { supabase } from "@/supabaseClient";
 import {
   Sheet,

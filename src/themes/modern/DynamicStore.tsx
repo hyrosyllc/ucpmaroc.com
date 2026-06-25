@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCartStore } from "@/store/useCartStore";
+import { useCartStore } from "@/features/ecommerce/store/useCartStore";
 // 🚀 1. IMPORT INLINE EDIT
 import { InlineEdit } from "../../components/dashboard/InlineEdit";
 

@@ -13,7 +13,7 @@ import {
   ChevronDown, // 🚀 NEW: Added for the dropdown arrows
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCartStore } from "@/store/useCartStore";
+import { useCartStore } from "@/features/ecommerce/store/useCartStore";
 import { InlineEdit } from "../../components/dashboard/InlineEdit";
 import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 

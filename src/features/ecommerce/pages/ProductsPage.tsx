@@ -10,12 +10,15 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Loader2,
   Plus,
   Package,
   Edit,
   Trash2,
+  Video,
   ArrowLeft,
   Image as ImageIcon,
   X,
@@ -28,6 +31,10 @@ import {
   Copy,
   Eye,
   EyeOff,
+  FileText,
+  FileDown,
+  GripVertical,
+  ListPlus,
 } from "lucide-react";
 import SiteFilter from "@/components/dashboard/SiteFilter";
 import { FormManager } from "@/features/portfolio-builder";
@@ -66,6 +73,12 @@ interface Product {
   portfolio_id?: string | null;
   form_id?: string | null;
   slug?: string;
+  short_description?: string;
+  dimensions?: { length: number; width: number; height: number; unit: string };
+  digital_files?: { url: string; name: string }[];
+  digital_message?: string;
+  accordions?: { title: string; content: string }[];
+  delivery_type?: 'physical' | 'digital' | 'service';
 }
 
 export default function ProductsPage() {
@@ -93,6 +106,8 @@ export default function ProductsPage() {
   const [initialDataString, setInitialDataString] = useState<string>("{}");
   const [optionInputs, setOptionInputs] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const digitalFileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState("general");
 
   // --- DERIVE EXISTING PRODUCT TYPES FOR SMART AUTOCOMPLETE ---
   const existingTypes = Array.from(
@@ -202,12 +217,19 @@ export default function ProductsPage() {
       portfolio_id: initialPortfolioId,
       form_id: initialFormId,
       slug: prod?.slug || "",
+      short_description: prod?.short_description || "",
+      dimensions: prod?.dimensions || { length: 0, width: 0, height: 0, unit: "cm" },
+      digital_files: prod?.digital_files || [],
+      digital_message: prod?.digital_message || "",
+      accordions: prod?.accordions || [],
+      delivery_type: prod?.delivery_type || (prod?.requires_shipping ? "physical" : "digital"),
     };
     setFormData(initialData);
     setInitialDataString(JSON.stringify(initialData));
     setOptionInputs({});
     setLocalDirectForm(initialActionType === "form_order" ? initialFormId : "");
     setView("form");
+    setActiveTab("general");
   };
 
   const isDirty = view === "form" && JSON.stringify(formData) !== initialDataString;
@@ -255,6 +277,12 @@ export default function ProductsPage() {
       portfolio_id: product.portfolio_id || null,
       form_id: product.form_id || null,
       slug: generateSlug(`${product.title} Copy ${Math.floor(Math.random() * 10000)}`),
+      short_description: product.short_description,
+      dimensions: product.dimensions,
+      digital_files: product.digital_files,
+      digital_message: product.digital_message,
+      accordions: product.accordions,
+      delivery_type: product.delivery_type,
     };
 
     const { error } = await supabase.from("pro_products").insert([payload]);
@@ -303,12 +331,15 @@ export default function ProductsPage() {
       price: formData.price,
       compare_at_price: formData.compare_at_price || null,
       track_inventory: formData.track_inventory,
+      track_inventory: formData.delivery_type === 'digital' ? false : formData.track_inventory,
       stock_count: formData.stock_count,
       sku: formData.sku,
       images: formData.images || [],
       options: formData.options || [],
       requires_shipping: formData.requires_shipping,
       weight: formData.weight,
+      requires_shipping: formData.delivery_type === 'physical',
+      weight: formData.delivery_type === 'physical' ? formData.weight : 0,
       category: formData.category,
       action_type: formData.action_type,
       checkout_url: formData.checkout_url,
@@ -317,6 +348,12 @@ export default function ProductsPage() {
       portfolio_id: formData.portfolio_id || null,
       form_id: (formData.action_type === "cart" || formData.action_type === "form_order") ? (formData.form_id || null) : null,
       slug: formData.slug || generateSlug(formData.title),
+      short_description: formData.short_description || null,
+      dimensions: formData.delivery_type === 'physical' ? formData.dimensions : null,
+      digital_files: formData.delivery_type === 'digital' ? formData.digital_files : null,
+      digital_message: formData.delivery_type === 'digital' ? formData.digital_message : null,
+      accordions: formData.accordions || [],
+      delivery_type: formData.delivery_type || 'physical',
     };
 
     let error;
@@ -387,6 +424,35 @@ export default function ProductsPage() {
     setFormData({ ...formData, images: newImages });
     setIsUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // --- DIGITAL FILE UPLOAD HANDLER ---
+  const handleDigitalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !actorId) return;
+    setIsUploading(true);
+
+    const newFiles = [...(formData.digital_files || [])];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${actorId}/digital-products/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("portfolio-assets") // Or a private bucket if preferred
+        .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+      if (!error) {
+        const { data } = supabase.storage.from("portfolio-assets").getPublicUrl(filePath);
+        newFiles.push({ url: data.publicUrl, name: file.name });
+      }
+    }
+
+    setFormData({ ...formData, digital_files: newFiles });
+    setIsUploading(false);
+    if (digitalFileInputRef.current) digitalFileInputRef.current.value = "";
   };
 
   const removeImage = (index: number) => {
@@ -482,6 +548,23 @@ export default function ProductsPage() {
     setView("list");
   };
 
+  // --- ACCORDION HANDLERS ---
+  const addAccordion = () => {
+    setFormData({ ...formData, accordions: [...(formData.accordions || []), { title: "", content: "" }] });
+  };
+
+  const updateAccordion = (index: number, key: "title" | "content", val: string) => {
+    const newAccs = [...(formData.accordions || [])];
+    newAccs[index][key] = val;
+    setFormData({ ...formData, accordions: newAccs });
+  };
+
+  const removeAccordion = (index: number) => {
+    const newAccs = [...(formData.accordions || [])];
+    newAccs.splice(index, 1);
+    setFormData({ ...formData, accordions: newAccs });
+  };
+
   if (!actorId) return null;
 
   return (
@@ -549,6 +632,19 @@ export default function ProductsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
             {/* LEFT COLUMN: Main Details */}
             <div className="lg:col-span-2 space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full pb-20">
+            <TabsList className="mb-6 bg-muted/40 p-1 flex-wrap h-auto justify-start border rounded-xl shadow-sm">
+              <TabsTrigger value="general" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"><Package className="w-4 h-4 mr-2 hidden sm:inline" /> General</TabsTrigger>
+              <TabsTrigger value="media" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"><ImageIcon className="w-4 h-4 mr-2 hidden sm:inline" /> Media & Pricing</TabsTrigger>
+              <TabsTrigger value="inventory" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"><ListPlus className="w-4 h-4 mr-2 hidden sm:inline" /> Inventory & Variants</TabsTrigger>
+              <TabsTrigger value="delivery" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"><Truck className="w-4 h-4 mr-2 hidden sm:inline" /> Delivery</TabsTrigger>
+              <TabsTrigger value="details" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"><FileText className="w-4 h-4 mr-2 hidden sm:inline" /> Details & SEO</TabsTrigger>
+            </TabsList>
+
+            {/* --- TAB 1: GENERAL --- */}
+            <TabsContent value="general" className="mt-0 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
               <Card className="shadow-sm">
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-2">
@@ -557,16 +653,30 @@ export default function ProductsPage() {
                     </Label>
                     <Input
                       placeholder="Short sleeve t-shirt"
+                      placeholder="e.g. Vintage Leather Jacket"
                       value={formData.title}
                       onChange={(e) =>
                         setFormData({ ...formData, title: e.target.value })
                       }
+                      className="text-lg font-bold h-12"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Description</Label>
+                    <Label>Short Description (Below Price)</Label>
+                    <Textarea
+                      placeholder="A quick, catchy summary of the product..."
+                      value={formData.short_description || ""}
+                      onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
+                      rows={2}
+                      className="resize-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Long Description</Label>
                     <Textarea
                       className="min-h-[150px]"
+                      placeholder="Detailed product information..."
                       value={formData.description}
                       onChange={(e) =>
                         setFormData({
@@ -578,7 +688,62 @@ export default function ProductsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
+              
+              <div className="space-y-6">
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">
+                    Product Organization
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-4">
+                  <div className="space-y-2">
+                    <Label>Store / Website <span className="text-destructive">*</span></Label>
+                    <Select value={formData.portfolio_id || "global"} onValueChange={(val) => {
+                        let newFormId = formData.form_id;
+                        if (formData.action_type === "cart") newFormId = globalCartForms[val === "global" ? "global" : val] || "";
+                        setFormData({ ...formData, portfolio_id: val === "global" ? null : val, form_id: newFormId });
+                    }}>
+                      <SelectTrigger className="bg-background font-medium"><SelectValue placeholder="Select a Store" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="global" className="text-muted-foreground font-bold">Global (Available on all sites)</SelectItem>
+                        {portfolios.map((p) => <SelectItem key={p.id} value={p.id}>{p.site_name || p.public_slug}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={formData.status || "active"} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                      <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active (Visible)</SelectItem>
+                        <SelectItem value="draft">Draft (Hidden)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Collection</Label>
+                    <Select value={formData.collection_id || "none"} onValueChange={(val) => setFormData({ ...formData, collection_id: val === "none" ? null : val })}>
+                      <SelectTrigger className="bg-background"><SelectValue placeholder="No Collection" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Collection</SelectItem>
+                        {collections.filter((c) => !formData.portfolio_id || c.portfolio_id === formData.portfolio_id || !c.portfolio_id).map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+              </div>
+              </div>
+            </TabsContent>
 
+            {/* --- TAB 2: MEDIA & PRICING --- */}
+            <TabsContent value="media" className="mt-0 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg">Media Gallery</CardTitle>
@@ -587,6 +752,9 @@ export default function ProductsPage() {
                   {(formData.images?.length ?? 0) > 0 && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-4">
                       {formData.images?.map((img, idx) => (
+                      {formData.images?.map((img, idx) => {
+                        const isVideo = img.match(/\.(mp4|webm|mov)$/i);
+                        return (
                         <div
                           key={idx}
                           className="relative aspect-square rounded-md overflow-hidden border group bg-black"
@@ -596,6 +764,12 @@ export default function ProductsPage() {
                             className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity"
                             alt={`Product ${idx}`}
                           />
+                          {isVideo ? (
+                            <video src={img} className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity" muted autoPlay playsInline loop />
+                          ) : (
+                            <img src={img} className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity" alt={`Media ${idx}`} />
+                          )}
+                          {idx === 0 && <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm">COVER</span>}
                           {/* Overlay Controls */}
                           <div className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {idx > 0 && (
@@ -614,6 +788,7 @@ export default function ProductsPage() {
                           </div>
                         </div>
                       ))}
+                      )})}
                     </div>
                   )}
                   <div
@@ -635,6 +810,8 @@ export default function ProductsPage() {
                         <p className="text-sm font-medium mb-1">
                           Click to upload files
                         </p>
+                        <p className="text-sm font-medium mb-1">Click to upload Images or Videos</p>
+                        <p className="text-xs text-muted-foreground">Supported: JPG, PNG, WEBP, MP4, MOV</p>
                       </>
                     )}
                     <input
@@ -643,6 +820,7 @@ export default function ProductsPage() {
                       className="hidden"
                       multiple
                       accept="image/*"
+                      accept="image/*,video/mp4,video/webm,video/quicktime"
                       onChange={handleImageUpload}
                     />
                   </div>
@@ -698,7 +876,9 @@ export default function ProductsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
 
+              <div className="space-y-6">
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg">
@@ -932,6 +1112,8 @@ export default function ProductsPage() {
                       value={formData.action_type}
                       onChange={(e) => {
                         const newActionType = e.target.value;
+                    <Select value={formData.action_type || "cart"} onValueChange={(val) => {
+                        const newActionType = val;
                         let newFormId = formData.form_id;
                         if (newActionType === "cart") {
                           const siteKey = formData.portfolio_id || "global";
@@ -951,6 +1133,15 @@ export default function ProductsPage() {
                       <option value="link">External Link</option>
                       <option value="form_order">Direct Order Form</option>
                     </select>
+                    }}>
+                      <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cart">Standard Add to Cart</SelectItem>
+                        <SelectItem value="whatsapp">Order via WhatsApp</SelectItem>
+                        <SelectItem value="link">External Link</SelectItem>
+                        <SelectItem value="form_order">Direct Order Form</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {formData.action_type === "whatsapp" && (
@@ -1069,15 +1260,70 @@ export default function ProductsPage() {
                   )}
                 </CardContent>
               </Card>
+              </div>
+              </div>
+            </TabsContent>
 
               {/* SMART PRODUCT ORGANIZATION */}
+            {/* --- TAB 3: INVENTORY & VARIANTS --- */}
+            <TabsContent value="inventory" className="mt-0 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg">
                     Product Organization
                   </CardTitle>
+                  <CardTitle className="text-lg">Variants & Options</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-4">
+                <CardContent className="p-6 pt-0 space-y-6">
+                  {formData.options?.length === 0 ? (
+                    <Button variant="outline" onClick={addOptionGroup}>
+                      <Plus className="w-4 h-4 mr-2" /> Add options like size or color
+                    </Button>
+                  ) : (
+                    <div className="space-y-6">
+                      {formData.options?.map((opt, groupIdx) => (
+                        <div key={groupIdx} className="p-5 border rounded-lg bg-muted/10 space-y-4 relative">
+                          <Button variant="ghost" size="icon" onClick={() => removeOptionGroup(groupIdx)} className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="w-4 h-4" /></Button>
+                          <div className="space-y-2 max-w-sm">
+                            <Label>Option name</Label>
+                            <Input placeholder="e.g., Size, Color" value={opt.name} onChange={(e) => updateOptionName(groupIdx, e.target.value)} />
+                          </div>
+                          <div className="space-y-3">
+                            <Label>Option values</Label>
+                            {opt.values.length > 0 && (
+                              <div className="flex flex-col gap-2 mb-3">
+                                {opt.values.map((val, valIdx) => (
+                                  <div key={valIdx} className="flex items-center gap-3 bg-background border rounded-md p-2 w-max">
+                                    <Badge variant="secondary" className="px-2 py-1 text-sm">{val.label}</Badge>
+                                    <div className="flex items-center gap-1"><span className="text-xs text-muted-foreground">$</span><Input type="number" placeholder="Price (opt)" className="w-24 h-7 text-xs" value={val.price ?? ""} onChange={(e) => updateOptionValuePrice(groupIdx, valIdx, e.target.value)} /></div>
+                                    <button className="text-muted-foreground hover:text-destructive ml-2" onClick={() => removeOptionValue(groupIdx, valIdx)}><X size={14} /></button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex gap-2 max-w-sm">
+                              <Input placeholder="Type a value and press Enter" value={optionInputs[groupIdx] || ""} onChange={(e) => setOptionInputs({ ...optionInputs, [groupIdx]: e.target.value })} onKeyDown={(e) => handleOptionKeyDown(e, groupIdx)} />
+                              <Button type="button" variant="secondary" onClick={() => addOptionValue(groupIdx)}>Add</Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={addOptionGroup}><Plus className="w-4 h-4 mr-2" /> Add another option</Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              </div>
+
+              <div className="space-y-6">
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Inventory Tracking</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-6">
                   <div className="space-y-2">
                 <Label>
                   Store / Website <span className="text-destructive">*</span>
@@ -1108,8 +1354,168 @@ export default function ProductsPage() {
                         </option>
                       ))}
                     </select>
+                    <Label>SKU (Stock Keeping Unit)</Label>
+                    <Input value={formData.sku || ""} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
                   </div>
+                  {formData.delivery_type !== 'digital' && (
+                    <div className="pt-4 border-t space-y-4 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium cursor-pointer" htmlFor="track_inv">Track quantity</Label>
+                        <Switch id="track_inv" checked={formData.track_inventory} onCheckedChange={(c) => setFormData({ ...formData, track_inventory: c })} />
+                      </div>
+                      {formData.track_inventory && (
+                        <div className="space-y-2 animate-in slide-in-from-top-2">
+                          <Label>Available Stock</Label>
+                          <Input type="number" className="max-w-[200px]" value={formData.stock_count} onChange={(e) => setFormData({ ...formData, stock_count: parseInt(e.target.value) || 0 })} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {formData.delivery_type === 'digital' && (
+                    <div className="p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground border">
+                      Inventory tracking is disabled for Digital products (Unlimited stock).
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              </div>
+              </div>
+            </TabsContent>
 
+            {/* --- TAB 4: DELIVERY --- */}
+            <TabsContent value="delivery" className="mt-0 space-y-6">
+              <Card className="shadow-sm max-w-3xl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Delivery Method</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-6">
+                  <RadioGroup 
+                    value={formData.delivery_type || "physical"} 
+                    onValueChange={(val) => setFormData({ ...formData, delivery_type: val, requires_shipping: val === "physical" })} 
+                    className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+                  >
+                    <Label className={cn("flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer hover:bg-muted/50 transition-all", formData.delivery_type === 'physical' && "border-primary bg-primary/5")}>
+                      <RadioGroupItem value="physical" className="sr-only" />
+                      <Package className="w-8 h-8 mb-2 text-muted-foreground" />
+                      <span className="font-bold">Physical</span>
+                      <span className="text-[10px] text-muted-foreground mt-1">Shipped to customer</span>
+                    </Label>
+                    <Label className={cn("flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer hover:bg-muted/50 transition-all", formData.delivery_type === 'digital' && "border-primary bg-primary/5")}>
+                      <RadioGroupItem value="digital" className="sr-only" />
+                      <FileDown className="w-8 h-8 mb-2 text-muted-foreground" />
+                      <span className="font-bold">Digital</span>
+                      <span className="text-[10px] text-muted-foreground mt-1">Instant download file</span>
+                    </Label>
+                    <Label className={cn("flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer hover:bg-muted/50 transition-all", formData.delivery_type === 'service' && "border-primary bg-primary/5")}>
+                      <RadioGroupItem value="service" className="sr-only" />
+                      <ListPlus className="w-8 h-8 mb-2 text-muted-foreground" />
+                      <span className="font-bold">Service</span>
+                      <span className="text-[10px] text-muted-foreground mt-1">No delivery required</span>
+                    </Label>
+                  </RadioGroup>
+
+                  {formData.delivery_type === 'physical' && (
+                    <div className="pt-6 border-t border-border animate-in fade-in slide-in-from-top-2 space-y-6">
+                      <div className="space-y-2">
+                        <Label>Weight (kg)</Label>
+                        <Input type="number" step="0.1" value={formData.weight || 0} onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} className="max-w-[200px]" />
+                        <p className="text-[10px] text-muted-foreground">Used to calculate shipping rates at checkout.</p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Dimensions (Optional)</Label>
+                        <div className="flex items-center gap-2 max-w-md">
+                           <Input type="number" placeholder="Length" value={formData.dimensions?.length || ""} onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, length: parseFloat(e.target.value)||0}})} />
+                           <span className="text-muted-foreground font-bold">×</span>
+                           <Input type="number" placeholder="Width" value={formData.dimensions?.width || ""} onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, width: parseFloat(e.target.value)||0}})} />
+                           <span className="text-muted-foreground font-bold">×</span>
+                           <Input type="number" placeholder="Height" value={formData.dimensions?.height || ""} onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, height: parseFloat(e.target.value)||0}})} />
+                           <Select value={formData.dimensions?.unit || "cm"} onValueChange={v => setFormData({...formData, dimensions: {...formData.dimensions, unit: v}})}>
+                             <SelectTrigger className="w-[80px] bg-background"><SelectValue/></SelectTrigger>
+                             <SelectContent><SelectItem value="cm">cm</SelectItem><SelectItem value="in">in</SelectItem></SelectContent>
+                           </Select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.delivery_type === 'digital' && (
+                    <div className="pt-6 border-t border-border animate-in fade-in slide-in-from-top-2 space-y-6">
+                      <div className="space-y-3">
+                        <Label>Digital Files</Label>
+                        <p className="text-[10px] text-muted-foreground -mt-1">These files will be automatically emailed to the customer upon successful payment.</p>
+                        
+                        <div className="space-y-2">
+                          {(formData.digital_files || []).map((file: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-background shadow-sm group">
+                              <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="p-2 bg-primary/10 text-primary rounded"><FileText size={16}/></div>
+                                <span className="font-medium text-sm truncate">{file.name}</span>
+                              </div>
+                              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0" onClick={() => {
+                                const newFiles = [...formData.digital_files]; newFiles.splice(idx, 1); setFormData({...formData, digital_files: newFiles});
+                              }}><Trash2 size={16}/></Button>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div onClick={() => digitalFileInputRef.current?.click()} className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-muted/50 transition-colors bg-muted/10">
+                          {isUploading ? (
+                            <><Loader2 className="w-6 h-6 text-primary animate-spin mb-2" /><p className="text-xs font-medium">Uploading file...</p></>
+                          ) : (
+                            <><UploadCloud className="w-6 h-6 text-primary mb-2 opacity-80" /><p className="text-xs font-bold">Add Digital File</p></>
+                          )}
+                          <input type="file" ref={digitalFileInputRef} className="hidden" multiple onChange={handleDigitalUpload} />
+                        </div>
+                      </div>
+                      <div className="space-y-2 pt-2">
+                        <Label>Delivery Message / Instructions</Label>
+                        <Textarea 
+                          placeholder="e.g. Thanks for your purchase! Here is the link to access your preset..."
+                          value={formData.digital_message || ""}
+                          onChange={e => setFormData({...formData, digital_message: e.target.value})}
+                          rows={3} className="resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* --- TAB 5: DETAILS & SEO --- */}
+            <TabsContent value="details" className="mt-0 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Product Accordions (FAQs, Info)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-4">
+                  <p className="text-[10px] text-muted-foreground">Add expandable sections below your product description for things like Shipping Policies, Size Guides, or Ingredients.</p>
+                  <div className="space-y-4">
+                    {(formData.accordions || []).map((acc: any, idx: number) => (
+                       <div key={idx} className="p-4 border rounded-xl bg-muted/10 relative group space-y-3">
+                          <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => removeAccordion(idx)}><X className="w-4 h-4" /></Button>
+                          <div className="space-y-1.5 pr-6">
+                            <Label className="text-[10px] uppercase text-muted-foreground">Tab Title</Label>
+                            <Input placeholder="e.g. Refund Policy" value={acc.title} onChange={e => updateAccordion(idx, 'title', e.target.value)} className="h-9 font-bold bg-background" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase text-muted-foreground">Content</Label>
+                            <Textarea placeholder="Details..." value={acc.content} onChange={e => updateAccordion(idx, 'content', e.target.value)} className="min-h-[80px] resize-y bg-background text-sm" />
+                          </div>
+                       </div>
+                    ))}
+                    <Button variant="outline" className="w-full border-dashed" onClick={addAccordion}><Plus size={14} className="mr-2"/> Add Accordion Tab</Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-6">
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Classification & SEO</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-6">
                   <div className="space-y-2">
                     <Label>Product Type</Label>
                     <Input
@@ -1234,6 +1640,11 @@ export default function ProductsPage() {
                             alt={product.title}
                             className="w-full h-full object-cover"
                           />
+                          product.images[0].match(/\.(mp4|webm|mov)$/i) ? (
+                            <video src={product.images[0]} className="w-full h-full object-cover" muted loop playsInline />
+                          ) : (
+                            <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                          )
                         ) : (
                           <ImageIcon className="w-5 h-5 text-muted-foreground opacity-30" />
                         )}

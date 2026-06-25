@@ -6,6 +6,17 @@ At its core, the platform is a **Multi-Tenant Portfolio Builder & E-Commerce CRM
 
 ---
 
+## 📑 Table of Contents
+- [🌟 1. The Portfolio Builder (CMS)](#-1-the-portfolio-builder-cms)
+- [🛍️ 2. Advanced E-Commerce Engine](#-2-advanced-e-commerce-engine)
+- [💳 3. Global Payments Infrastructure](#-3-global-payments-infrastructure)
+- [📬 4. CRM & Order Management](#-4-crm--order-management)
+- [📊 5. Analytics & Insights](#-5-analytics--insights)
+- [⚙️ 6. System Architecture & Context](#️-6-system-architecture--context)
+- [🛠️ Technical Stack Summary](#️-technical-stack-summary)
+
+---
+
 ## 🌟 1. The Portfolio Builder (CMS)
 The heart of the application is a deeply interactive, real-time website builder featuring a live iframe canvas, drag-and-drop mechanics, and a 3-tab architecture (Content, Design, Store).
 
@@ -27,20 +38,38 @@ Users can drag, drop, and configure various functional blocks using `@dnd-kit`:
 - **Theme Store:** Users can unlock premium themes (e.g., Cinematic Dark, Cupertino) using their Wallet Coins.
 - **Brand Controls:** Global hex color overrides, border-radius manipulation (Sharp to Round), and typography selection.
 
-### 🛒 E-Commerce Templates (The Store Tab)
-- To prevent users from accidentally deleting critical conversion funnels, the Shop, Product, Checkout, and Thank You pages are maintained as **hardcoded, high-performance templates**.
-- Users customize these funnels via toggles in the "Store" tab (e.g., hiding sidebar filters, enabling related products, or turning on authenticated reviews).
+### 🛒 E-Commerce Design & Layouts (The Store Tab)
+Giving users drag-and-drop control over complex conversion funnels (like Checkout or Product pages) is dangerous; a user might accidentally delete the "Add to Cart" button and break their store. 
+To solve this, UCP Maroc utilizes a **Settings-Driven Template Architecture**:
+- **The Store Tab:** Inside the Builder, the "Store" tab allows users to safely customize their eCommerce funnels via toggles (e.g., "Show Sidebar Filters on Shop Page", "Enable Authenticated Reviews"). These selections are saved securely into the portfolio's `theme_config` JSON.
+- **Controller/View Routing:** 
+  - **The Controller (e.g., `PublicProductPage.tsx`, `CustomerLoginPage.tsx`):** Environment-aware logic that identifies the tenant (via Subdomain or Custom Domain), authenticates the active customer session, fetches the required data, and handles backend execution (like Supabase OTP generation).
+  - **The View (e.g., `ProductLayout.tsx`, `LoginLayout.tsx`):** A purely presentational component. The Controller dynamically injects the fetched data and UI callbacks into the View based on the active theme (e.g., Modern vs. Cupertino).
+  - **The Connection:** The View reads the `themeConfig` object passed down from the Controller. If the user toggled off "Product Reviews" in the Store Tab, the View simply unmounts the review block. This guarantees a lightning-fast, unbreakable funnel.
+- **Shop Page Architecture:** Similar to products, `PublicShopPage.tsx` acts as the Controller. It fetches the store's active products and collections, and passes them to `ShopLayout.tsx`. Toggles in the Store Settings can instantly modify the layout, such as hiding the sidebar filters.
+- **Global Cart Drawer:** The cart state is managed entirely via Zustand (`useCartStore.ts`). A `CartDrawerContainer` listens to the active theme and injects the appropriately styled `ModernCartDrawer` globally, providing a persistent shopping experience across all pages without losing state.
+- **Checkout & Thank You Pages:** `PublicCheckoutPage.tsx` handles complex logic including applying Stripe Elements, verifying coupons, and calculating shipping based on the selected markets. Once successful, it routes the user to `PublicThankYouPage.tsx`, which clears the cart and securely displays the extracted order receipt.
+- **Available Store Settings (`theme_config` Keys):**
+  - `store_enabled`: Globally toggles the e-commerce engine on or off.
+  - `store_product_reviews`: Shows/hides the authenticated review block on product pages.
+  - `store_related_products`: Shows/hides the related product grid at the bottom of product pages.
+  - `store_shop_filters`: Shows/hides the category/search sidebar on the main shop page.
+  - `store_cart_notes`: Enables a text area in the cart drawer for special order instructions.
+  - `store_checkout_layout`: Switches the checkout view between `one-page`, `two-column` (Shopify), and `multi-step`.
+  - `store_portal_enabled`: Toggles customer login capabilities and order tracking dashboards.
 
 ---
 
 ## 🛍️ 2. Advanced E-Commerce Engine
-A highly flexible digital and physical storefront system supporting multi-site management and dedicated customer portals.
+A highly flexible digital and physical storefront system supporting multi-site management, variant tracking, and dedicated customer portals.
 
 ### 📦 Product & Inventory Management
 - **Variant Engine:** Support for complex product options (e.g., Size, Color) with distinct price overrides.
 - **Inventory Tracking:** Real-time stock counting preventing overselling.
 - **Action Types:** Route products to a Standard Cart, direct WhatsApp chat, external URL, or a Custom Direct Order Form.
 - **Collections:** Group products by season or category with custom banner images and SEO-friendly slugs.
+
+*Note: The Product Engine is slated for a "2.0 Upgrade" which will introduce Digital File uploads, variant-specific images, product dimensions, rich-text long descriptions, dynamic accordions (Size Guides, Policies), and Shopify/Amazon CSV importing.*
 
 ### 🏷️ Promotions & Coupons
 - **Discount Types:** Percentage (%), Fixed Amount ($), or Free Shipping.
@@ -52,6 +81,7 @@ A highly flexible digital and physical storefront system supporting multi-site m
 - **Smart Shipping Rules:** Flat rate, weight-based calculations, and conditional Free Shipping thresholds.
 
 ### 🔐 The Customer Portal
+- **Themeable & Environment-Aware:** The Customer Login portal follows the Controller-View pattern. It flawlessly resolves the active store regardless of whether the user accesses it via a platform subdomain or a white-labeled custom domain, and delegates the UI to a theme-specific Login Layout.
 - **Passwordless Authentication:** Customers log in to their favorite creator's store using Supabase OTP (One-Time Password) magic links sent to their email.
 - **Tenant Isolation:** A bridging table (`pro_customers`) ensures a user is securely tied only to the specific `portfolio_id` they purchased from.
 - **Order History & Tracking:** Customers have their own secure dashboard (`/pro/:slug/dashboard`) to view past purchases and current fulfillment statuses.
@@ -93,6 +123,7 @@ A complete back-office to manage customer interactions.
 - **Form Library:** Save reusable Checkout and Contact forms to apply across multiple sites or pricing plans.
 - **Drag-and-Drop Fields:** Add text, emails, dropdowns, and checkboxes.
 - **Locked Checkout Core:** Safeguards critical e-commerce fields (City, Zip, Country) from being accidentally deleted by the user while allowing custom additions.
+- **Global Cart Form Targeting:** Assign a specific checkout form to be used globally whenever a user adds standard products to their cart.
 
 ---
 
@@ -107,6 +138,10 @@ Deep visual tracking of portfolio performance.
 ---
 
 ## ⚙️ 6. System Architecture & Context
+
+### 🌍 Environment-Aware Routing (`isCustomDomain`)
+The root `App.tsx` and all Public Controllers intelligently detect if the application is being accessed via the primary platform domain (e.g., `ucpmaroc.com/pro/brand`) or a white-labeled custom domain (e.g., `shop.mybrand.com`). 
+Instead of failing due to missing URL slugs, Custom Domains query the `portfolios` table directly via the hostname, mapping the visitor to the correct storefront and actor instantly.
 
 ### 🏢 Multi-Tenant Context (`selectedSiteId`)
 A sophisticated "Sticky Filter" mechanism lives in the `ActorDashboardLayout`. Once a user selects a specific brand or website from the top dropdown, that filter seamlessly propagates across Products, Orders, Leads, Analytics, Customers, Reviews, and Forms—ensuring they never accidentally mix up data from two different businesses.

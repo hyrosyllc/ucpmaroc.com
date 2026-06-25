@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2, ArrowLeft, Mail, Lock, ShoppingBag, CheckCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import ModernLoginLayout from "@/themes/modern/LoginLayout";
+
+// Ensure this matches App.tsx
+const MAIN_DOMAINS = [
+  "ucpmaroc.com",
+  "www.ucpmaroc.com",
+  "localhost",
+  "127.0.0.1",
+  "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
+    "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
+];
 
 export default function CustomerLoginPage() {
   const { slug } = useParams<{ slug?: string }>();
@@ -16,19 +24,38 @@ export default function CustomerLoginPage() {
   const [step, setStep] = useState<"email" | "verify">("email");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState("modern");
 
   useEffect(() => {
     const fetchPortfolio = async () => {
-      if (!slug) return;
-      const { data } = await supabase
-        .from("portfolios")
-        .select("id, site_name, theme_config")
-        .eq("public_slug", slug)
-        .maybeSingle();
+      const currentHostname = window.location.hostname;
+      const isCustomDomain = !MAIN_DOMAINS.some((domain) =>
+        currentHostname.includes(domain)
+      );
 
-      if (data) setPortfolio(data);
-      else navigate("/not-found");
+      let query = supabase.from("portfolios").select("id, site_name, public_slug, theme_config");
+      
+      if (isCustomDomain) {
+        query = query.eq("custom_domain", currentHostname);
+      } else if (slug) {
+        query = query.eq("public_slug", slug);
+      } else {
+        navigate("/not-found");
+        return;
+      }
+
+      const { data } = await query.maybeSingle();
+
+      if (data) {
+        setPortfolio(data);
+        if (data.theme_config?.templateId) {
+          setTheme(data.theme_config.templateId);
+        }
+      } else {
+        navigate("/not-found");
+      }
     };
+
     fetchPortfolio();
   }, [slug, navigate]);
 
@@ -69,8 +96,9 @@ export default function CustomerLoginPage() {
       setError(error.message);
       setIsLoading(false);
     } else if (data.session) {
-      // Success! The CustomerDashboardLayout will handle creating the bridging pro_customers record.
-      navigate(`/pro/${slug}/dashboard`);
+      const isCustomDomain = !MAIN_DOMAINS.some((domain) => window.location.hostname.includes(domain));
+      const dashboardUrl = isCustomDomain ? '/dashboard' : `/pro/${portfolio.public_slug}/dashboard`;
+      navigate(dashboardUrl);
     }
   };
 
@@ -82,80 +110,28 @@ export default function CustomerLoginPage() {
     );
   }
 
+  const isCustomDomain = !MAIN_DOMAINS.some((domain) => window.location.hostname.includes(domain));
+  const shopUrl = isCustomDomain ? '/shop' : `/pro/${portfolio.public_slug}/shop`;
+
+  const layoutProps = {
+    portfolio,
+    email,
+    setEmail,
+    otp,
+    setOtp,
+    step,
+    isLoading,
+    error,
+    handleSendCode,
+    handleVerifyCode,
+    navigate,
+    shopUrl,
+  };
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-muted/20 p-4 pt-24">
-      <div className="w-full max-w-md">
-        {/* Back to Shop Link */}
-        <Button
-          variant="ghost"
-          className="mb-6 text-muted-foreground hover:text-foreground"
-          onClick={() => navigate(`/pro/${slug}`)}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back to {portfolio.site_name || "Shop"}
-        </Button>
-
-        {/* Login Card */}
-        <div className="bg-background rounded-3xl p-8 border border-border shadow-xl">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              {step === "email" ? <ShoppingBag size={28} /> : <Lock size={28} />}
-            </div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">
-              {step === "email" ? "Customer Portal" : "Enter Verification Code"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-2 font-medium">
-              {step === "email"
-                ? "Enter your email to track your orders and manage your account."
-                : `We sent a 6-digit code to ${email}`}
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-destructive/10 text-destructive text-sm font-bold p-3 rounded-xl mb-6 text-center">
-              {error}
-            </div>
-          )}
-
-          {step === "email" ? (
-            <form onSubmit={handleSendCode} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9 h-12 bg-muted/50 border-transparent focus:border-primary focus:bg-background transition-colors"
-                    required
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full h-12 font-bold text-base rounded-xl" disabled={isLoading}>
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send Login Code"}
-              </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyCode} className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">6-Digit Code</Label>
-                <Input
-                  type="text"
-                  placeholder="000000"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="h-14 text-center text-2xl tracking-[0.5em] font-mono font-black bg-muted/50 border-transparent focus:border-primary focus:bg-background transition-colors"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full h-12 font-bold text-base rounded-xl" disabled={isLoading || otp.length < 6}>
-                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify & Log In"}
-              </Button>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
+    <>
+      {/* In the future, you could add: theme === 'cupertino' ? <CupertinoLoginLayout ... /> : <ModernLoginLayout ... /> */}
+      <ModernLoginLayout {...layoutProps} />
+    </>
   );
 }

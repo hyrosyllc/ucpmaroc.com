@@ -1,4 +1,4 @@
-import { useCartStore } from "@/store/useCartStore";
+import { useCartStore } from "@/features/ecommerce/store/useCartStore";
 
 export function useCart() {
   const { openCart, getCartCount } = useCartStore();

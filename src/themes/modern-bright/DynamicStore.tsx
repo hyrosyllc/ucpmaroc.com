@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useCartStore } from "@/store/useCartStore";
+import { useCartStore } from "@/features/ecommerce/store/useCartStore";
 // 🚀 1. IMPORT INLINE EDIT
 import { InlineEdit } from "../../components/dashboard/InlineEdit";
 import { isCustomDomain as checkIsCustomDomain } from "./utils";

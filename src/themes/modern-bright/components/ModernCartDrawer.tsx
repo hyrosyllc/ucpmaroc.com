@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useCartStore } from "@/store/useCartStore"; // Adjust path if needed
+import { useCartStore } from "@/features/ecommerce/store/useCartStore"; // Adjust path if needed
 import {
   Sheet,
   SheetContent,

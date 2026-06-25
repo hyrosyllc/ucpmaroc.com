@@ -73,6 +73,7 @@ import {
   OrdersPage,
   LeadsPage,
   FormsPage,
+  ProOrderDetailPage,
   PaymentsPage,
   StripeCallbackPage,
 } from "@/features/ecommerce";
@@ -324,7 +325,8 @@ function App() {
                       />
                       <Route path="job-orders" element={<DashboardOrders />} />
 
-                      <Route path="Orders" element={<OrdersPage />} />
+                      <Route path="orders" element={<OrdersPage />} />
+                      <Route path="orders/:id" element={<ProOrderDetailPage />} />
                       <Route path="leads" element={<LeadsPage />} />
                       <Route path="settings" element={<SettingsPage />} />
                       <Route path="products" element={<ProductsPage />} />

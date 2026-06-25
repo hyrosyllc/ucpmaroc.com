@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Loader2, Package, ChevronRight, Clock, CheckCircle2, PlayCircle, XCircle, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,14 @@ export default function CustomerOrdersPage() {
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-2 sm:mt-0 pt-4 sm:pt-0 border-t sm:border-0 border-border">
                     <Badge variant="outline" className={cn("px-3 py-1 text-xs shadow-sm", statusInfo.color)}><StatusIcon size={12} className="mr-1.5" /> {statusInfo.label}</Badge>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="hidden sm:flex text-xs z-10 hover:text-primary" 
+                      onClick={(e) => { e.stopPropagation(); navigate(`/pro/${portfolio.public_slug}/thank-you?order=${order.id}`); }}
+                    >
+                      View Receipt
+                    </Button>
                     <ChevronRight className="text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
                 </CardContent>

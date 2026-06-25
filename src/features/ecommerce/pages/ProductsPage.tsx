@@ -330,14 +330,11 @@ export default function ProductsPage() {
       status: formData.status,
       price: formData.price,
       compare_at_price: formData.compare_at_price || null,
-      track_inventory: formData.track_inventory,
       track_inventory: formData.delivery_type === 'digital' ? false : formData.track_inventory,
       stock_count: formData.stock_count,
       sku: formData.sku,
       images: formData.images || [],
       options: formData.options || [],
-      requires_shipping: formData.requires_shipping,
-      weight: formData.weight,
       requires_shipping: formData.delivery_type === 'physical',
       weight: formData.delivery_type === 'physical' ? formData.weight : 0,
       category: formData.category,
@@ -629,9 +626,6 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
-            {/* LEFT COLUMN: Main Details */}
-            <div className="lg:col-span-2 space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full pb-20">
             <TabsList className="mb-6 bg-muted/40 p-1 flex-wrap h-auto justify-start border rounded-xl shadow-sm">
               <TabsTrigger value="general" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"><Package className="w-4 h-4 mr-2 hidden sm:inline" /> General</TabsTrigger>
@@ -652,7 +646,6 @@ export default function ProductsPage() {
                       Title <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      placeholder="Short sleeve t-shirt"
                       placeholder="e.g. Vintage Leather Jacket"
                       value={formData.title}
                       onChange={(e) =>
@@ -662,7 +655,6 @@ export default function ProductsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Description</Label>
                     <Label>Short Description (Below Price)</Label>
                     <Textarea
                       placeholder="A quick, catchy summary of the product..."
@@ -751,7 +743,6 @@ export default function ProductsPage() {
                 <CardContent className="p-6 pt-0 space-y-4">
                   {(formData.images?.length ?? 0) > 0 && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-4">
-                      {formData.images?.map((img, idx) => (
                       {formData.images?.map((img, idx) => {
                         const isVideo = img.match(/\.(mp4|webm|mov)$/i);
                         return (
@@ -759,11 +750,6 @@ export default function ProductsPage() {
                           key={idx}
                           className="relative aspect-square rounded-md overflow-hidden border group bg-black"
                         >
-                          <img
-                            src={img}
-                            className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity"
-                            alt={`Product ${idx}`}
-                          />
                           {isVideo ? (
                             <video src={img} className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity" muted autoPlay playsInline loop />
                           ) : (
@@ -787,7 +773,6 @@ export default function ProductsPage() {
                             )}
                           </div>
                         </div>
-                      ))}
                       )})}
                     </div>
                   )}
@@ -807,9 +792,6 @@ export default function ProductsPage() {
                         <div className="bg-primary/10 p-3 rounded-full mb-3">
                           <UploadCloud className="w-6 h-6 text-primary" />
                         </div>
-                        <p className="text-sm font-medium mb-1">
-                          Click to upload files
-                        </p>
                         <p className="text-sm font-medium mb-1">Click to upload Images or Videos</p>
                         <p className="text-xs text-muted-foreground">Supported: JPG, PNG, WEBP, MP4, MOV</p>
                       </>
@@ -819,7 +801,6 @@ export default function ProductsPage() {
                       ref={fileInputRef}
                       className="hidden"
                       multiple
-                      accept="image/*"
                       accept="image/*,video/mp4,video/webm,video/quicktime"
                       onChange={handleImageUpload}
                     />
@@ -881,237 +862,11 @@ export default function ProductsPage() {
               <div className="space-y-6">
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">
-                    Inventory & Shipping
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 pt-0 space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>SKU</Label>
-                      <Input
-                        value={formData.sku}
-                        onChange={(e) =>
-                          setFormData({ ...formData, sku: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Weight (kg)</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={formData.weight}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            weight: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label
-                        className="text-base font-medium cursor-pointer"
-                        htmlFor="track_inv"
-                      >
-                        Track quantity
-                      </Label>
-                      <Switch
-                        id="track_inv"
-                        checked={formData.track_inventory}
-                        onCheckedChange={(c) =>
-                          setFormData({ ...formData, track_inventory: c })
-                        }
-                      />
-                    </div>
-                    {formData.track_inventory && (
-                      <div className="space-y-2">
-                        <Label>Available Stock</Label>
-                        <Input
-                          type="number"
-                          className="max-w-[200px]"
-                          value={formData.stock_count}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              stock_count: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div className="pt-4 border-t flex items-center justify-between">
-                    <Label
-                      className="text-base font-medium cursor-pointer"
-                      htmlFor="req_ship"
-                    >
-                      This is a physical product
-                    </Label>
-                    <Switch
-                      id="req_ship"
-                      checked={formData.requires_shipping}
-                      onCheckedChange={(c) =>
-                        setFormData({ ...formData, requires_shipping: c })
-                      }
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Variants & Options</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 pt-0 space-y-6">
-                  {formData.options?.length === 0 ? (
-                    <Button variant="outline" onClick={addOptionGroup}>
-                      <Plus className="w-4 h-4 mr-2" /> Add options like size or
-                      color
-                    </Button>
-                  ) : (
-                    <div className="space-y-6">
-                      {formData.options?.map((opt, groupIdx) => (
-                        <div
-                          key={groupIdx}
-                          className="p-5 border rounded-lg bg-muted/10 space-y-4 relative"
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeOptionGroup(groupIdx)}
-                            className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                          <div className="space-y-2 max-w-sm">
-                            <Label>Option name</Label>
-                            <Input
-                              placeholder="e.g., Size, Color"
-                              value={opt.name}
-                              onChange={(e) =>
-                                updateOptionName(groupIdx, e.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <Label>Option values</Label>
-                            {opt.values.length > 0 && (
-                              <div className="flex flex-col gap-2 mb-3">
-                                {opt.values.map((val, valIdx) => (
-                                  <div
-                                    key={valIdx}
-                                    className="flex items-center gap-3 bg-background border rounded-md p-2 w-max"
-                                  >
-                                    <Badge
-                                      variant="secondary"
-                                      className="px-2 py-1 text-sm"
-                                    >
-                                      {val.label}
-                                    </Badge>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-muted-foreground">
-                                        $
-                                      </span>
-                                      <Input
-                                        type="number"
-                                        placeholder="Price (optional)"
-                                        className="w-28 h-7 text-xs"
-                                        value={val.price ?? ""}
-                                        onChange={(e) =>
-                                          updateOptionValuePrice(
-                                            groupIdx,
-                                            valIdx,
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                    <button
-                                      className="text-muted-foreground hover:text-destructive ml-2"
-                                      onClick={() =>
-                                        removeOptionValue(groupIdx, valIdx)
-                                      }
-                                    >
-                                      <X size={14} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="flex gap-2 max-w-sm">
-                              <Input
-                                placeholder="Type a value and press Enter"
-                                value={optionInputs[groupIdx] || ""}
-                                onChange={(e) =>
-                                  setOptionInputs({
-                                    ...optionInputs,
-                                    [groupIdx]: e.target.value,
-                                  })
-                                }
-                                onKeyDown={(e) =>
-                                  handleOptionKeyDown(e, groupIdx)
-                                }
-                              />
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => addOptionValue(groupIdx)}
-                              >
-                                Add
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={addOptionGroup}
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Add another option
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* RIGHT COLUMN: Organization & Settings */}
-            <div className="space-y-6">
-              <Card className="shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Status</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 pt-0">
-                  <select
-                    className="w-full h-10 px-3 border rounded-md bg-background focus:ring-2"
-                    value={formData.status}
-                    onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value })
-                    }
-                  >
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm">
-                <CardHeader className="pb-4">
                   <CardTitle className="text-lg">Checkout Settings</CardTitle>
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-4">
                   <div className="space-y-2">
                     <Label>Action Type</Label>
-                    <select
-                      className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
-                      value={formData.action_type}
-                      onChange={(e) => {
-                        const newActionType = e.target.value;
                     <Select value={formData.action_type || "cart"} onValueChange={(val) => {
                         const newActionType = val;
                         let newFormId = formData.form_id;
@@ -1126,13 +881,6 @@ export default function ProductsPage() {
                           action_type: newActionType,
                           form_id: newFormId,
                         });
-                      }}
-                    >
-                      <option value="cart">Standard Add to Cart</option>
-                      <option value="whatsapp">Order via WhatsApp</option>
-                      <option value="link">External Link</option>
-                      <option value="form_order">Direct Order Form</option>
-                    </select>
                     }}>
                       <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1264,19 +1012,14 @@ export default function ProductsPage() {
               </div>
             </TabsContent>
 
-              {/* SMART PRODUCT ORGANIZATION */}
             {/* --- TAB 3: INVENTORY & VARIANTS --- */}
             <TabsContent value="inventory" className="mt-0 space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">
-                    Product Organization
-                  </CardTitle>
                   <CardTitle className="text-lg">Variants & Options</CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 pt-0 space-y-4">
                 <CardContent className="p-6 pt-0 space-y-6">
                   {formData.options?.length === 0 ? (
                     <Button variant="outline" onClick={addOptionGroup}>
@@ -1325,35 +1068,6 @@ export default function ProductsPage() {
                 </CardHeader>
                 <CardContent className="p-6 pt-0 space-y-6">
                   <div className="space-y-2">
-                <Label>
-                  Store / Website <span className="text-destructive">*</span>
-                </Label>
-                    <select
-                      className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
-                      value={formData.portfolio_id || ""}
-                      onChange={(e) => {
-                        const newPortfolioId = e.target.value;
-                        let newFormId = formData.form_id;
-                        if (formData.action_type === "cart") {
-                      const siteKey = newPortfolioId;
-                          newFormId = globalCartForms[siteKey] || "";
-                        }
-                        setFormData({
-                          ...formData,
-                          portfolio_id: newPortfolioId,
-                          form_id: newFormId,
-                        });
-                      }}
-                    >
-                  <option value="" disabled>
-                    -- Select a Store / Website --
-                  </option>
-                      {portfolios.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.site_name || p.public_slug}
-                        </option>
-                      ))}
-                    </select>
                     <Label>SKU (Stock Keeping Unit)</Label>
                     <Input value={formData.sku || ""} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
                   </div>
@@ -1588,8 +1302,10 @@ export default function ProductsPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          </div>
+              </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       ) : products.length === 0 ? (
         <div className="text-center py-24 border border-dashed rounded-xl bg-muted/10">
@@ -1635,11 +1351,6 @@ export default function ProductsPage() {
                     <td className="px-6 py-4 flex items-center gap-4">
                       <div className="w-12 h-12 rounded-md border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                         {product.images?.[0] ? (
-                          <img
-                            src={product.images[0]}
-                            alt={product.title}
-                            className="w-full h-full object-cover"
-                          />
                           product.images[0].match(/\.(mp4|webm|mov)$/i) ? (
                             <video src={product.images[0]} className="w-full h-full object-cover" muted loop playsInline />
                           ) : (

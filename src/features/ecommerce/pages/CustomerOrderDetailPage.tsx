@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 export default function CustomerOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { customer } = useOutletContext<any>();
+  const { customer, portfolio } = useOutletContext<any>();
   const navigate = useNavigate();
 
   const [order, setOrder] = useState<any>(null);
@@ -123,6 +123,11 @@ export default function CustomerOrderDetailPage() {
               <div className="pt-3 border-t">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Status</div>
                 <Badge variant="outline" className="capitalize shadow-sm bg-background">{order.status.replace("_", " ")}</Badge>
+              </div>
+              <div className="pt-3 border-t">
+                <Button variant="outline" className="w-full text-xs shadow-sm" onClick={() => navigate(`/pro/${portfolio?.public_slug || 'portfolio'}/thank-you?order=${order.id}`)}>
+                  View Invoice & Downloads
+                </Button>
               </div>
             </CardContent>
           </Card>

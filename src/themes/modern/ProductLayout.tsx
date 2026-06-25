@@ -27,6 +27,7 @@ import {
   Layers,
   Box,
   Mail,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductLayoutProps } from "../../features/ecommerce/product-layouts/types";
@@ -130,11 +131,15 @@ export default function ModernProductLayout({
           {/* LEFT: IMAGE GALLERY (Sticky) */}
           <div className="w-full lg:w-1/2 flex flex-col space-y-4 lg:sticky lg:top-24 lg:h-max">
             <div className="aspect-square bg-black/50 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center relative group">
-              <img
-                src={images[activeImgIndex]}
-                alt={product.title}
-                className="w-full h-full object-cover animate-in fade-in duration-500"
-              />
+              {images[activeImgIndex]?.match(/\.(mp4|webm|mov)$/i) ? (
+                <video src={images[activeImgIndex]} autoPlay loop muted playsInline className="w-full h-full object-cover animate-in fade-in duration-500" />
+              ) : (
+                <img
+                  src={images[activeImgIndex]}
+                  alt={product.title}
+                  className="w-full h-full object-cover animate-in fade-in duration-500"
+                />
+              )}
               {product.compare_at_price > product.price && (
                 <Badge className="absolute top-4 left-4 bg-primary text-black font-bold uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg z-10 border-none">
                   Sale
@@ -165,11 +170,15 @@ export default function ModernProductLayout({
                         : "border-transparent opacity-50 hover:opacity-100 border-white/10"
                     )}
                   >
-                    <img
-                      src={img}
-                      className="w-full h-full object-cover"
-                      alt={`Thumbnail ${idx}`}
-                    />
+                    {img?.match(/\.(mp4|webm|mov)$/i) ? (
+                      <video src={img} className="w-full h-full object-cover" muted />
+                    ) : (
+                      <img
+                        src={img}
+                        className="w-full h-full object-cover"
+                        alt={`Thumbnail ${idx}`}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
@@ -345,6 +354,12 @@ export default function ModernProductLayout({
                     </span>
                   )}
                 </div>
+              
+              {product.short_description && (
+                <p className="text-neutral-400 text-lg mb-6 leading-relaxed animate-in fade-in">
+                  {product.short_description}
+                </p>
+              )}
 
                 {/* AAA+ Fix: Safely fallback to empty string to prevent .split() crash */}
                 <div className="prose prose-invert max-w-none text-neutral-300 leading-relaxed mb-10 whitespace-pre-wrap">
@@ -492,6 +507,25 @@ export default function ModernProductLayout({
                   {product.sku && <div className="flex items-center gap-2"><Tag size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">SKU:</span> <span className="text-white font-mono">{product.sku}</span></div>}
                   {product.product_type && <div className="flex items-center gap-2"><Layers size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Type:</span> <span className="text-white capitalize">{product.product_type}</span></div>}
                   {product.requires_shipping && product.weight > 0 && <div className="flex items-center gap-2"><Box size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Weight:</span> <span className="text-white">{product.weight} kg</span></div>}
+                </div>
+              )}
+              
+              {/* DYNAMIC ACCORDIONS (FAQs, Shipping Policies, Size Guides) */}
+              {product.accordions && product.accordions.length > 0 && (
+                <div className="mt-8 space-y-3 border-t border-white/10 pt-8 animate-in fade-in duration-500">
+                  {product.accordions.map((acc: any, i: number) => (
+                    <details key={i} className="group border border-white/10 bg-neutral-900/30 rounded-xl overflow-hidden transition-all duration-300 open:bg-neutral-900/60">
+                      <summary className="flex cursor-pointer items-center justify-between p-5 font-bold text-white hover:text-primary transition-colors select-none">
+                        {acc.title}
+                        <span className="transition-transform duration-300 group-open:rotate-180 text-neutral-500 group-hover:text-primary">
+                          <ChevronDown size={18} />
+                        </span>
+                      </summary>
+                      <div className="p-5 pt-0 text-sm text-neutral-400 leading-relaxed whitespace-pre-wrap border-t border-white/5 mx-5 mt-2">
+                        {acc.content}
+                      </div>
+                    </details>
+                  ))}
                 </div>
               )}
               </div>

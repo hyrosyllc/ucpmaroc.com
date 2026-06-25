@@ -27,6 +27,7 @@ import {
   Send,
   MessageSquare,
   Tag,
+  FileDown,
 } from "lucide-react";
 import {
   Select,
@@ -287,6 +288,11 @@ export default function ProOrderDetailPage() {
                               <Tag size={12} /> {item.variant}
                             </div>
                           )}
+                          {item.requiresShipping === false && (
+                            <div className="text-blue-500 font-bold mt-1.5 text-xs flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 w-max px-2 py-0.5 rounded-md">
+                              <FileDown size={12} /> Digital Delivery
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="text-base font-black font-mono text-foreground mt-1">
@@ -465,6 +471,12 @@ export default function ProOrderDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
+              {order.items?.some((i: any) => i.requiresShipping === false) && (
+                <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-start gap-3">
+                  <FileDown className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-600 dark:text-blue-400 leading-relaxed font-medium">This order contains digital items or services. No physical shipping label is required.</p>
+                </div>
+              )}
               <Label className="font-bold text-foreground mb-2 block">Update Order Status</Label>
               <Select value={order.status} onValueChange={(val) => updateStatus(val)}>
                 <SelectTrigger className="h-12 bg-background border-border rounded-xl font-medium focus:ring-primary shadow-sm">

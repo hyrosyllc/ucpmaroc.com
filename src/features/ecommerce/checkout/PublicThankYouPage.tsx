@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useOutletContext, useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2, ShoppingBag, Printer, MapPin, Mail, Phone, Loader2 } from "lucide-react";
+import { CheckCircle2, ShoppingBag, Printer, MapPin, Mail, Phone, Loader2, FileDown, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "../store/useCartStore";
 import { supabase } from "@/supabaseClient";
@@ -22,6 +22,7 @@ const PublicThankYouPage = () => {
   
   const orderId = searchParams.get('order');
   const [order, setOrder] = useState<any>(null);
+  const [digitalProducts, setDigitalProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +34,21 @@ const PublicThankYouPage = () => {
         return;
       }
       const { data, error } = await supabase.from('pro_orders').select('*').eq('id', orderId).maybeSingle();
-      if (data && !error) setOrder(data);
+      if (data && !error) {
+        setOrder(data);
+        
+        // Fetch digital products if any
+        if (data.items && data.items.length > 0) {
+           const itemIds = data.items.map((i: any) => i.id);
+           const { data: prods } = await supabase
+              .from('pro_products')
+              .select('id, title, digital_files, digital_message, delivery_type')
+              .in('id', itemIds);
+           if (prods) {
+              setDigitalProducts(prods.filter(p => p.delivery_type === 'digital' || (p.digital_files && p.digital_files.length > 0)));
+           }
+        }
+      }
       setLoading(false);
     };
     
@@ -171,6 +186,36 @@ const PublicThankYouPage = () => {
             <h2 className="text-lg font-medium text-white mb-2">Your order is confirmed</h2>
             <p className="text-sm text-neutral-400">You'll receive a confirmation email with your order details shortly.</p>
           </div>
+
+          {/* Digital Downloads Box */}
+          {digitalProducts.length > 0 && (
+            <div className="rounded-lg border border-primary/30 p-6 mb-6 bg-primary/5 shadow-sm print:shadow-none print:border-neutral-200 print:bg-transparent print:p-0 print:mb-8">
+              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2 print:text-black">
+                <FileDown className="text-primary print:text-black" size={20}/> Digital Downloads
+              </h2>
+              <div className="space-y-6">
+                {digitalProducts.map(dp => (
+                  <div key={dp.id} className="space-y-3">
+                    <h3 className="font-semibold text-white print:text-black">{dp.title}</h3>
+                    {dp.digital_message && (
+                      <p className="text-sm text-neutral-300 print:text-neutral-600 bg-black/20 p-3 rounded-md border border-white/5">{dp.digital_message}</p>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      {dp.digital_files?.map((file: any, idx: number) => (
+                        <a key={idx} href={file.url} target="_blank" rel="noreferrer" className="flex items-center justify-between p-3 bg-neutral-900 border border-white/10 rounded-lg hover:border-primary/50 transition-colors group print:border-neutral-300 print:bg-transparent">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="p-2 bg-primary/10 text-primary rounded-md print:bg-transparent print:p-0 print:text-black"><FileText size={16}/></div>
+                            <span className="font-medium text-sm text-white truncate group-hover:text-primary transition-colors print:text-black">{file.name}</span>
+                          </div>
+                          <Button size="sm" variant="secondary" className="shrink-0 group-hover:bg-primary group-hover:text-primary-foreground print:hidden">Download</Button>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Customer Information Box */}
           <div className="rounded-lg border border-white/10 p-6 mb-6 bg-neutral-900 shadow-sm print:shadow-none print:border-neutral-200 print:bg-transparent print:p-0 print:mb-8">

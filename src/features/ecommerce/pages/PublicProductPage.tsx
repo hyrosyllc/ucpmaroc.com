@@ -224,6 +224,7 @@ export default function PublicProductPage() {
         storeId: portfolioId || undefined,
         productType: product.product_type,
         collectionId: product.collection_id,
+        requiresShipping: product.delivery_type === 'physical' || product.requires_shipping,
       });
       return;
     }

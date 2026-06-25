@@ -630,7 +630,7 @@ const PublicCheckoutPage = () => {
 
     
   // Shipping Logic
-  const requiresShipping = cartProducts.some(p => p.requires_shipping);
+  const requiresShipping = cartProducts.some(p => p.delivery_type === 'physical' || p.requires_shipping);
   const totalWeight = items.reduce((sum, item) => {
     const prod = cartProducts.find(p => p.id === item.id);
     return sum + ((prod?.weight || 0) * item.quantity);
@@ -719,7 +719,7 @@ const PublicCheckoutPage = () => {
                 
         // Fetch Products (for weight & shipping flags)
         const itemIds = items.map(i => i.id);
-        const { data: prods } = await supabase.from('pro_products').select('id, weight, requires_shipping').in('id', itemIds);
+        const { data: prods } = await supabase.from('pro_products').select('id, weight, requires_shipping, delivery_type').in('id', itemIds);
         if (prods) setCartProducts(prods);
         
 

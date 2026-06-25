@@ -48,7 +48,8 @@ To solve this, UCP Maroc utilizes a **Settings-Driven Template Architecture**:
   - **The Connection:** The View reads the `themeConfig` object passed down from the Controller. If the user toggled off "Product Reviews" in the Store Tab, the View simply unmounts the review block. This guarantees a lightning-fast, unbreakable funnel.
 - **Shop Page Architecture:** Similar to products, `PublicShopPage.tsx` acts as the Controller. It fetches the store's active products and collections, and passes them to `ShopLayout.tsx`. Toggles in the Store Settings can instantly modify the layout, such as hiding the sidebar filters.
 - **Global Cart Drawer:** The cart state is managed entirely via Zustand (`useCartStore.ts`). A `CartDrawerContainer` listens to the active theme and injects the appropriately styled `ModernCartDrawer` globally, providing a persistent shopping experience across all pages without losing state.
-- **Checkout & Thank You Pages:** `PublicCheckoutPage.tsx` handles complex logic including applying Stripe Elements, verifying coupons, and calculating shipping based on the selected markets. Once successful, it routes the user to `PublicThankYouPage.tsx`, which clears the cart and securely displays the extracted order receipt.
+- **Checkout & Smart Shipping Logic:** `PublicCheckoutPage.tsx` handles complex logic including applying Stripe Elements, verifying coupons, and calculating shipping based on selected markets. It parses the Zustand cart and queries the database to evaluate the `delivery_type`. If all items are `digital` or `service`, it entirely bypasses weight calculations and forces the shipping cost to `$0.00`.
+- **Digital Download Hub (Thank You Page):** `PublicThankYouPage.tsx` acts as a dual-purpose Receipt & Download Hub. Upon successful payment, it extracts the `orderId`, clears the cart, and securely fetches the order. It then queries the associated products, and if any are digital, it dynamically renders a "Digital Downloads" UI containing the `digital_message` and secure links to the files stored in Supabase.
 - **Available Store Settings (`theme_config` Keys):**
   - `store_enabled`: Globally toggles the e-commerce engine on or off.
   - `store_product_reviews`: Shows/hides the authenticated review block on product pages.
@@ -64,12 +65,75 @@ To solve this, UCP Maroc utilizes a **Settings-Driven Template Architecture**:
 A highly flexible digital and physical storefront system supporting multi-site management, variant tracking, and dedicated customer portals.
 
 ### 📦 Product & Inventory Management
-- **Variant Engine:** Support for complex product options (e.g., Size, Color) with distinct price overrides.
-- **Inventory Tracking:** Real-time stock counting preventing overselling.
-- **Action Types:** Route products to a Standard Cart, direct WhatsApp chat, external URL, or a Custom Direct Order Form.
-- **Collections:** Group products by season or category with custom banner images and SEO-friendly slugs.
+The platform utilizes the **Product Engine 2.0** architecture to support complex Enterprise-grade product catalogs.
 
-*Note: The Product Engine is slated for a "2.0 Upgrade" which will introduce Digital File uploads, variant-specific images, product dimensions, rich-text long descriptions, dynamic accordions (Size Guides, Policies), and Shopify/Amazon CSV importing.*
+#### 🚀 Deep Dive: Product Engine 2.0 & Digital Delivery Lifecycle
+This upgrade drastically expanded what a "Product" represents in the database, requiring interconnected logic spanning the Admin Dashboard, the Storefront, the Checkout, and the Customer Portal.
+
+**1. Database Schema (`pro_products`)**
+The product table supports a massive payload including:
+- `short_description` (TEXT): A quick summary to hook buyers beneath the price.
+- `delivery_type` (TEXT): Enforces Enum values of `physical`, `digital`, or `service`.
+- `dimensions` (JSONB): Tracks `length`, `width`, `height`, and `unit` (cm/in) for advanced shipping integrations.
+- `digital_files` (JSONB): Stores arrays of file metadata `{ url, name }`.
+- `digital_message` (TEXT): A custom post-purchase message (e.g., "Here is the link to access your preset...").
+- `accordions` (JSONB): An array of `{ title, content }` objects for FAQs, Size Guides, and Policies.
+
+**2. The Admin Interface (`ProductsPage.tsx`)**
+Because the dataset is so large, the product creation form is split into a **5-Tab Architecture**:
+- **General:** Manages the Title, Short Description, Long Description, and Store Organization (assigning products globally or to specific tenants/subdomains).
+- **Media & Pricing:** Introduces intelligent media parsing. The gallery uploader detects `.mp4`, `.webm`, and `.mov` extensions. It seamlessly injects `<video autoPlay loop muted playsInline>` tags into the thumbnail grids rather than standard `<img>` tags, allowing rich visual showcases.
+- **Inventory & Variants:** A dynamic builder for adding product variants (Color, Size) with independent price overrides. Includes real-time `stock_count` toggles. *Logic Check:* If `delivery_type` is `digital`, the inventory tracking toggle is automatically disabled and hidden, as digital goods have infinite stock.
+- **Delivery:** The core router for fulfillment. 
+  - Choosing **Physical** renders Weight and Dimension inputs.
+  - Choosing **Digital** swaps the UI to a multi-file uploader that pushes assets directly to the `portfolio-assets/${actorId}/digital-products/` Supabase Storage bucket, alongside the custom `digital_message` text area.
+  - Choosing **Service** hides both, passing a simple `requires_shipping = false` flag.
+- **Details & SEO:** An intuitive Accordion Builder that serializes custom tabs directly into the `accordions` JSONB array.
+
+**3. The Storefront View (`PublicProductPage.tsx` & `ModernProductLayout.tsx`)**
+- **Visual Injections:** The product layout reads the new data arrays. It places the `short_description` at the top of the buy box. At the bottom, it iterates through the `accordions` JSONB array and renders them using native HTML `<details>` and `<summary>` tags with Tailwind transitions for seamless, JavaScript-free expansion. Video parsing logic matches the admin panel, allowing customers to view looping video reels directly in the product gallery.
+- **Cart Hydration:** When "Add to Cart" is clicked, the Controller evaluates `product.delivery_type === 'physical' || product.requires_shipping`. It pushes a `requiresShipping: boolean` flag directly into the Zustand `CartItem` state.
+
+**4. Smart Checkout Logic (`PublicCheckoutPage.tsx`)**
+- When a customer hits checkout, the engine scans the Zustand `items` array.
+- **Shipping Bypass:** It reduces the `requiresShipping` flag across the entire cart. If *no* items require shipping (i.e., a cart full of digital items or services), the Checkout visually strips away the "Shipping Method" selection box and forces the `shippingCost` variable mathematically to `$0.00`.
+- It requires standard fields (Name, Email) to ensure the CRM collects the lead and knows where to send the digital invoice.
+
+**5. Post-Purchase & Fulfillment (`PublicThankYouPage.tsx`)**
+- Upon successful Stripe or Manual payment, the user is redirected to the Thank You Page with the generated `?order={id}`.
+- **The Download Hub:** The page transforms from a simple receipt into an authenticated Download Hub. It executes a secondary Supabase query, matching the `items` array from the `pro_orders` row against the `pro_products` table to check if any purchased items possess a `delivery_type` of `digital`.
+- If found, it injects a highly visible "Digital Downloads" card at the top of the page. It iterates through the product's `digital_files` JSONB array, generating secure download `<button>`s, and renders the unique `digital_message` left by the creator.
+
+**6. Admin & CRM Clarity (`OrdersPage.tsx` & `ProOrderDetailPage.tsx`)**
+- To prevent creators from mistakenly trying to box and ship a digital item, the Admin dashboards parse the `requiresShipping` flag on the order items.
+- **Visual Badges:** It automatically prepends bright blue `<Badge>` components reading "Digital / Service" or "Digital Delivery" next to the items, instantly signaling that the order requires zero physical fulfillment.
+
+#### 🛠️ Step-by-Step Implementation & Files Updated (Digital Products & Delivery)
+Here is the exact step-by-step sequence of how Digital Products and intelligent shipping bypasses were built into the platform:
+
+1. **Database Schema Expansion (Supabase SQL)**
+   - Added columns to `pro_products`: `short_description`, `delivery_type`, `dimensions`, `digital_files`, `digital_message`, `accordions`.
+2. **Admin Catalog Upgrade (`src/features/ecommerce/pages/ProductsPage.tsx`)**
+   - Refactored the single-page form into a scalable 5-Tab interface.
+   - Implemented the `delivery_type` Radio Group (Physical, Digital, Service).
+   - Added the Supabase Storage Uploader for `digital_files` directly to the `portfolio-assets` bucket.
+3. **Global Cart State (`src/features/ecommerce/store/useCartStore.ts`)**
+   - Updated the Zustand `CartItem` interface to accept a `requiresShipping: boolean` flag so the cart knows the physical footprint of the order.
+4. **Storefront Product Controller (`src/features/ecommerce/pages/PublicProductPage.tsx`)**
+   - Mapped the database `delivery_type` to the cart's `requiresShipping` flag during the `addItem` dispatch.
+5. **Storefront Product View (`src/themes/modern/ProductLayout.tsx`)**
+   - Injected native `<video>` tags for mp4 gallery support.
+   - Rendered `short_description`.
+   - Mapped the `accordions` JSONB into native `<details>` HTML dropdowns.
+6. **Smart Checkout Bypassing (`src/features/ecommerce/checkout/PublicCheckoutPage.tsx`)**
+   - Evaluated `items.some(i => i.requiresShipping === false)`. If false, the UI hides the shipping methods step and forces `$0.00` shipping cost, seamlessly accommodating digital and service-based carts.
+7. **Post-Purchase Download Hub (`src/features/ecommerce/checkout/PublicThankYouPage.tsx`)**
+   - Fetched the order ID, then executed a secondary fetch to `pro_products` to pull the `digital_files` and `digital_message`.
+   - Rendered a highly visible "Digital Downloads" UI allowing immediate post-purchase access.
+8. **Admin Clarity (`src/features/ecommerce/pages/OrdersPage.tsx` & `ProOrderDetailPage.tsx`)**
+   - Injected "Digital / Service" and "Digital Delivery" blue badges based on the item's `requiresShipping` flag, preventing the store owner from thinking they need to ship a box.
+9. **Customer Portal Lifelong Access (`src/features/ecommerce/pages/CustomerOrdersPage.tsx` & `CustomerOrderDetailPage.tsx`)**
+   - Added "View Receipt & Downloads" buttons to the customer's dashboard, routing them back to the `PublicThankYouPage` using their Order ID, creating a persistent digital locker.
 
 ### 🏷️ Promotions & Coupons
 - **Discount Types:** Percentage (%), Fixed Amount ($), or Free Shipping.
@@ -85,6 +149,7 @@ A highly flexible digital and physical storefront system supporting multi-site m
 - **Passwordless Authentication:** Customers log in to their favorite creator's store using Supabase OTP (One-Time Password) magic links sent to their email.
 - **Tenant Isolation:** A bridging table (`pro_customers`) ensures a user is securely tied only to the specific `portfolio_id` they purchased from.
 - **Order History & Tracking:** Customers have their own secure dashboard (`/pro/:slug/dashboard`) to view past purchases and current fulfillment statuses.
+- **Persistent Digital Access:** The customer's `CustomerOrdersPage` and `CustomerOrderDetailPage` inject a "View Invoice & Downloads" button on past orders. This dynamically routes them back to the `PublicThankYouPage.tsx` using their order ID, acting as a lifetime digital locker where they can infinitely re-download their purchased files or print receipts.
 - **Authenticated Product Reviews:** Only logged-in customers can leave reviews on products. These are held in "Pending" status until the store owner approves them.
 
 ---
@@ -107,6 +172,7 @@ A complete back-office to manage customer interactions.
 - **Unified Status Flow:** Pending, In Progress, Completed, Cancelled, Refunded.
 - **Intelligent Data Extraction:** Automatically parses custom checkout forms to extract Names, Emails, Cities, and Payment Intents cleanly into the UI.
 - **Real-Time Customer Chat:** Using **Supabase Realtime**, store owners and customers can chat live on a specific order. The UI updates instantly across both the Owner's and Customer's dashboards without refreshing.
+- **Visual Delivery Tags:** Orders containing digital items display automated blue badges, removing fulfillment ambiguity for the store owner.
 - **Bulk Actions:** Update statuses or delete multiple orders simultaneously.
 - **CSV Exports:** One-click export of complex order data, dynamically generating columns for custom form fields.
 

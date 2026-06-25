@@ -770,6 +770,11 @@ const OrdersPage = () => {
                               {variantsStr}
                             </div>
                           )}
+                        {order.items?.some((i: any) => i.requiresShipping === false) && (
+                          <Badge variant="outline" className="mt-2 text-[9px] uppercase tracking-widest bg-blue-500/10 text-blue-500 border-blue-500/30 ml-2">
+                            Digital / Service
+                          </Badge>
+                        )}
                         </TableCell>
 
                         <TableCell className="py-4 align-top">

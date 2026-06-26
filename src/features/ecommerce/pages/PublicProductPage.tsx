@@ -64,6 +64,7 @@ export default function PublicProductPage() {
   // Store & Customer State
   const [themeConfig, setThemeConfig] = useState<any>({});
   const [customer, setCustomer] = useState<any>(null);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', content: '' });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
@@ -185,12 +186,62 @@ export default function PublicProductPage() {
           .order("created_at", { ascending: false });
         
         if (reviewsData) productData.reviews = reviewsData;
+
+        // 3. FETCH RELATED PRODUCTS
+        let relatedQuery = supabase
+          .from("pro_products")
+          .select(`id, title, slug, price, compare_at_price, images, pro_collections(title)`)
+          .eq("actor_id", currentActorId)
+          .eq("status", "active")
+          .neq("id", productData.id);
+
+        if (currentPortfolioId) relatedQuery = relatedQuery.or(`portfolio_id.eq.${currentPortfolioId},portfolio_id.is.null`);
+
+        if (productData.related_type === 'manual' && productData.related_products?.length > 0) {
+          relatedQuery = relatedQuery.in('id', productData.related_products);
+        } else if (productData.related_type === 'collection' && productData.related_collection_id) {
+          relatedQuery = relatedQuery.eq('collection_id', productData.related_collection_id);
+        } else if (productData.collection_id) {
+          relatedQuery = relatedQuery.eq('collection_id', productData.collection_id); // Fallback: Auto
+        }
+
+        const { data: relData } = await relatedQuery.limit(4);
+        if (relData) setRelatedProducts(relData);
       }
       setLoading(false);
     };
 
     fetchProductAndTheme();
   }, [slug, productSlug]);
+
+  // 🚀 DYNAMIC SEO & METADATA INJECTION
+  useEffect(() => {
+    if (!product) return;
+    
+    const title = product.seo_title || product.title || "Product";
+    const desc = product.seo_description || product.short_description || product.description?.substring(0, 160) || "";
+    const image = product.images?.[0] || "";
+
+    // 1. Update Browser / Google Title
+    document.title = title;
+
+    // 2. Helper to safely create/update Meta tags
+    const setMetaTag = (attribute: string, attrValue: string, content: string) => {
+      let tag = document.querySelector(`meta[${attribute}="${attrValue}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attribute, attrValue);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    // 3. Inject Standard SEO & Open Graph Tags
+    setMetaTag('name', 'description', desc);
+    setMetaTag('property', 'og:title', title);
+    setMetaTag('property', 'og:description', desc);
+    if (image) setMetaTag('property', 'og:image', image);
+  }, [product]);
 
   let currentPrice = product?.price || 0;
   if (product && selectedVariants) {
@@ -385,7 +436,7 @@ export default function PublicProductPage() {
     isSubmittingReview,
     reviewSuccess,
     handleReviewSubmit,
-
+    relatedProducts,
   };
 
   return (

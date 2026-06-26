@@ -76,6 +76,8 @@ export default function ModernProductLayout({
   isSubmittingReview,
   reviewSuccess,
   handleReviewSubmit,
+  relatedProducts,
+
 }: ProductLayoutProps) {
   // AAA+ Fix: Check both array images and legacy single image string
   const images = product?.images?.length
@@ -361,15 +363,6 @@ export default function ModernProductLayout({
                 </p>
               )}
 
-                {/* AAA+ Fix: Safely fallback to empty string to prevent .split() crash */}
-                <div className="prose prose-invert max-w-none text-neutral-300 leading-relaxed mb-10 whitespace-pre-wrap">
-                  {(product?.description || "")
-                    .split("\n")
-                    .map((line: string, i: number) => (
-                      <p key={i}>{line}</p>
-                    ))}
-                </div>
-
                 {/* DYNAMIC OPTIONS / VARIANTS */}
                 {product.options?.length > 0 && (
                   <div className="space-y-6 mb-8 border-y border-white/10 py-8">
@@ -381,12 +374,64 @@ export default function ModernProductLayout({
                           </Label>
                           <span className="text-xs text-primary font-medium">
                             {selectedVariants[opt.name]?.label}
+                            {selectedVariants[opt.name]?.price ? ` (+$${selectedVariants[opt.name].price})` : ''}
+
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-3">
                           {opt.values.map((val: any) => {
                             const isSelected =
                               selectedVariants[opt.name]?.label === val.label;
+                            const isRound = opt.visual_shape !== 'square';
+
+                            if (opt.visual_type === 'color') {
+                              return (
+                                <button
+                                  key={val.label}
+                                  onClick={() => setSelectedVariants((prev) => ({ ...prev, [opt.name]: val }))}
+                                  title={val.label + (val.price ? ` (+$${val.price})` : '')}
+                                  className={cn(
+                                    "relative transition-all duration-200 border-2 flex items-center justify-center bg-neutral-900",
+                                    isRound ? "rounded-full" : "rounded-lg",
+                                    isSelected ? "border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)] scale-105" : "border-transparent hover:scale-105 hover:border-white/30",
+                                    opt.visual_show_label ? "h-10 pl-2 pr-4 gap-2 w-max" : "w-10 h-10"
+                                  )}
+                                >
+                                  <span className={cn("block shadow-sm border border-white/10 shrink-0", isRound ? "rounded-full" : "rounded-[4px]", opt.visual_show_label ? "w-5 h-5" : "w-7 h-7")} style={{ backgroundColor: val.visual_value || '#000000' }} />
+                                  {opt.visual_show_label && <span className="text-sm font-medium">{val.label}</span>}
+                                </button>
+                              )
+                            }
+
+                            if (opt.visual_type === 'image') {
+                              return (
+                                <button
+                                  key={val.label}
+                                  onClick={() => setSelectedVariants((prev) => ({ ...prev, [opt.name]: val }))}
+                                  title={val.label + (val.price ? ` (+$${val.price})` : '')}
+                                  className={cn(
+                                    "relative transition-all duration-200 border-2 bg-neutral-900 flex items-center justify-center",
+                                    isRound ? "rounded-full" : "rounded-xl",
+                                    isSelected ? "border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)] z-10 scale-105" : "border-white/10 hover:scale-105 hover:border-white/30",
+                                    opt.visual_show_label ? "h-14 pl-1.5 pr-5 gap-3 w-max" : "w-14 h-14 p-0.5 overflow-hidden"
+                                  )}
+                                >
+                                  <span className={cn(
+                                      "shrink-0 overflow-hidden flex items-center justify-center", 
+                                      isRound ? "rounded-full" : "rounded-lg", 
+                                      opt.visual_show_label ? "w-11 h-11" : "w-full h-full"
+                                  )}>
+                                    {val.visual_value ? (
+                                      <img src={val.visual_value} alt={val.label} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="text-[10px] text-neutral-500 font-medium px-2 text-center leading-tight bg-neutral-800 w-full h-full flex items-center justify-center">{val.label}</span>
+                                    )}
+                                  </span>
+                                  {opt.visual_show_label && <span className="text-sm font-medium">{val.label}</span>}
+                                </button>
+                              )
+                            }
+
                             return (
                               <button
                                 key={val.label}
@@ -505,7 +550,7 @@ export default function ModernProductLayout({
               {(product.sku || product.product_type || (product.requires_shipping && product.weight > 0)) && (
                 <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-neutral-400 animate-in fade-in duration-500">
                   {product.sku && <div className="flex items-center gap-2"><Tag size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">SKU:</span> <span className="text-white font-mono">{product.sku}</span></div>}
-                  {product.product_type && <div className="flex items-center gap-2"><Layers size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Type:</span> <span className="text-white capitalize">{product.product_type}</span></div>}
+                  {product.product_type && <div className="flex items-center gap-2"><Layers size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Tag:</span> <span className="text-white capitalize">{product.product_type}</span></div>}
                   {product.requires_shipping && product.weight > 0 && <div className="flex items-center gap-2"><Box size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Weight:</span> <span className="text-white">{product.weight} kg</span></div>}
                 </div>
               )}
@@ -532,6 +577,57 @@ export default function ModernProductLayout({
             )}
           </div>
         </div>
+
+        {/* THE LONG DESCRIPTION (Below the fold) */}
+        {product.description && (
+          <div className="mt-20 pt-16 border-t border-white/10 w-full animate-in fade-in duration-500">
+            <h3 className="text-3xl font-bold text-white tracking-tight mb-10 text-center">Product Details</h3>
+            <div 
+              className="prose prose-invert prose-lg max-w-4xl mx-auto text-neutral-300 leading-relaxed prose-img:rounded-2xl prose-img:shadow-2xl prose-a:text-primary prose-a:font-bold prose-headings:text-white" 
+              dangerouslySetInnerHTML={{ __html: product.description }} 
+            />
+          </div>
+        )}
+
+        {/* RELATED PRODUCTS */}
+        {themeConfig?.store_related_products !== false && relatedProducts && relatedProducts.length > 0 && (
+          <div className="mt-20 pt-16 border-t border-white/10 w-full animate-in fade-in duration-500">
+            <h3 className="text-3xl font-bold text-white tracking-tight mb-10 text-center">You might also like</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+              {relatedProducts.map((rel: any) => (
+                <Link
+                  key={rel.id}
+                  to={`/${username}/product/${rel.slug || rel.id}`}
+                  className="group flex flex-col bg-neutral-900/50 border border-white/10 rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-[0_0_30px_rgba(var(--primary),0.1)] transition-all duration-300"
+                >
+                  <div className="aspect-[4/3] bg-black/50 relative overflow-hidden">
+                    {rel.images?.[0] ? (
+                      rel.images[0].match(/\.(mp4|webm|mov)$/i) ? (
+                        <video src={rel.images[0]} autoPlay loop muted playsInline className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      ) : (
+                        <img src={rel.images[0]} alt={rel.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      )
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-neutral-700">
+                        <ShoppingBag size={48} opacity={0.5} />
+                      </div>
+                    )}
+                    {rel.compare_at_price > rel.price && (
+                      <Badge className="absolute top-3 left-3 bg-primary text-black font-bold uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg z-10 border-none">Sale</Badge>
+                    )}
+                    <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+                      <Badge className="bg-black/70 backdrop-blur-md text-white border-white/10 font-bold px-3 py-1 text-sm shadow-xl">${rel.price.toFixed(2)}</Badge>
+                    </div>
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    {rel.pro_collections?.title && <span className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2 block">{rel.pro_collections.title}</span>}
+                    <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-primary transition-colors text-white line-clamp-2">{rel.title}</h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showReviews && (
           <div className="mt-20 pt-16 border-t border-white/10 max-w-4xl mx-auto">

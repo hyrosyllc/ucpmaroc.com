@@ -26,6 +26,14 @@ export interface ProductLayoutProps {
   formValues?: Record<string, string>;
   setFormValues?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   isLoadingForm?: boolean;
+  themeConfig?: any;
+  customer?: any;
+  reviewForm?: { rating: number; title: string; content: string };
+  setReviewForm?: React.Dispatch<React.SetStateAction<{ rating: number; title: string; content: string }>>;
+  isSubmittingReview?: boolean;
+  reviewSuccess?: boolean;
+  handleReviewSubmit?: (e: React.FormEvent) => Promise<void> | void;
+  relatedProducts?: any[];
 }
 export interface ShopLayoutProps {
   username: string;
@@ -36,4 +44,5 @@ export interface ShopLayoutProps {
   searchQuery: string;
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   filteredProducts: any[];
+  themeConfig?: any;
 }

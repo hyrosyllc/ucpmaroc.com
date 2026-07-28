@@ -61,6 +61,14 @@ export default function PublicProductPage() {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isLoadingForm, setIsLoadingForm] = useState(false);
 
+  // Store & Customer State
+  const [themeConfig, setThemeConfig] = useState<any>({});
+  const [customer, setCustomer] = useState<any>(null);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', content: '' });
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
   useEffect(() => {
     const fetchProductAndTheme = async () => {
       if (!productSlug) return;
@@ -75,6 +83,7 @@ export default function PublicProductPage() {
       let currentPortfolioId = null; // <-- NEW: Track this for store separation
       let currentTheme = "modern";
       let currentPublicSlug = slug || "";
+      let currentThemeConfig = {};
 
       // 1. ENVIRONMENT-AWARE ACTOR LOOKUP (FIXED 406 CRASH)
       if (isCustomDomain) {
@@ -89,6 +98,7 @@ export default function PublicProductPage() {
           currentActorId = portData.actor_id;
           currentTheme = portData.theme_config?.templateId || "modern";
           if (portData.public_slug) currentPublicSlug = portData.public_slug;
+          currentThemeConfig = portData.theme_config || {};
         }
       } else if (slug) {
         // ✅ CORRECT LOOKUP: Query PORTFOLIOS using public_slug!
@@ -103,6 +113,7 @@ export default function PublicProductPage() {
           currentActorId = portData.actor_id;
           currentTheme = portData.theme_config?.templateId || "modern";
           currentPublicSlug = portData.public_slug;
+          currentThemeConfig = portData.theme_config || {};
         }
       }
 
@@ -115,6 +126,14 @@ export default function PublicProductPage() {
       setTheme(currentTheme);
       setResolvedPublicSlug(currentPublicSlug);
       setPortfolioId(currentPortfolioId);
+      setThemeConfig(currentThemeConfig);
+
+      // Check for Customer Session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user && currentPortfolioId) {
+         const { data: custData } = await supabase.from('pro_customers').select('id, name, email').eq('user_id', session.user.id).eq('portfolio_id', currentPortfolioId).maybeSingle();
+         if (custData) setCustomer(custData);
+      }
 
       // 2. FETCH EXACT PRODUCT (WITH STORE SEPARATION LOGIC)
       let productQuery = supabase
@@ -157,12 +176,72 @@ export default function PublicProductPage() {
           if (fData) setFormTemplate(fData);
           setIsLoadingForm(false);
         }
+
+        // Fetch Approved Product Reviews
+        const { data: reviewsData } = await supabase
+          .from("pro_product_reviews")
+          .select(`*, pro_customers(name, email)`)
+          .eq("product_id", productData.id)
+          .eq("is_published", true)
+          .order("created_at", { ascending: false });
+        
+        if (reviewsData) productData.reviews = reviewsData;
+
+        // 3. FETCH RELATED PRODUCTS
+        let relatedQuery = supabase
+          .from("pro_products")
+          .select(`id, title, slug, price, compare_at_price, images, pro_collections(title)`)
+          .eq("actor_id", currentActorId)
+          .eq("status", "active")
+          .neq("id", productData.id);
+
+        if (currentPortfolioId) relatedQuery = relatedQuery.or(`portfolio_id.eq.${currentPortfolioId},portfolio_id.is.null`);
+
+        if (productData.related_type === 'manual' && productData.related_products?.length > 0) {
+          relatedQuery = relatedQuery.in('id', productData.related_products);
+        } else if (productData.related_type === 'collection' && productData.related_collection_id) {
+          relatedQuery = relatedQuery.eq('collection_id', productData.related_collection_id);
+        } else if (productData.collection_id) {
+          relatedQuery = relatedQuery.eq('collection_id', productData.collection_id); // Fallback: Auto
+        }
+
+        const { data: relData } = await relatedQuery.limit(4);
+        if (relData) setRelatedProducts(relData);
       }
       setLoading(false);
     };
 
     fetchProductAndTheme();
   }, [slug, productSlug]);
+
+  // 🚀 DYNAMIC SEO & METADATA INJECTION
+  useEffect(() => {
+    if (!product) return;
+    
+    const title = product.seo_title || product.title || "Product";
+    const desc = product.seo_description || product.short_description || product.description?.substring(0, 160) || "";
+    const image = product.images?.[0] || "";
+
+    // 1. Update Browser / Google Title
+    document.title = title;
+
+    // 2. Helper to safely create/update Meta tags
+    const setMetaTag = (attribute: string, attrValue: string, content: string) => {
+      let tag = document.querySelector(`meta[${attribute}="${attrValue}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attribute, attrValue);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    };
+
+    // 3. Inject Standard SEO & Open Graph Tags
+    setMetaTag('name', 'description', desc);
+    setMetaTag('property', 'og:title', title);
+    setMetaTag('property', 'og:description', desc);
+    if (image) setMetaTag('property', 'og:image', image);
+  }, [product]);
 
   let currentPrice = product?.price || 0;
   if (product && selectedVariants) {
@@ -196,6 +275,7 @@ export default function PublicProductPage() {
         storeId: portfolioId || undefined,
         productType: product.product_type,
         collectionId: product.collection_id,
+        requiresShipping: product.delivery_type === 'physical' || product.requires_shipping,
       });
       return;
     }
@@ -284,6 +364,27 @@ export default function PublicProductPage() {
     }
   };
 
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customer || !product) return;
+    setIsSubmittingReview(true);
+    const { error } = await supabase.from('pro_product_reviews').insert({
+      product_id: product.id,
+      customer_id: customer.id,
+      rating: reviewForm.rating,
+      title: reviewForm.title,
+      content: reviewForm.content,
+      is_published: false
+    });
+    setIsSubmittingReview(false);
+    if (!error) {
+      setReviewSuccess(true);
+      setReviewForm({ rating: 5, title: '', content: '' });
+    } else {
+      alert("Failed to submit review. Try again.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -328,6 +429,14 @@ export default function PublicProductPage() {
     formValues,
     setFormValues,
     isLoadingForm,
+    themeConfig,
+    customer,
+    reviewForm,
+    setReviewForm,
+    isSubmittingReview,
+    reviewSuccess,
+    handleReviewSubmit,
+    relatedProducts,
   };
 
   return (

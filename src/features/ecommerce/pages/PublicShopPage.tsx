@@ -28,6 +28,7 @@ export default function PublicShopPage() {
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [themeConfig, setThemeConfig] = useState<any>({});
 
   // Filter State
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function PublicShopPage() {
       let currentPortfolioId = null; // <-- NEW: We need this to filter the products
       let currentTheme = "modern";
       let currentPublicSlug = slug || "";
+      let currentThemeConfig = {};
 
       // 1. ENVIRONMENT-AWARE ACTOR LOOKUP (FIXED 406 CRASH)
       if (isCustomDomain) {
@@ -61,6 +63,7 @@ export default function PublicShopPage() {
           currentActorId = portData.actor_id;
           currentTheme = portData.theme_config?.templateId || "modern";
           if (portData.public_slug) currentPublicSlug = portData.public_slug;
+          currentThemeConfig = portData.theme_config || {};
         }
       } else if (slug) {
         // ✅ CORRECT LOOKUP: Query PORTFOLIOS using public_slug!
@@ -75,6 +78,7 @@ export default function PublicShopPage() {
           currentActorId = portData.actor_id;
           currentTheme = portData.theme_config?.templateId || "modern";
           currentPublicSlug = portData.public_slug;
+          currentThemeConfig = portData.theme_config || {};
         }
       }
 
@@ -86,6 +90,7 @@ export default function PublicShopPage() {
 
       setTheme(currentTheme);
       setResolvedPublicSlug(currentPublicSlug);
+      setThemeConfig(currentThemeConfig);
 
       // 2. Fetch Products & Collections (WITH STORE SEPARATION LOGIC)
       let productsQuery = supabase
@@ -173,6 +178,7 @@ export default function PublicShopPage() {
     searchQuery,
     setSearchQuery,
     filteredProducts,
+    themeConfig,
   };
 
   // ROUTER: Inject the exact layout based on the actor's active theme

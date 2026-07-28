@@ -1,1 +1,0 @@
-import{g as i,f as l}from"./effect-target-BsCganNw.js";function d(s,r,o){const a=`swiper-slide-shadow${o?`-${o}`:""}${s?` swiper-slide-shadow-${s}`:""}`,t=i(r);let e=t.querySelector(`.${a.split(" ").join(".")}`);return e||(e=l("div",a.split(" ")),t.append(e)),e}export{d as c};

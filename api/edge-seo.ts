@@ -71,6 +71,30 @@ export default async function handler(req: Request) {
             portfolio.actor_profiles?.bio ||
             `Check out the professional portfolio of ${seoTitle}.`;
           seoImage = portfolio.actor_profiles?.HeadshotURL || seoImage;
+
+          // 🚀 NEW: Check if this is a Product Page!
+          let productSlug = "";
+          const pathParts = url.pathname.split("/");
+          const productIndex = pathParts.indexOf("product");
+          
+          if (productIndex !== -1 && pathParts.length > productIndex + 1) {
+            productSlug = pathParts[productIndex + 1];
+          }
+
+          if (productSlug) {
+            const { data: product } = await supabase
+              .from("pro_products")
+              .select("title, seo_title, short_description, seo_description, description, images")
+              .eq("slug", productSlug)
+              .eq("actor_id", portfolio.actor_id) 
+              .maybeSingle();
+
+            if (product) {
+              seoTitle = product.seo_title || product.title || seoTitle;
+              seoDescription = product.seo_description || product.short_description || product.description?.substring(0, 160) || seoDescription;
+              seoImage = (product.images && product.images.length > 0) ? product.images[0] : seoImage;
+            }
+          }
         }
       } catch (e) {
         console.error("Edge SEO Supabase Error:", e);

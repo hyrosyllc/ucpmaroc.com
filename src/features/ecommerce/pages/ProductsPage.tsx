@@ -10,12 +10,14 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Loader2,
   Plus,
   Package,
   Edit,
   Trash2,
+  Video,
   ArrowLeft,
   Image as ImageIcon,
   X,
@@ -28,19 +30,29 @@ import {
   Copy,
   Eye,
   EyeOff,
+  FileText,
+  FileDown,
+  GripVertical,
+  ListPlus,
+  Truck,
 } from "lucide-react";
 import SiteFilter from "@/components/dashboard/SiteFilter";
 import { FormManager } from "@/features/portfolio-builder";
+import { cn } from "@/lib/utils";
 
 // --- INTERFACES ---
 interface ProductOptionValue {
   label: string;
   price?: number | "";
+  visual_value?: string;
 }
 
 interface ProductOption {
   name: string;
   values: ProductOptionValue[];
+  visual_type?: 'none' | 'color' | 'image';
+  visual_shape?: 'round' | 'square';
+  visual_show_label?: boolean;
 }
 
 interface Product {
@@ -66,6 +78,17 @@ interface Product {
   portfolio_id?: string | null;
   form_id?: string | null;
   slug?: string;
+  short_description?: string;
+  dimensions?: { length: number; width: number; height: number; unit: string };
+  digital_files?: { url: string; name: string }[];
+  digital_message?: string;
+  accordions?: { title: string; content: string }[];
+  delivery_type?: 'physical' | 'digital' | 'service';
+  seo_title?: string;
+  seo_description?: string;
+  related_type?: 'auto' | 'collection' | 'manual';
+  related_collection_id?: string | null;
+  related_products?: string[];
 }
 
 export default function ProductsPage() {
@@ -93,6 +116,11 @@ export default function ProductsPage() {
   const [initialDataString, setInitialDataString] = useState<string>("{}");
   const [optionInputs, setOptionInputs] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const digitalFileInputRef = useRef<HTMLInputElement>(null);
+  const variantFileInputRef = useRef<HTMLInputElement>(null);
+  const [activeVariantUpload, setActiveVariantUpload] = useState<{gIdx: number, vIdx: number} | null>(null);
+  const descriptionFileInputRef = useRef<HTMLInputElement>(null);
+  const descRef = useRef<HTMLTextAreaElement>(null);
 
   // --- DERIVE EXISTING PRODUCT TYPES FOR SMART AUTOCOMPLETE ---
   const existingTypes = Array.from(
@@ -202,6 +230,17 @@ export default function ProductsPage() {
       portfolio_id: initialPortfolioId,
       form_id: initialFormId,
       slug: prod?.slug || "",
+      short_description: prod?.short_description || "",
+      dimensions: prod?.dimensions || { length: 0, width: 0, height: 0, unit: "cm" },
+      digital_files: prod?.digital_files || [],
+      digital_message: prod?.digital_message || "",
+      accordions: prod?.accordions || [],
+      delivery_type: prod?.delivery_type || (prod?.requires_shipping ? "physical" : "digital"),
+      seo_title: prod?.seo_title || "",
+      seo_description: prod?.seo_description || "",
+      related_type: prod?.related_type || 'auto',
+      related_collection_id: prod?.related_collection_id || null,
+      related_products: prod?.related_products || [],
     };
     setFormData(initialData);
     setInitialDataString(JSON.stringify(initialData));
@@ -255,6 +294,17 @@ export default function ProductsPage() {
       portfolio_id: product.portfolio_id || null,
       form_id: product.form_id || null,
       slug: generateSlug(`${product.title} Copy ${Math.floor(Math.random() * 10000)}`),
+      short_description: product.short_description,
+      dimensions: product.dimensions,
+      digital_files: product.digital_files,
+      digital_message: product.digital_message,
+      accordions: product.accordions,
+      delivery_type: product.delivery_type,
+      seo_title: product.seo_title,
+      seo_description: product.seo_description,
+      related_type: product.related_type || 'auto',
+      related_collection_id: product.related_collection_id || null,
+      related_products: product.related_products || [],
     };
 
     const { error } = await supabase.from("pro_products").insert([payload]);
@@ -302,13 +352,13 @@ export default function ProductsPage() {
       status: formData.status,
       price: formData.price,
       compare_at_price: formData.compare_at_price || null,
-      track_inventory: formData.track_inventory,
+      track_inventory: formData.delivery_type === 'digital' ? false : formData.track_inventory,
       stock_count: formData.stock_count,
       sku: formData.sku,
       images: formData.images || [],
       options: formData.options || [],
-      requires_shipping: formData.requires_shipping,
-      weight: formData.weight,
+      requires_shipping: formData.delivery_type === 'physical',
+      weight: formData.delivery_type === 'physical' ? formData.weight : 0,
       category: formData.category,
       action_type: formData.action_type,
       checkout_url: formData.checkout_url,
@@ -317,6 +367,17 @@ export default function ProductsPage() {
       portfolio_id: formData.portfolio_id || null,
       form_id: (formData.action_type === "cart" || formData.action_type === "form_order") ? (formData.form_id || null) : null,
       slug: formData.slug || generateSlug(formData.title),
+      short_description: formData.short_description || null,
+      dimensions: formData.delivery_type === 'physical' ? formData.dimensions : null,
+      digital_files: formData.delivery_type === 'digital' ? formData.digital_files : null,
+      digital_message: formData.delivery_type === 'digital' ? formData.digital_message : null,
+      accordions: formData.accordions || [],
+      delivery_type: formData.delivery_type || 'physical',
+      seo_title: formData.seo_title || null,
+      seo_description: formData.seo_description || null,
+      related_type: formData.related_type || 'auto',
+      related_collection_id: formData.related_collection_id || null,
+      related_products: formData.related_products || [],
     };
 
     let error;
@@ -387,6 +448,89 @@ export default function ProductsPage() {
     setFormData({ ...formData, images: newImages });
     setIsUploading(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // --- DIGITAL FILE UPLOAD HANDLER ---
+  const handleDigitalUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !actorId) return;
+    setIsUploading(true);
+
+    const newFiles = [...(formData.digital_files || [])];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${actorId}/digital-products/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("portfolio-assets") // Or a private bucket if preferred
+        .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+      if (!error) {
+        const { data } = supabase.storage.from("portfolio-assets").getPublicUrl(filePath);
+        newFiles.push({ url: data.publicUrl, name: file.name });
+      }
+    }
+
+    setFormData({ ...formData, digital_files: newFiles });
+    setIsUploading(false);
+    if (digitalFileInputRef.current) digitalFileInputRef.current.value = "";
+  };
+
+  // --- DESCRIPTION IMAGE UPLOAD HANDLER ---
+  const handleDescriptionImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !actorId) return;
+    setIsUploading(true);
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `${actorId}/products/desc/${fileName}`;
+
+    const { error } = await supabase.storage.from("portfolio-assets").upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+    if (!error) {
+      const { data } = supabase.storage.from("portfolio-assets").getPublicUrl(filePath);
+      const imgHtml = `\n<img src="${data.publicUrl}" alt="Product image" style="max-width: 100%; border-radius: 12px; margin: 24px 0;" />\n`;
+      setFormData(prev => ({ ...prev, description: (prev.description || "") + imgHtml }));
+    }
+    setIsUploading(false);
+    if (descriptionFileInputRef.current) descriptionFileInputRef.current.value = "";
+  };
+
+  const insertText = (startTag: string, endTag: string) => {
+    const textarea = descRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = formData.description || "";
+    setFormData({ ...formData, description: text.substring(0, start) + startTag + text.substring(start, end) + endTag + text.substring(end, text.length) });
+  };
+
+  // --- VARIANT IMAGE UPLOAD HANDLER ---
+  const handleVariantUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !actorId || !activeVariantUpload) return;
+    setIsUploading(true);
+
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `${actorId}/products/variants/${fileName}`;
+
+    const { error } = await supabase.storage
+      .from("portfolio-assets")
+      .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+    if (!error) {
+      const { data } = supabase.storage.from("portfolio-assets").getPublicUrl(filePath);
+      const newOptions = [...(formData.options || [])];
+      newOptions[activeVariantUpload.gIdx].values[activeVariantUpload.vIdx].visual_value = data.publicUrl;
+      setFormData({ ...formData, options: newOptions });
+    }
+    setIsUploading(false);
+    setActiveVariantUpload(null);
+    if (variantFileInputRef.current) variantFileInputRef.current.value = "";
   };
 
   const removeImage = (index: number) => {
@@ -482,6 +626,23 @@ export default function ProductsPage() {
     setView("list");
   };
 
+  // --- ACCORDION HANDLERS ---
+  const addAccordion = () => {
+    setFormData({ ...formData, accordions: [...(formData.accordions || []), { title: "", content: "" }] });
+  };
+
+  const updateAccordion = (index: number, key: "title" | "content", val: string) => {
+    const newAccs = [...(formData.accordions || [])];
+    newAccs[index][key] = val;
+    setFormData({ ...formData, accordions: newAccs });
+  };
+
+  const removeAccordion = (index: number) => {
+    const newAccs = [...(formData.accordions || [])];
+    newAccs.splice(index, 1);
+    setFormData({ ...formData, accordions: newAccs });
+  };
+
   if (!actorId) return null;
 
   return (
@@ -548,37 +709,144 @@ export default function ProductsPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
             {/* LEFT COLUMN: Main Details */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-8">
+              
+              {/* 1. PRODUCT TYPE & DELIVERY (MOVED TO TOP) */}
+              <Card className="shadow-md border-primary/30 bg-primary/5">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg text-primary flex items-center gap-2"><Package className="w-5 h-5"/> Product Type</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-6">
+                  <RadioGroup 
+                    value={formData.delivery_type || "physical"} 
+                    onValueChange={(val) => setFormData({ ...formData, delivery_type: val as any, requires_shipping: val === "physical" })} 
+                    className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+                  >
+                    <Label className={cn("flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer hover:bg-background transition-all bg-background/50", formData.delivery_type === 'physical' && "border-primary bg-background shadow-sm")}>
+                      <RadioGroupItem value="physical" className="sr-only" />
+                      <Package className={cn("w-8 h-8 mb-2 text-muted-foreground", formData.delivery_type === 'physical' && "text-primary")} />
+                      <span className="font-bold">Physical</span>
+                      <span className="text-[10px] text-muted-foreground mt-1 text-center">Shipped to customer</span>
+                    </Label>
+                    <Label className={cn("flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer hover:bg-background transition-all bg-background/50", formData.delivery_type === 'digital' && "border-primary bg-background shadow-sm")}>
+                      <RadioGroupItem value="digital" className="sr-only" />
+                      <FileDown className={cn("w-8 h-8 mb-2 text-muted-foreground", formData.delivery_type === 'digital' && "text-primary")} />
+                      <span className="font-bold">Digital</span>
+                      <span className="text-[10px] text-muted-foreground mt-1 text-center">Instant download file</span>
+                    </Label>
+                    <Label className={cn("flex flex-col items-center justify-center p-4 border-2 rounded-xl cursor-pointer hover:bg-background transition-all bg-background/50", formData.delivery_type === 'service' && "border-primary bg-background shadow-sm")}>
+                      <RadioGroupItem value="service" className="sr-only" />
+                      <ListPlus className={cn("w-8 h-8 mb-2 text-muted-foreground", formData.delivery_type === 'service' && "text-primary")} />
+                      <span className="font-bold">Service</span>
+                      <span className="text-[10px] text-muted-foreground mt-1 text-center">No delivery required</span>
+                    </Label>
+                  </RadioGroup>
+
+                  {formData.delivery_type === 'physical' && (
+                    <div className="pt-6 border-t border-primary/10 animate-in fade-in slide-in-from-top-2 space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label>Weight (kg)</Label>
+                          <Input type="number" step="0.1" value={formData.weight || 0} onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })} className="bg-background" />
+                          <p className="text-[10px] text-muted-foreground">Used to calculate shipping rates at checkout.</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Dimensions</Label>
+                          <div className="flex items-center gap-2">
+                            <Input type="number" placeholder="L" value={formData.dimensions?.length || ""} onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, length: parseFloat(e.target.value)||0}})} className="bg-background px-2 text-center" />
+                            <span className="text-muted-foreground text-xs">×</span>
+                            <Input type="number" placeholder="W" value={formData.dimensions?.width || ""} onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, width: parseFloat(e.target.value)||0}})} className="bg-background px-2 text-center" />
+                            <span className="text-muted-foreground text-xs">×</span>
+                            <Input type="number" placeholder="H" value={formData.dimensions?.height || ""} onChange={e => setFormData({...formData, dimensions: {...formData.dimensions, height: parseFloat(e.target.value)||0}})} className="bg-background px-2 text-center" />
+                            <Select value={formData.dimensions?.unit || "cm"} onValueChange={v => setFormData({...formData, dimensions: {...formData.dimensions, unit: v}})}>
+                              <SelectTrigger className="w-[70px] bg-background px-2"><SelectValue/></SelectTrigger>
+                              <SelectContent><SelectItem value="cm">cm</SelectItem><SelectItem value="in">in</SelectItem></SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.delivery_type === 'digital' && (
+                    <div className="pt-6 border-t border-primary/10 animate-in fade-in slide-in-from-top-2 space-y-6">
+                      <div className="space-y-3">
+                        <Label>Digital Files</Label>
+                        <p className="text-[10px] text-muted-foreground -mt-1">These files will be automatically emailed to the customer upon successful payment.</p>
+                        <div className="space-y-2">{(formData.digital_files || []).map((file: any, idx: number) => (<div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-background shadow-sm group"><div className="flex items-center gap-3 overflow-hidden"><div className="p-2 bg-primary/10 text-primary rounded"><FileText size={16}/></div><span className="font-medium text-sm truncate">{file.name}</span></div><Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive shrink-0" onClick={() => {const newFiles = [...formData.digital_files]; newFiles.splice(idx, 1); setFormData({...formData, digital_files: newFiles});}}><Trash2 size={16}/></Button></div>))}</div>
+                        <div onClick={() => digitalFileInputRef.current?.click()} className="border-2 border-dashed border-primary/30 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 transition-colors bg-background">
+                          {isUploading ? (<><Loader2 className="w-6 h-6 text-primary animate-spin mb-2" /><p className="text-xs font-medium">Uploading file...</p></>) : (<><UploadCloud className="w-6 h-6 text-primary mb-2 opacity-80" /><p className="text-xs font-bold text-primary">Add Digital File</p></>)}
+                        </div>
+                        <input type="file" ref={digitalFileInputRef} className="hidden" multiple onChange={handleDigitalUpload} />
+                      </div>
+                      <div className="space-y-2 pt-2">
+                        <Label>Delivery Message / Instructions</Label>
+                        <Textarea placeholder="e.g. Thanks for your purchase! Here is the link to access your preset..." value={formData.digital_message || ""} onChange={e => setFormData({...formData, digital_message: e.target.value})} rows={3} className="resize-none bg-background" />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 2. GENERAL DETAILS */}
               <Card className="shadow-sm">
+                <CardHeader className="pb-4"><CardTitle className="text-lg">General Details</CardTitle></CardHeader>
                 <CardContent className="p-6 space-y-4">
                   <div className="space-y-2">
                     <Label>
                       Title <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      placeholder="Short sleeve t-shirt"
+                      placeholder="e.g. Vintage Leather Jacket"
                       value={formData.title}
                       onChange={(e) =>
                         setFormData({ ...formData, title: e.target.value })
                       }
+                      className="text-lg font-bold h-12"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Description</Label>
+                    <Label>Short Description (Below Price)</Label>
                     <Textarea
-                      className="min-h-[150px]"
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          description: e.target.value,
-                        })
-                      }
+                      placeholder="A quick, catchy summary of the product..."
+                      value={formData.short_description || ""}
+                      onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
+                      rows={2}
+                      className="resize-none"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Long Description (Rich Text)</Label>
+                    <div className="border rounded-xl bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+                      <div className="flex flex-wrap items-center gap-1 p-2 bg-muted/30 border-b overflow-x-auto no-scrollbar">
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5 font-bold" onClick={() => insertText('<b>', '</b>')}>B</Button>
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5 italic" onClick={() => insertText('<i>', '</i>')}>I</Button>
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5 underline" onClick={() => insertText('<u>', '</u>')}>U</Button>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5 font-serif font-bold text-[15px]" onClick={() => insertText('<h2>', '</h2>')}>H2</Button>
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5 font-serif font-bold text-[13px]" onClick={() => insertText('<h3>', '</h3>')}>H3</Button>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5" onClick={() => insertText('<ul>\n  <li>', '</li>\n</ul>')}>List</Button>
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5" onClick={() => insertText('<a href="https://..." target="_blank" className="text-primary underline font-bold">', '</a>')}>Link</Button>
+                        <Button variant="ghost" size="sm" type="button" className="h-8 px-2.5 text-primary hover:text-primary hover:bg-primary/10 ml-auto" onClick={() => descriptionFileInputRef.current?.click()}>
+                          <ImageIcon size={14} className="mr-1.5" /> Inject Image
+                        </Button>
+                      </div>
+                      <Textarea
+                        ref={descRef}
+                        className="min-h-[350px] border-0 focus-visible:ring-0 rounded-none resize-y p-5 leading-relaxed"
+                        placeholder="Craft a beautiful, immersive story about your product..."
+                        value={formData.description || ""}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">HTML is supported. Images uploaded here will be securely injected directly into your story.</p>
+                    <input type="file" ref={descriptionFileInputRef} className="hidden" accept="image/*" onChange={handleDescriptionImageUpload} />
                   </div>
                 </CardContent>
               </Card>
 
+              {/* 3. MEDIA GALLERY */}
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg">Media Gallery</CardTitle>
@@ -586,16 +854,19 @@ export default function ProductsPage() {
                 <CardContent className="p-6 pt-0 space-y-4">
                   {(formData.images?.length ?? 0) > 0 && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 mb-4">
-                      {formData.images?.map((img, idx) => (
+                      {formData.images?.map((img, idx) => {
+                        const isVideo = img.match(/\.(mp4|webm|mov)$/i);
+                        return (
                         <div
                           key={idx}
                           className="relative aspect-square rounded-md overflow-hidden border group bg-black"
                         >
-                          <img
-                            src={img}
-                            className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity"
-                            alt={`Product ${idx}`}
-                          />
+                          {isVideo ? (
+                            <video src={img} className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity" muted autoPlay playsInline loop />
+                          ) : (
+                            <img src={img} className="w-full h-full object-cover opacity-90 group-hover:opacity-40 transition-opacity" alt={`Media ${idx}`} />
+                          )}
+                          {idx === 0 && <span className="absolute bottom-1 left-1 bg-primary text-primary-foreground text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm">COVER</span>}
                           {/* Overlay Controls */}
                           <div className="absolute inset-0 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {idx > 0 && (
@@ -613,7 +884,7 @@ export default function ProductsPage() {
                             )}
                           </div>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   )}
                   <div
@@ -632,23 +903,373 @@ export default function ProductsPage() {
                         <div className="bg-primary/10 p-3 rounded-full mb-3">
                           <UploadCloud className="w-6 h-6 text-primary" />
                         </div>
-                        <p className="text-sm font-medium mb-1">
-                          Click to upload files
-                        </p>
+                        <p className="text-sm font-medium mb-1">Click to upload Images or Videos</p>
+                        <p className="text-xs text-muted-foreground">Supported: JPG, PNG, WEBP, MP4, MOV</p>
                       </>
                     )}
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
+                  </div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    multiple
+                    accept="image/*,video/mp4,video/webm,video/quicktime"
+                    onChange={handleImageUpload}
+                  />
+                  <input
+                    type="file"
+                    ref={variantFileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleVariantUpload}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* 4. VARIANTS */}
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Variants & Options</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-6">
+                  {formData.options?.length === 0 ? (
+                    <Button variant="outline" onClick={addOptionGroup}>
+                      <Plus className="w-4 h-4 mr-2" /> Add options like size or color
+                    </Button>
+                  ) : (
+                    <div className="space-y-6">
+                      {formData.options?.map((opt, groupIdx) => (
+                        <div key={groupIdx} className="p-5 border rounded-lg bg-muted/10 space-y-4 relative">
+                          <Button variant="ghost" size="icon" onClick={() => removeOptionGroup(groupIdx)} className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="w-4 h-4" /></Button>
+                          <div className="space-y-2 max-w-sm">
+                            <Label>Option name</Label>
+                            <Input placeholder="e.g., Size, Color" value={opt.name} onChange={(e) => updateOptionName(groupIdx, e.target.value)} />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 pt-1">
+                              <div className="w-[140px]">
+                                <Select value={opt.visual_type || "none"} onValueChange={(val) => {
+                                    const newOptions = [...(formData.options || [])];
+                                    newOptions[groupIdx].visual_type = val as any;
+                                    if (!newOptions[groupIdx].visual_shape) newOptions[groupIdx].visual_shape = 'round';
+                                    setFormData({ ...formData, options: newOptions });
+                                }}>
+                                    <SelectTrigger className="w-full bg-background"><SelectValue placeholder="Display Type" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Text Buttons</SelectItem>
+                                        <SelectItem value="color">Colors</SelectItem>
+                                        <SelectItem value="image">Images</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                              </div>
+                              {opt.visual_type && opt.visual_type !== "none" && (
+                                  <>
+                                      <div className="w-[120px]">
+                                        <Select value={opt.visual_shape || "round"} onValueChange={(val) => {
+                                            const newOptions = [...(formData.options || [])];
+                                            newOptions[groupIdx].visual_shape = val as any;
+                                            setFormData({ ...formData, options: newOptions });
+                                        }}>
+                                            <SelectTrigger className="w-full bg-background"><SelectValue placeholder="Shape" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="round">Round</SelectItem>
+                                                <SelectItem value="square">Square</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="flex items-center gap-2 px-2 border-l border-border h-10">
+                                          <Switch 
+                                            id={`show-label-${groupIdx}`} 
+                                            checked={opt.visual_show_label === true} 
+                                            onCheckedChange={(val) => {
+                                                const newOptions = [...(formData.options || [])];
+                                                newOptions[groupIdx].visual_show_label = val;
+                                                setFormData({ ...formData, options: newOptions });
+                                            }} 
+                                          />
+                                          <Label htmlFor={`show-label-${groupIdx}`} className="text-xs text-muted-foreground whitespace-nowrap cursor-pointer">Show Text</Label>
+                                      </div>
+                                  </>
+                              )}
+                          </div>
+                          <div className="space-y-3">
+                            <Label>Option values</Label>
+                            {opt.values.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {opt.values.map((val, valIdx) => (
+                                  <div key={valIdx} className="flex items-center gap-2 bg-background border rounded-md p-2 w-max shadow-sm">
+                                    {opt.visual_type === 'color' && (
+                                        <input type="color" className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent shrink-0 p-0" value={val.visual_value || "#000000"} onChange={(e) => {
+                                            const newOptions = [...(formData.options || [])];
+                                            newOptions[groupIdx].values[valIdx].visual_value = e.target.value;
+                                            setFormData({...formData, options: newOptions});
+                                        }} title="Choose color" />
+                                    )}
+                                    {opt.visual_type === 'image' && (
+                                        <div
+                                            className="w-7 h-7 rounded border bg-muted flex items-center justify-center cursor-pointer shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
+                                            onClick={() => {
+                                                setActiveVariantUpload({ gIdx: groupIdx, vIdx: valIdx });
+                                                variantFileInputRef.current?.click();
+                                            }}
+                                            title="Upload variant image"
+                                        >
+                                            {val.visual_value ? <img src={val.visual_value} className="w-full h-full object-cover" /> : <ImageIcon size={12} className="text-muted-foreground" />}
+                                        </div>
+                                    )}
+                                    <Badge variant="secondary" className="px-2 py-1 text-sm">{val.label}</Badge>
+                                    <div className="flex items-center gap-1"><span className="text-xs text-muted-foreground">$</span><Input type="number" placeholder="Price" className="w-16 h-7 text-xs bg-muted/30" value={val.price ?? ""} onChange={(e) => updateOptionValuePrice(groupIdx, valIdx, e.target.value)} /></div>
+                                    <button className="text-muted-foreground hover:text-destructive ml-1 p-1 rounded-md hover:bg-destructive/10" onClick={() => removeOptionValue(groupIdx, valIdx)}><X size={14} /></button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex gap-2 max-w-sm">
+                              <Input placeholder="Type a value and press Enter" value={optionInputs[groupIdx] || ""} onChange={(e) => setOptionInputs({ ...optionInputs, [groupIdx]: e.target.value })} onKeyDown={(e) => handleOptionKeyDown(e, groupIdx)} />
+                              <Button type="button" variant="secondary" onClick={() => addOptionValue(groupIdx)}>Add</Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={addOptionGroup}><Plus className="w-4 h-4 mr-2" /> Add another option</Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 5. INVENTORY TRACKING */}
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Inventory Tracking</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-6">
+                  <div className="space-y-2">
+                    <Label>SKU (Stock Keeping Unit)</Label>
+                    <Input value={formData.sku || ""} onChange={(e) => setFormData({ ...formData, sku: e.target.value })} />
+                  </div>
+                  {formData.delivery_type !== 'digital' && (
+                    <div className="pt-4 border-t space-y-4 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium cursor-pointer" htmlFor="track_inv">Track quantity</Label>
+                        <Switch id="track_inv" checked={formData.track_inventory} onCheckedChange={(c) => setFormData({ ...formData, track_inventory: c })} />
+                      </div>
+                      {formData.track_inventory && (
+                        <div className="space-y-2 animate-in slide-in-from-top-2">
+                          <Label>Available Stock</Label>
+                          <Input type="number" className="max-w-[200px]" value={formData.stock_count} onChange={(e) => setFormData({ ...formData, stock_count: parseInt(e.target.value) || 0 })} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {formData.delivery_type === 'digital' && (
+                    <div className="p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground border">
+                      Inventory tracking is disabled for Digital products (Unlimited stock).
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* 6. ACCORDIONS */}
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Product Accordions (FAQs, Info)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-4">
+                  <p className="text-[10px] text-muted-foreground">Add expandable sections below your product description for things like Shipping Policies, Size Guides, or Ingredients.</p>
+                  <div className="space-y-4">
+                    {(formData.accordions || []).map((acc: any, idx: number) => (
+                       <div key={idx} className="p-4 border rounded-xl bg-muted/10 relative group space-y-3">
+                          <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => removeAccordion(idx)}><X className="w-4 h-4" /></Button>
+                          <div className="space-y-1.5 pr-6">
+                            <Label className="text-[10px] uppercase text-muted-foreground">Tab Title</Label>
+                            <Input placeholder="e.g. Refund Policy" value={acc.title} onChange={e => updateAccordion(idx, 'title', e.target.value)} className="h-9 font-bold bg-background" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] uppercase text-muted-foreground">Content</Label>
+                            <Textarea placeholder="Details..." value={acc.content} onChange={e => updateAccordion(idx, 'content', e.target.value)} className="min-h-[80px] resize-y bg-background text-sm" />
+                          </div>
+                       </div>
+                    ))}
+                    <Button variant="outline" className="w-full border-dashed" onClick={addAccordion}><Plus size={14} className="mr-2"/> Add Accordion Tab</Button>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* 7. SEARCH ENGINE OPTIMIZATION */}
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Search engine listing</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-5">
+                  <p className="text-[10px] text-muted-foreground -mt-1">Add a title and description to see how this product might appear in a search engine listing.</p>
+                  
+                  {/* Google Preview */}
+                  <div className="mb-4 p-4 bg-muted/20 border rounded-xl overflow-hidden">
+                    <h3 className="text-[18px] text-[#1a0dab] dark:text-[#8ab4f8] font-normal truncate cursor-pointer hover:underline">
+                      {formData.seo_title || formData.title || "Product Title"}
+                    </h3>
+                    <div className="text-[13px] text-[#006621] dark:text-[#81c995] truncate mt-0.5 flex items-center gap-1 font-medium">
+                      <span>https://{window.location.hostname}</span>
+                      <span className="text-muted-foreground font-normal">› pro › {portfolios.find(p => p.id === formData.portfolio_id)?.public_slug || "store"} › product › {formData.slug || "product-slug"}</span>
+                    </div>
+                    <p className="text-[13px] text-[#545454] dark:text-[#bdc1c6] line-clamp-2 mt-1.5 leading-snug">
+                      {formData.seo_description || formData.short_description || formData.description || "Add a description to see how this product might appear in search engine results."}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Page title</Label>
+                    <Input placeholder="e.g. Vintage Leather Jacket | Free Shipping" value={formData.seo_title || ""} onChange={(e) => setFormData({ ...formData, seo_title: e.target.value })} className="bg-background" />
+                    <p className="text-[10px] text-muted-foreground">{formData.seo_title?.length || 0} of 70 characters used</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Meta description</Label>
+                    <Textarea placeholder="Write a compelling description for search engines..." value={formData.seo_description || ""} onChange={(e) => setFormData({ ...formData, seo_description: e.target.value })} className="resize-y min-h-[80px] bg-background" />
+                    <p className="text-[10px] text-muted-foreground">{formData.seo_description?.length || 0} of 320 characters used</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* RIGHT COLUMN: Settings & Organization */}
+            <div className="space-y-6 lg:sticky lg:top-24 lg:h-max">
+              
+              {/* 8. ORGANIZATION */}
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">
+                    Product Organization
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-4">
+                  <div className="space-y-2">
+                    <Label>Store / Website <span className="text-destructive">*</span></Label>
+                    <Select value={formData.portfolio_id || "global"} onValueChange={(val) => {
+                        let newFormId = formData.form_id;
+                        if (formData.action_type === "cart") newFormId = globalCartForms[val === "global" ? "global" : val] || "";
+                        setFormData({ ...formData, portfolio_id: val === "global" ? null : val, form_id: newFormId });
+                    }}>
+                      <SelectTrigger className="bg-background font-medium"><SelectValue placeholder="Select a Store" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="global" className="text-muted-foreground font-bold">Global (Available on all sites)</SelectItem>
+                        {portfolios.map((p) => <SelectItem key={p.id} value={p.id}>{p.site_name || p.public_slug}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={formData.status || "active"} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                      <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active (Visible)</SelectItem>
+                        <SelectItem value="draft">Draft (Hidden)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Collection</Label>
+                    <Select value={formData.collection_id || "none"} onValueChange={(val) => setFormData({ ...formData, collection_id: val === "none" ? null : val })}>
+                      <SelectTrigger className="bg-background"><SelectValue placeholder="No Collection" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Collection</SelectItem>
+                        {collections.filter((c) => !formData.portfolio_id || c.portfolio_id === formData.portfolio_id || !c.portfolio_id).map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2 pt-4 border-t">
+                    <Label>Product Tag</Label>
+                    <Input
+                      list="product-tags"
+                      placeholder="e.g. Clothing, Spoon, Electronics"
+                      value={formData.product_type || ""}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          product_type: e.target.value,
+                        })
+                      }
+                      className="bg-background"
                     />
+                    <datalist id="product-tags">
+                      {existingTypes
+                        .filter((t) => !["Physical", "Digital", "Service"].includes(t))
+                        .map((t) => <option key={t} value={t} />)}
+                    </datalist>
+                    <p className="text-[10px] text-muted-foreground">Add a tag to categorize this product.</p>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <Label>URL Slug</Label>
+                    <Input placeholder="e.g. awesome-tshirt" value={formData.slug || ""} onChange={(e) => setFormData({ ...formData, slug: generateSlug(e.target.value) })} className="bg-background"/>
+                    <p className="text-[10px] text-muted-foreground break-all">
+                      Link: /pro/product/<strong>{formData.slug || "product-name"}</strong>
+                    </p>
                   </div>
                 </CardContent>
               </Card>
 
+              {/* 8. RELATED PRODUCTS */}
+              <Card className="shadow-sm">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Related Products</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 space-y-5">
+                  <RadioGroup 
+                    value={formData.related_type || "auto"} 
+                    onValueChange={(val: any) => setFormData({ ...formData, related_type: val, related_products: [] })} 
+                    className="flex flex-col gap-3"
+                  >
+                    <Label className={cn("flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors", (!formData.related_type || formData.related_type === "auto") && "bg-primary/5 border-primary shadow-sm")}>
+                      <RadioGroupItem value="auto" />
+                      <div className="font-semibold text-sm">Auto (Same Collection)</div>
+                    </Label>
+                    <Label className={cn("flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors", formData.related_type === "collection" && "bg-primary/5 border-primary shadow-sm")}>
+                      <RadioGroupItem value="collection" />
+                      <div className="font-semibold text-sm">Specific Collection</div>
+                    </Label>
+                    <Label className={cn("flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors", formData.related_type === "manual" && "bg-primary/5 border-primary shadow-sm")}>
+                      <RadioGroupItem value="manual" />
+                      <div className="font-semibold text-sm">Manual Selection</div>
+                    </Label>
+                  </RadioGroup>
+
+                  {formData.related_type === "collection" && (
+                    <div className="animate-in fade-in slide-in-from-top-2 pt-2 border-t">
+                      <Label>Select Target Collection</Label>
+                      <Select value={formData.related_collection_id || ""} onValueChange={(val) => setFormData({ ...formData, related_collection_id: val })}>
+                        <SelectTrigger className="mt-1.5 bg-background"><SelectValue placeholder="Select a collection..." /></SelectTrigger>
+                        <SelectContent>
+                          {collections.filter(c => !formData.portfolio_id || c.portfolio_id === formData.portfolio_id || !c.portfolio_id).map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {formData.related_type === "manual" && (
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 pt-2 border-t">
+                      <Label>Select Products</Label>
+                      <div className="max-h-[250px] overflow-y-auto p-4 border rounded-xl bg-muted/10 space-y-3 custom-scrollbar">
+                        {products.filter(p => p.id !== formData.id && (!formData.portfolio_id || p.portfolio_id === formData.portfolio_id)).map(p => (
+                          <div key={p.id} className="flex items-center space-x-3 bg-background p-2 border rounded-md shadow-sm">
+                            <input type="checkbox" id={`rel-${p.id}`} checked={(formData.related_products || []).includes(p.id)} onChange={(e) => { const current = formData.related_products || []; if (e.target.checked) setFormData({ ...formData, related_products: [...current, p.id] }); else setFormData({ ...formData, related_products: current.filter(id => id !== p.id) }); }} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                            <Label htmlFor={`rel-${p.id}`} className="text-sm cursor-pointer flex-1 flex items-center gap-3">
+                              {p.images?.[0] ? <img src={p.images[0]} className="w-8 h-8 rounded bg-muted object-cover" /> : <div className="w-8 h-8 rounded bg-muted flex items-center justify-center"><Package size={12} className="opacity-50"/></div>}
+                              {p.title}
+                            </Label>
+                          </div>
+                        ))}
+                        {products.length <= 1 && <p className="text-xs text-muted-foreground text-center">No other products available.</p>}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 9. ORGANIZATION */}
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg">Pricing</CardTitle>
@@ -665,7 +1286,7 @@ export default function ProductsPage() {
                       <Input
                         type="number"
                         step="0.01"
-                        className="pl-7"
+                        className="pl-7 bg-background"
                         value={formData.price}
                         onChange={(e) =>
                           setFormData({
@@ -685,7 +1306,7 @@ export default function ProductsPage() {
                       <Input
                         type="number"
                         step="0.01"
-                        className="pl-7"
+                        className="pl-7 bg-background"
                         value={formData.compare_at_price}
                         onChange={(e) =>
                           setFormData({
@@ -699,227 +1320,7 @@ export default function ProductsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">
-                    Inventory & Shipping
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 pt-0 space-y-6">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label>SKU</Label>
-                      <Input
-                        value={formData.sku}
-                        onChange={(e) =>
-                          setFormData({ ...formData, sku: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Weight (kg)</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={formData.weight}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            weight: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="pt-4 border-t space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label
-                        className="text-base font-medium cursor-pointer"
-                        htmlFor="track_inv"
-                      >
-                        Track quantity
-                      </Label>
-                      <Switch
-                        id="track_inv"
-                        checked={formData.track_inventory}
-                        onCheckedChange={(c) =>
-                          setFormData({ ...formData, track_inventory: c })
-                        }
-                      />
-                    </div>
-                    {formData.track_inventory && (
-                      <div className="space-y-2">
-                        <Label>Available Stock</Label>
-                        <Input
-                          type="number"
-                          className="max-w-[200px]"
-                          value={formData.stock_count}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              stock_count: parseInt(e.target.value) || 0,
-                            })
-                          }
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div className="pt-4 border-t flex items-center justify-between">
-                    <Label
-                      className="text-base font-medium cursor-pointer"
-                      htmlFor="req_ship"
-                    >
-                      This is a physical product
-                    </Label>
-                    <Switch
-                      id="req_ship"
-                      checked={formData.requires_shipping}
-                      onCheckedChange={(c) =>
-                        setFormData({ ...formData, requires_shipping: c })
-                      }
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Variants & Options</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 pt-0 space-y-6">
-                  {formData.options?.length === 0 ? (
-                    <Button variant="outline" onClick={addOptionGroup}>
-                      <Plus className="w-4 h-4 mr-2" /> Add options like size or
-                      color
-                    </Button>
-                  ) : (
-                    <div className="space-y-6">
-                      {formData.options?.map((opt, groupIdx) => (
-                        <div
-                          key={groupIdx}
-                          className="p-5 border rounded-lg bg-muted/10 space-y-4 relative"
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeOptionGroup(groupIdx)}
-                            className="absolute top-2 right-2 h-6 w-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                          <div className="space-y-2 max-w-sm">
-                            <Label>Option name</Label>
-                            <Input
-                              placeholder="e.g., Size, Color"
-                              value={opt.name}
-                              onChange={(e) =>
-                                updateOptionName(groupIdx, e.target.value)
-                              }
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <Label>Option values</Label>
-                            {opt.values.length > 0 && (
-                              <div className="flex flex-col gap-2 mb-3">
-                                {opt.values.map((val, valIdx) => (
-                                  <div
-                                    key={valIdx}
-                                    className="flex items-center gap-3 bg-background border rounded-md p-2 w-max"
-                                  >
-                                    <Badge
-                                      variant="secondary"
-                                      className="px-2 py-1 text-sm"
-                                    >
-                                      {val.label}
-                                    </Badge>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-xs text-muted-foreground">
-                                        $
-                                      </span>
-                                      <Input
-                                        type="number"
-                                        placeholder="Price (optional)"
-                                        className="w-28 h-7 text-xs"
-                                        value={val.price ?? ""}
-                                        onChange={(e) =>
-                                          updateOptionValuePrice(
-                                            groupIdx,
-                                            valIdx,
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                    <button
-                                      className="text-muted-foreground hover:text-destructive ml-2"
-                                      onClick={() =>
-                                        removeOptionValue(groupIdx, valIdx)
-                                      }
-                                    >
-                                      <X size={14} />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            <div className="flex gap-2 max-w-sm">
-                              <Input
-                                placeholder="Type a value and press Enter"
-                                value={optionInputs[groupIdx] || ""}
-                                onChange={(e) =>
-                                  setOptionInputs({
-                                    ...optionInputs,
-                                    [groupIdx]: e.target.value,
-                                  })
-                                }
-                                onKeyDown={(e) =>
-                                  handleOptionKeyDown(e, groupIdx)
-                                }
-                              />
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => addOptionValue(groupIdx)}
-                              >
-                                Add
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={addOptionGroup}
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Add another option
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* RIGHT COLUMN: Organization & Settings */}
-            <div className="space-y-6">
-              <Card className="shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Status</CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 pt-0">
-                  <select
-                    className="w-full h-10 px-3 border rounded-md bg-background focus:ring-2"
-                    value={formData.status}
-                    onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value })
-                    }
-                  >
-                    <option value="active">Active</option>
-                    <option value="draft">Draft</option>
-                  </select>
-                </CardContent>
-              </Card>
-
+              {/* 10. CHECKOUT SETTINGS */}
               <Card className="shadow-sm">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg">Checkout Settings</CardTitle>
@@ -927,11 +1328,8 @@ export default function ProductsPage() {
                 <CardContent className="p-6 pt-0 space-y-4">
                   <div className="space-y-2">
                     <Label>Action Type</Label>
-                    <select
-                      className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
-                      value={formData.action_type}
-                      onChange={(e) => {
-                        const newActionType = e.target.value;
+                    <Select value={formData.action_type || "cart"} onValueChange={(val) => {
+                        const newActionType = val;
                         let newFormId = formData.form_id;
                         if (newActionType === "cart") {
                           const siteKey = formData.portfolio_id || "global";
@@ -944,13 +1342,15 @@ export default function ProductsPage() {
                           action_type: newActionType,
                           form_id: newFormId,
                         });
-                      }}
-                    >
-                      <option value="cart">Standard Add to Cart</option>
-                      <option value="whatsapp">Order via WhatsApp</option>
-                      <option value="link">External Link</option>
-                      <option value="form_order">Direct Order Form</option>
-                    </select>
+                    }}>
+                      <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cart">Standard Add to Cart</SelectItem>
+                        <SelectItem value="whatsapp">Order via WhatsApp</SelectItem>
+                        <SelectItem value="link">External Link</SelectItem>
+                        <SelectItem value="form_order">Direct Order Form</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {formData.action_type === "whatsapp" && (
@@ -959,6 +1359,7 @@ export default function ProductsPage() {
                       <Input
                         placeholder="+1234567890"
                         value={formData.whatsapp_number || ""}
+                        className="bg-background"
                         onChange={(e) =>
                           setFormData({
                             ...formData,
@@ -975,7 +1376,7 @@ export default function ProductsPage() {
                   {formData.action_type === "form_order" && (
                     <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-2">
                       <div className="flex items-center justify-between">
-                        <Label>Select Checkout Form (Direct Order)</Label>
+                        <Label>Select Checkout Form</Label>
                         <Button
                           type="button"
                           variant="outline"
@@ -1005,11 +1406,10 @@ export default function ProductsPage() {
                           </option>
                         ))}
                       </select>
-                      <p className="text-xs text-muted-foreground">Attach a custom form from your library to collect specific details.</p>
                     </div>
                   )}
 
-                                    {formData.action_type === "cart" && (
+                  {formData.action_type === "cart" && (
                     <div className="space-y-2 pt-2 animate-in fade-in slide-in-from-top-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-amber-600 dark:text-amber-500 font-bold flex items-center gap-1.5"><AlertTriangle size={14} /> Global Cart Checkout Form</Label>
@@ -1044,13 +1444,9 @@ export default function ProductsPage() {
                             </option>
                           ))}
                         </select>
-                        <p className="text-xs text-amber-700 dark:text-amber-500 font-medium leading-relaxed">
-                          ⚠️ <strong>Warning:</strong> This form is used globally for the entire cart during checkout. Changing this selection and saving will automatically update the checkout form for <strong>all products</strong> set to "Add to Cart" on this website.
-                        </p>
                       </div>
                     </div>
                   )}
-
 
                   {formData.action_type === "link" && (
                     <div className="space-y-2 pt-2">
@@ -1058,6 +1454,7 @@ export default function ProductsPage() {
                       <Input
                         placeholder="https://your-external-site.com"
                         value={formData.checkout_url || ""}
+                        className="bg-background"
                         onChange={(e) =>
                           setFormData({
                             ...formData,
@@ -1067,119 +1464,6 @@ export default function ProductsPage() {
                       />
                     </div>
                   )}
-                </CardContent>
-              </Card>
-
-              {/* SMART PRODUCT ORGANIZATION */}
-              <Card className="shadow-sm">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">
-                    Product Organization
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 pt-0 space-y-4">
-                  <div className="space-y-2">
-                <Label>
-                  Store / Website <span className="text-destructive">*</span>
-                </Label>
-                    <select
-                      className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
-                      value={formData.portfolio_id || ""}
-                      onChange={(e) => {
-                        const newPortfolioId = e.target.value;
-                        let newFormId = formData.form_id;
-                        if (formData.action_type === "cart") {
-                      const siteKey = newPortfolioId;
-                          newFormId = globalCartForms[siteKey] || "";
-                        }
-                        setFormData({
-                          ...formData,
-                          portfolio_id: newPortfolioId,
-                          form_id: newFormId,
-                        });
-                      }}
-                    >
-                  <option value="" disabled>
-                    -- Select a Store / Website --
-                  </option>
-                      {portfolios.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.site_name || p.public_slug}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Product Type</Label>
-                    <Input
-                      list="product-types"
-                      placeholder="e.g. Clothing, Service, Digital"
-                      value={formData.product_type || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          product_type: e.target.value,
-                        })
-                      }
-                    />
-                    <datalist id="product-types">
-                      <option value="Physical" />
-                      <option value="Digital" />
-                      <option value="Service" />
-                      {existingTypes
-                        .filter(
-                          (t) => !["Physical", "Digital", "Service"].includes(t)
-                        )
-                        .map((t) => (
-                          <option key={t} value={t} />
-                        ))}
-                    </datalist>
-                    <p className="text-xs text-muted-foreground">
-                      Select an existing type or type a new one.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Collection / Category</Label>
-                    <select
-                      className="flex h-10 w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-sm focus:ring-2"
-                      value={formData.collection_id || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          collection_id: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="">No Collection</option>
-                    {collections
-                      .filter((c) => !formData.portfolio_id || c.portfolio_id === formData.portfolio_id || !c.portfolio_id)
-                      .map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2 pt-2 border-t">
-                    <Label>Product URL Slug</Label>
-                    <Input
-                      placeholder="e.g. awesome-tshirt"
-                      value={formData.slug || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          slug: generateSlug(e.target.value),
-                        })
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground break-all">
-                      Link: /pro/product/
-                      <strong>{formData.slug || "product-name"}</strong>
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -1209,7 +1493,7 @@ export default function ProductsPage() {
                   <th className="px-6 py-4 font-medium">Store</th>
                   <th className="px-6 py-4 font-medium">Status</th>
                   <th className="px-6 py-4 font-medium">Collection</th>
-                  <th className="px-6 py-4 font-medium">Type</th>
+                  <th className="px-6 py-4 font-medium">Type & Tag</th>
                   <th className="px-6 py-4 font-medium">Action</th>
                   <th className="px-6 py-4 font-medium text-right">Actions</th>
                 </tr>
@@ -1224,22 +1508,26 @@ export default function ProductsPage() {
                   return (
                   <tr
                     key={product.id}
-                    className="hover:bg-muted/30 transition-colors group"
+                    className="hover:bg-muted/30 transition-colors group cursor-pointer"
+                    onClick={() => initForm(product)}
                   >
                     <td className="px-6 py-4 flex items-center gap-4">
                       <div className="w-12 h-12 rounded-md border bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                         {product.images?.[0] ? (
-                          <img
-                            src={product.images[0]}
-                            alt={product.title}
-                            className="w-full h-full object-cover"
-                          />
+                          product.images[0].match(/\.(mp4|webm|mov)$/i) ? (
+                            <video src={product.images[0]} className="w-full h-full object-cover" muted loop playsInline />
+                          ) : (
+                            <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+                          )
                         ) : (
                           <ImageIcon className="w-5 h-5 text-muted-foreground opacity-30" />
                         )}
                       </div>
                       <div>
-                        <div className="font-semibold text-base truncate max-w-[200px]" title={product.title}>
+                        <div className="font-bold text-base truncate max-w-[200px] flex items-center gap-2" title={product.title}>
+                          {product.delivery_type === 'digital' && <FileDown size={14} className="text-blue-500 shrink-0"/>}
+                          {product.delivery_type === 'service' && <ListPlus size={14} className="text-purple-500 shrink-0"/>}
+                          {(!product.delivery_type || product.delivery_type === 'physical') && <Package size={14} className="text-emerald-500 shrink-0"/>}
                           {product.title}
                         </div>
                         <div className="text-muted-foreground flex items-center gap-2 mt-0.5">
@@ -1271,7 +1559,14 @@ export default function ProductsPage() {
                       {collection?.title || "—"}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="capitalize font-medium text-foreground text-sm">{product.product_type || "Physical"}</div>
+                      <div className="flex flex-col gap-1 items-start">
+                        <Badge variant="outline" className={cn("uppercase tracking-widest text-[9px] font-bold shadow-sm", product.delivery_type === 'digital' ? "bg-blue-500/10 text-blue-600 border-blue-500/30" : product.delivery_type === 'service' ? "bg-purple-500/10 text-purple-600 border-purple-500/30" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/30")}>
+                          {product.delivery_type || 'physical'}
+                        </Badge>
+                        {product.product_type && (
+                          <span className="text-[10px] text-muted-foreground font-medium">{product.product_type}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
@@ -1285,6 +1580,7 @@ export default function ProductsPage() {
                           size="sm"
                           asChild
                           title="View Product Page"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <a href={productUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="w-4 h-4" />
@@ -1293,7 +1589,7 @@ export default function ProductsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleToggleStatus(product)}
+                          onClick={(e) => { e.stopPropagation(); handleToggleStatus(product); }}
                           title={product.status === "active" ? "Set to Draft" : "Set to Active"}
                         >
                           {product.status === "active" ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -1301,7 +1597,7 @@ export default function ProductsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDuplicate(product)}
+                          onClick={(e) => { e.stopPropagation(); handleDuplicate(product); }}
                           title="Duplicate"
                         >
                           <Copy className="w-4 h-4" />
@@ -1309,7 +1605,7 @@ export default function ProductsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => initForm(product)}
+                          onClick={(e) => { e.stopPropagation(); initForm(product); }}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -1317,7 +1613,7 @@ export default function ProductsPage() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(product.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(product.id); }}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

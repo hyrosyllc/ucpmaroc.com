@@ -11,6 +11,7 @@ export interface CartItem {
   storeId?: string;
   productType?: string;
   collectionId?: string;
+  requiresShipping?: boolean;
 }
 
 interface CartState {

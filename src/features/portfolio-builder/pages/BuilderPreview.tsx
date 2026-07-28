@@ -7,9 +7,14 @@ import {
   resolveThemeComponent,
 } from "@/themes/registry";
 import { cn } from "@/lib/utils";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, ShoppingCart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/supabaseClient";
+import ModernShopLayout from "@/themes/modern/ShopLayout";
+import ModernProductLayout from "@/themes/modern/ProductLayout";
+import ModernLoginLayout from "@/themes/modern/LoginLayout";
+import CartDrawerContainer from "@/features/ecommerce/components/CartDrawerContainer";
+import { useCartStore } from "@/features/ecommerce/store/useCartStore";
 
 // 🚀 AAA+ UPGRADE: We are using the native executor hook, NO BABEL REQUIRED!
 import { usePrecompiledTheme } from "@/features/portfolio-builder";
@@ -60,6 +65,7 @@ export default function BuilderPreview() {
   const [themeConfig, setThemeConfig] = useState<any>({});
   const [actorId, setActorId] = useState<string>("preview-mode");
   const [portfolioId, setPortfolioId] = useState<string>("preview-mode");
+  const [previewMode, setPreviewMode] = useState<string>("page");
 
   // 1. Establish the postMessage Bridge
   useEffect(() => {
@@ -69,6 +75,7 @@ export default function BuilderPreview() {
         setThemeConfig(event.data.payload.themeConfig);
         if (event.data.payload.actorId) setActorId(event.data.payload.actorId);
         if (event.data.payload.portfolioId) setPortfolioId(event.data.payload.portfolioId);
+        if (event.data.payload.previewMode) setPreviewMode(event.data.payload.previewMode);
       } else if (event.data?.type === "SCROLL_TO_SECTION") {
         const el = document.getElementById(event.data.payload);
         if (el) {
@@ -107,6 +114,51 @@ export default function BuilderPreview() {
 
   // 🚀 AAA+ UPGRADE: Execute natively using the new hook
   const { compiledComponents } = usePrecompiledTheme(customThemeData?.compiled_bundle);
+
+  // 🚀 E-COMMERCE DUMMY DATA FOR PREVIEW MODES
+  useEffect(() => {
+    if (previewMode === 'cart') {
+      const cart = useCartStore.getState();
+      cart.openCart();
+      if (cart.items.length === 0) {
+        cart.addItem({
+          id: "dummy-cart",
+          title: "Premium Sample Product",
+          price: 49.99,
+          quantity: 1,
+          variant: "Default",
+          image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80"
+        });
+      }
+    } else {
+      useCartStore.getState().closeCart();
+    }
+  }, [previewMode]);
+
+  const dummyProducts = [
+    { id: "1", title: "Premium Headphones", price: 299.00, description: "High-quality noise-canceling headphones.", images: ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80"], pro_collections: { title: "Tech" }, track_inventory: true, stock_count: 10, options: [] },
+    { id: "2", title: "Classic Watch", price: 199.00, description: "Elegant timepiece for everyday wear.", images: ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80"], pro_collections: { title: "Accessories" }, track_inventory: true, stock_count: 5, options: [] },
+    { id: "3", title: "Leather Wallet", price: 89.00, description: "Handcrafted genuine leather wallet.", images: ["https://images.unsplash.com/photo-1627123424574-724758594e93?w=800&q=80"], pro_collections: { title: "Accessories" }, track_inventory: false, stock_count: 0, options: [] }
+  ];
+
+  const dummyShopProps = {
+    username: "preview", collections: [{ id: "c1", title: "Tech" }, { id: "c2", title: "Accessories" }], activeCollection: null, setActiveCollection: () => {}, searchQuery: "", setSearchQuery: () => {}, filteredProducts: dummyProducts, themeConfig
+  };
+
+  const dummyProductProps = {
+    username: "preview",
+    product: {
+      ...dummyProducts[0],
+      compare_at_price: 349.00,
+      options: [{ name: "Color", values: [{ label: "Black" }, { label: "Silver" }] }],
+      reviews: [{ id: 1, reviewer_name: "Jane Doe", rating: 5, title: "Love them!", content: "Best audio quality I've ever experienced.", is_published: true, created_at: new Date().toISOString() }]
+    },
+    currentPrice: 299.00, quantity: 1, setQuantity: () => {}, selectedVariants: { Color: { label: "Black" } }, setSelectedVariants: () => {}, activeImgIndex: 0, setActiveImgIndex: () => {}, step: "details" as const, setStep: () => {}, clientInfo: { name: "", phone: "", address: "" }, setClientInfo: () => {}, isSubmitting: false, handleMainAction: () => {}, handleConfirmOrder: () => {}, themeConfig
+  };
+
+  const dummyLoginProps = {
+    portfolio: { site_name: "My Awesome Store" }, email: "", setEmail: () => {}, otp: "", setOtp: () => {}, step: "email", isLoading: false, error: null, handleSendCode: (e: any) => e.preventDefault(), handleVerifyCode: (e: any) => e.preventDefault(), navigate: () => {}, shopUrl: "#"
+  };
 
   const ActiveTheme = THEME_REGISTRY[themeId] || DEFAULT_THEME;
   const primaryHsl = themeConfig.primaryColor
@@ -195,9 +247,24 @@ export default function BuilderPreview() {
            </div>
         )}
 
-        {!isLoadingTheme && !fetchError && sections
-          .filter((s) => s.isVisible)
-          .map((section) => {
+        {!isLoadingTheme && !fetchError && (
+          <>
+            <CartDrawerContainer theme={themeId} username="preview" isPreview={true} />
+            
+            {previewMode === 'shop' && <ModernShopLayout {...dummyShopProps as any} />}
+            {previewMode === 'product' && <ModernProductLayout {...dummyProductProps as any} />}
+            {previewMode === 'portal' && <ModernLoginLayout {...dummyLoginProps as any} />}
+            {previewMode === 'checkout' && (
+              <div className="min-h-screen flex flex-col items-center justify-center bg-neutral-950 text-white">
+                 <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4"><ShoppingCart size={32} /></div>
+                 <h2 className="text-2xl font-bold mb-2">Checkout Layout Preview</h2>
+                 <p className="text-muted-foreground text-sm max-w-md text-center">Your checkout flow uses the <strong>{themeConfig.store_checkout_layout || 'One-Page'}</strong> layout. Fully functional preview coming soon.</p>
+              </div>
+            )}
+            
+            {(previewMode === 'page' || previewMode === 'cart' || previewMode === 'general') && sections
+              .filter((s) => s.isVisible)
+              .map((section) => {
             
             // 🚀 SMART RENDERER: Pick from Natively Compiled Components OR Local Registry
             let Component = null;
@@ -270,6 +337,8 @@ export default function BuilderPreview() {
               </div>
             );
           })}
+          </>
+        )}
       </div>
     </>
   );

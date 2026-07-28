@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/supabaseClient";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { ActorDashboardContextType } from "@/layouts/ActorDashboardLayout"; "@/features/talent-marketplace";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,8 @@ import {
   X as CloseIcon,
   Trash2,
   Mail,
+  Send,
+  MessageSquare,
 } from "lucide-react";
 import {
   Table,
@@ -52,6 +54,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SiteFilter from "@/components/dashboard/SiteFilter";
 import { cn } from "@/lib/utils";
 
@@ -119,12 +122,7 @@ const OrdersPage = () => {
     new Set()
   );
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
-
-  // Sheet State
-  const [selectedOrder, setSelectedOrder] = useState<ProOrder | null>(null);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [internalNotes, setInternalNotes] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const navigate = useNavigate(); // ADD THIS IMPORT
 
   const fetchData = async () => {
     if (!actorData.id) return;
@@ -203,23 +201,7 @@ const OrdersPage = () => {
       toggleOrderSelection(order.id);
       return;
     }
-    setSelectedOrder(order);
-    setInternalNotes(order.notes || "");
-    setIsSheetOpen(true);
-  };
-
-  const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    const updater = (prev: ProOrder[]) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
-    setAllOrders(updater);
-
-    if (selectedOrder && selectedOrder.id === orderId) {
-      setSelectedOrder({ ...selectedOrder, status: newStatus });
-    }
-    await supabase
-      .from("pro_orders")
-      .update({ status: newStatus })
-      .eq("id", orderId);
+    navigate(`/dashboard/orders/${order.id}`);
   };
 
   const handleBulkUpdateStatus = async (newStatus: OrderStatus) => {
@@ -279,23 +261,6 @@ const OrdersPage = () => {
     } else {
       setSelectedOrderIds(new Set(filteredOrders.map((o) => o.id)));
     }
-  };
-
-  const saveNotes = async () => {
-    if (!selectedOrder) return;
-    setIsSaving(true);
-    const { error } = await supabase
-      .from("pro_orders")
-      .update({ notes: internalNotes })
-      .eq("id", selectedOrder.id);
-    if (!error) {
-      setAllOrders((prev) =>
-        prev.map((o) =>
-          o.id === selectedOrder.id ? { ...o, notes: internalNotes } : o
-        )
-      );
-    }
-    setIsSaving(false);
   };
 
   const getSiteName = (id?: string) => {
@@ -477,11 +442,6 @@ const OrdersPage = () => {
       </div>
     );
   }
-
-  // Pre-calculate details for Sheet
-  const selectedOrderDetails = selectedOrder
-    ? extractOrderDetails(selectedOrder)
-    : null;
 
   return (
     <div className="p-4 md:p-8 space-y-6 w-full max-w-7xl mx-auto bg-muted/20 min-h-screen rounded-3xl">
@@ -810,6 +770,11 @@ const OrdersPage = () => {
                               {variantsStr}
                             </div>
                           )}
+                        {order.items?.some((i: any) => i.requiresShipping === false) && (
+                          <Badge variant="outline" className="mt-2 text-[9px] uppercase tracking-widest bg-blue-500/10 text-blue-500 border-blue-500/30 ml-2">
+                            Digital / Service
+                          </Badge>
+                        )}
                         </TableCell>
 
                         <TableCell className="py-4 align-top">
@@ -842,343 +807,6 @@ const OrdersPage = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* 🚀 THE AAA+ ORDER SHEET */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0 border-l border-border bg-background shadow-2xl">
-          {selectedOrder && selectedOrderDetails && (
-            <div className="flex flex-col h-full">
-              {/* Sheet Header */}
-              <div className="p-6 md:p-8 bg-muted/20 border-b border-border space-y-4 shrink-0">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Badge
-                      variant="secondary"
-                      className="bg-background text-muted-foreground border border-border font-bold mb-2 shadow-sm"
-                    >
-                      {getSiteName(selectedOrder.portfolio_id)}
-                    </Badge>
-                    <SheetTitle className="text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
-                      {formatOrderId(selectedOrder.id)}
-                    </SheetTitle>
-                    <div className="text-sm text-muted-foreground font-medium mt-1">
-                      {new Date(selectedOrder.created_at).toLocaleString(
-                        "en-US",
-                        { dateStyle: "long", timeStyle: "short" }
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "font-bold px-3 py-1 text-sm shadow-sm bg-background",
-                        STATUS_MAP[selectedOrder.status]?.color
-                      )}
-                    >
-                      {React.createElement(
-                        STATUS_MAP[selectedOrder.status]?.icon || Clock,
-                        { className: "w-3 h-3 mr-1" }
-                      )}
-                      {STATUS_MAP[selectedOrder.status]?.label}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sheet Body (Scrollable) */}
-              <div className="p-6 md:p-8 space-y-6 flex-grow overflow-y-auto">
-                {/* 1. Order Summary */}
-                <div className="bg-background p-5 rounded-2xl border border-border shadow-sm space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
-                    <ShoppingBag size={14} /> Order Summary
-                  </h4>
-
-                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                    <div className="space-y-4">
-                      {selectedOrder.items.map((item: any, idx: number) => (
-                        <div key={idx} className="flex items-start justify-between gap-4 pb-4 border-b border-border/50 last:border-0 last:pb-0">
-                          <div className="flex gap-3 items-start">
-                            {item.image ? (
-                              <div className="w-12 h-12 rounded-lg border bg-muted overflow-hidden shrink-0">
-                                <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
-                              </div>
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg border bg-muted flex items-center justify-center shrink-0">
-                                <Package className="w-5 h-5 text-muted-foreground opacity-50" />
-                              </div>
-                            )}
-                            <div>
-                              <div className="font-bold text-foreground leading-tight">
-                                {item.title}
-                              </div>
-                              <div className="text-muted-foreground font-medium mt-0.5 text-xs">
-                                Qty: {item.quantity}
-                              </div>
-                              {item.variant && item.variant !== "default" && (
-                                <div className="text-muted-foreground font-medium mt-1 text-[10px] flex items-center gap-1 bg-muted w-max px-2 py-0.5 rounded-md">
-                                  <Tag size={10} /> {item.variant}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-sm font-black font-mono text-foreground mt-0.5">
-                            ${(item.price * item.quantity).toFixed(2)}
-                          </div>
-                        </div>
-                      ))}
-                      <div className="pt-2 flex justify-between items-center">
-                        <span className="font-bold text-muted-foreground text-sm uppercase tracking-widest">Total</span>
-                        <div className="text-xl font-black font-mono text-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
-                          {selectedOrder.amount_cents ? `$${(selectedOrder.amount_cents / 100).toFixed(2)}` : selectedOrder.product_price}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="font-bold text-foreground text-lg">
-                          {selectedOrder.product_name}
-                        </div>
-                        <div className="text-muted-foreground font-medium mt-1 text-sm">
-                          Qty: {selectedOrder.quantity}
-                        </div>
-                        {parseVariants(selectedOrder.variants, selectedOrder.items) && (
-                          <div className="text-muted-foreground font-medium mt-2 text-sm flex items-center gap-1.5 bg-muted w-max px-2 py-1 rounded-md">
-                            <Tag size={12} />{" "}
-                            {parseVariants(selectedOrder.variants, selectedOrder.items)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-xl font-black font-mono text-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
-                        {selectedOrder.product_price}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. Customer Information (Now completely handles Email, City, Zip, Country!) */}
-                <div className="bg-background p-5 rounded-2xl border border-border shadow-sm space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
-                    <User size={14} /> Customer
-                  </h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg">
-                        {(selectedOrder.customer_name || "G")[0].toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-bold text-foreground text-base">
-                          {selectedOrder.customer_name || "Guest Checkout"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 pt-4 border-t border-border">
-                      {selectedOrderDetails.coreExtra.email && (
-                        <div className="flex items-start gap-3">
-                          <Mail
-                            size={16}
-                            className="text-muted-foreground mt-0.5"
-                          />
-                          <div>
-                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                              Email
-                            </div>
-                            <div className="font-medium text-foreground mt-0.5">
-                              {selectedOrderDetails.coreExtra.email}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-start gap-3">
-                        <Phone
-                          size={16}
-                          className="text-muted-foreground mt-0.5"
-                        />
-                        <div>
-                          <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                            Phone
-                          </div>
-                          <div className="font-medium text-foreground mt-0.5">
-                            {selectedOrder.customer_phone || "Not provided"}
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedOrder.customer_address &&
-                        selectedOrder.customer_address !==
-                          "No Address Provided" && (
-                          <div className="flex items-start gap-3">
-                            <MapPin
-                              size={16}
-                              className="text-muted-foreground mt-0.5"
-                            />
-                            <div>
-                              <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                                Address / Shipping
-                              </div>
-                              <div className="font-medium text-foreground mt-0.5 leading-relaxed">
-                                {selectedOrder.customer_address}
-                                {(selectedOrderDetails.coreExtra.city ||
-                                  selectedOrderDetails.coreExtra.zip ||
-                                  selectedOrderDetails.coreExtra.country) && (
-                                  <div className="text-muted-foreground text-sm mt-1">
-                                    {[
-                                      selectedOrderDetails.coreExtra.city,
-                                      selectedOrderDetails.coreExtra.zip,
-                                      selectedOrderDetails.coreExtra.country,
-                                    ]
-                                      .filter(Boolean)
-                                      .join(", ")}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Payment Details */}
-                {(selectedOrderDetails.coreExtra.paymentMethod || selectedOrderDetails.coreExtra.paymentIntent || selectedOrderDetails.coreExtra.bankName) && (
-                  <div className="bg-background p-5 rounded-2xl border border-border shadow-sm space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
-                      <DollarSign size={14} /> Payment Details
-                    </h4>
-                    <div className="space-y-4">
-                      {selectedOrderDetails.coreExtra.paymentMethod && (
-                        <div className="flex items-start gap-3">
-                          <div>
-                            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                              Method
-                            </div>
-                            <div className="font-medium text-foreground mt-0.5">
-                              {selectedOrderDetails.coreExtra.paymentMethod}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedOrderDetails.coreExtra.bankName && (
-                        <div className="bg-muted/30 p-3 rounded-lg border space-y-1">
-                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                            Bank Transfer Details Selected
-                          </Label>
-                          <div className="text-sm font-medium">Bank: {selectedOrderDetails.coreExtra.bankName}</div>
-                          <div className="text-sm font-medium">Holder: {selectedOrderDetails.coreExtra.bankHolder}</div>
-                          <div className="text-sm font-medium">IBAN: {selectedOrderDetails.coreExtra.bankIban}</div>
-                        </div>
-                      )}
-                      
-                      {selectedOrderDetails.coreExtra.paymentIntent && (
-                        <div className="bg-muted/30 p-3 rounded-lg border space-y-1">
-                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                            Payment Intent ID
-                          </Label>
-                          <div className="font-medium font-mono text-xs break-all text-muted-foreground">
-                            {selectedOrderDetails.coreExtra.paymentIntent}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Form Responses (Stripped of duplicated core fields) */}
-                {selectedOrderDetails.customData.length > 0 && (
-                  <div className="bg-background p-5 rounded-2xl border border-border shadow-sm">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-4">
-                      <FileText size={14} /> Custom Form Data
-                    </h4>
-                    <div className="space-y-4">
-                      {selectedOrderDetails.customData.map(
-                        (item: any, idx: number) => (
-                          <div
-                            key={idx}
-                            className="bg-muted/50 p-4 rounded-xl border border-border"
-                          >
-                            <div className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">
-                              {item.key}
-                            </div>
-                            <div className="font-medium text-foreground whitespace-pre-wrap">
-                              {item.value || "—"}
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 5. Internal Actions (Status & Notes) */}
-                <div className="space-y-4 pt-2">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                    <TrendingUp size={14} /> Fulfillment Tracking
-                  </h4>
-
-                  <div className="space-y-2">
-                    <Label className="font-bold text-foreground">
-                      Update Order Status
-                    </Label>
-                    <Select
-                      value={selectedOrder.status}
-                      onValueChange={(val: OrderStatus) =>
-                        updateStatus(selectedOrder.id, val)
-                      }
-                    >
-                      <SelectTrigger className="h-12 bg-background border-border rounded-xl font-medium focus:ring-primary shadow-sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl shadow-xl z-[100000]">
-                        {Object.entries(STATUS_MAP).map(([key, info]) => (
-                          <SelectItem
-                            key={key}
-                            value={key}
-                            className="font-medium cursor-pointer py-3"
-                          >
-                            <div className="flex items-center gap-2">
-                              <info.icon className="w-4 h-4 opacity-50" />{" "}
-                              {info.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2 pt-2">
-                    <Label className="font-bold text-foreground">
-                      Private Internal Notes
-                    </Label>
-                    <Textarea
-                      value={internalNotes}
-                      onChange={(e) => setInternalNotes(e.target.value)}
-                      placeholder="Add tracking links, internal references, or private notes here..."
-                      className="min-h-[100px] bg-background border-border rounded-xl resize-none focus:ring-primary shadow-sm"
-                    />
-                    <Button
-                      onClick={saveNotes}
-                      disabled={
-                        isSaving || internalNotes === selectedOrder.notes
-                      }
-                      className="w-full h-12 rounded-xl font-bold mt-2 shadow-sm"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="animate-spin h-5 w-5" />
-                      ) : (
-                        "Save Notes"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };

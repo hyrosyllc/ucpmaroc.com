@@ -292,7 +292,7 @@ export default function CouponsPage() {
                         </Label>
                         <Label htmlFor="applies-types" className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${formData.applies_to === "types" ? "bg-primary/5 border-primary" : "hover:bg-muted"}`}>
                           <RadioGroupItem value="types" id="applies-types" className="sr-only"/>
-                          <div className="w-full text-center font-medium text-sm flex items-center justify-center gap-2"><Type size={14}/> Product Types</div>
+                          <div className="w-full text-center font-medium text-sm flex items-center justify-center gap-2"><Type size={14}/> Product Tags</div>
                         </Label>
                       </RadioGroup>
 
@@ -376,7 +376,7 @@ export default function CouponsPage() {
                         coupon.applies_to === 'all' || !coupon.applies_to ? "All Products" :
                         coupon.applies_to === 'products' ? `${coupon.target_ids?.length || 0} Products` :
                         coupon.applies_to === 'collections' ? `${coupon.target_ids?.length || 0} Collections` :
-                        `${coupon.target_ids?.length || 0} Types`
+                        `${coupon.target_ids?.length || 0} Tags`
                       }
                     </td>
                     <td className="px-6 py-4 text-muted-foreground text-xs font-medium">

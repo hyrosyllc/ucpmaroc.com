@@ -73,10 +73,19 @@ import {
   OrdersPage,
   LeadsPage,
   FormsPage,
+  ProOrderDetailPage,
   PaymentsPage,
   StripeCallbackPage,
 } from "@/features/ecommerce";
 import { SettingsPage } from "@/features/portfolio-builder";
+const CustomersPage = lazy(() => import("@/features/ecommerce/pages/CustomersPage"));
+const ProductReviewsPage = lazy(() => import("@/features/ecommerce/pages/ProductReviewsPage"));
+const CustomerLoginPage = lazy(() => import("@/features/ecommerce/pages/CustomerLoginPage"));
+const CustomerDashboardLayout = lazy(() => import("@/layouts/CustomerDashboardLayout"));
+const CustomerDashboardOverview = lazy(() => import("@/features/ecommerce/pages/CustomerDashboardOverview"));
+const CustomerOrdersPage = lazy(() => import("@/features/ecommerce/pages/CustomerOrdersPage"));
+const CustomerOrderDetailPage = lazy(() => import("@/features/ecommerce/pages/CustomerOrderDetailPage"));
+const CustomerMessagesPage = lazy(() => import("@/features/ecommerce/pages/CustomerMessagesPage"));
 
 // --- E-COMMERCE PUBLIC PAGES ---
 import {
@@ -197,6 +206,13 @@ function App() {
                     <Route path="thank-you" element={<ThankYouLayout />}>
                       <Route index element={<PublicThankYouPage />} />
                     </Route>
+                    <Route path="login" element={<CustomerLoginPage />} />
+                    <Route path="dashboard" element={<CustomerDashboardLayout />}>
+                      <Route index element={<CustomerDashboardOverview />} />
+                      <Route path="orders" element={<CustomerOrdersPage />} />
+                      <Route path="orders/:id" element={<CustomerOrderDetailPage />} />
+                      <Route path="messages" element={<CustomerMessagesPage />} />
+                    </Route>
                     <Route path=":pageSlug" element={<DynamicPage />} />
                   </Route>
                 ) : (
@@ -238,6 +254,13 @@ function App() {
                       </Route>
                       <Route path="thank-you" element={<ThankYouLayout />}>
                         <Route index element={<PublicThankYouPage />} />
+                      </Route>
+                      <Route path="login" element={<CustomerLoginPage />} />
+                      <Route path="dashboard" element={<CustomerDashboardLayout />}>
+                        <Route index element={<CustomerDashboardOverview />} />
+                        <Route path="orders" element={<CustomerOrdersPage />} />
+                        <Route path="orders/:id" element={<CustomerOrderDetailPage />} />
+                        <Route path="messages" element={<CustomerMessagesPage />} />
                       </Route>
                       <Route path=":pageSlug" element={<DynamicPage />} />
                     </Route>
@@ -302,7 +325,8 @@ function App() {
                       />
                       <Route path="job-orders" element={<DashboardOrders />} />
 
-                      <Route path="Orders" element={<OrdersPage />} />
+                      <Route path="orders" element={<OrdersPage />} />
+                      <Route path="orders/:id" element={<ProOrderDetailPage />} />
                       <Route path="leads" element={<LeadsPage />} />
                       <Route path="settings" element={<SettingsPage />} />
                       <Route path="products" element={<ProductsPage />} />
@@ -312,6 +336,8 @@ function App() {
                       <Route path="forms" element={<FormsPage />} />
                       <Route path="markets" element={<MarketsPage />} />
                       <Route path="payments" element={<PaymentsPage />} />
+                      <Route path="customers" element={<CustomersPage />} />
+                      <Route path="product-reviews" element={<ProductReviewsPage />} />
                       <Route path="studio" element={<ThemeStudioPage />} />
                       <Route
                         path="creator-hub"

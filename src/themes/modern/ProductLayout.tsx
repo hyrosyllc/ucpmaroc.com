@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ChevronRight,
   MessageCircle,
+  Star,
   MessageSquare,
   Calendar,
   FileText,
@@ -26,6 +27,7 @@ import {
   Layers,
   Box,
   Mail,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductLayoutProps } from "../../features/ecommerce/product-layouts/types";
@@ -67,6 +69,15 @@ export default function ModernProductLayout({
   formValues = {},
   setFormValues,
   isLoadingForm,
+  themeConfig,
+  customer,
+  reviewForm,
+  setReviewForm,
+  isSubmittingReview,
+  reviewSuccess,
+  handleReviewSubmit,
+  relatedProducts,
+
 }: ProductLayoutProps) {
   // AAA+ Fix: Check both array images and legacy single image string
   const images = product?.images?.length
@@ -77,6 +88,8 @@ export default function ModernProductLayout({
 
   // AAA+ Fix: Safely determine if the item is sold out
   const isOutOfStock = product?.track_inventory && product?.stock_count <= 0;
+
+  const showReviews = themeConfig?.store_product_reviews !== false;
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white font-sans pt-20">
@@ -120,11 +133,15 @@ export default function ModernProductLayout({
           {/* LEFT: IMAGE GALLERY (Sticky) */}
           <div className="w-full lg:w-1/2 flex flex-col space-y-4 lg:sticky lg:top-24 lg:h-max">
             <div className="aspect-square bg-black/50 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center relative group">
-              <img
-                src={images[activeImgIndex]}
-                alt={product.title}
-                className="w-full h-full object-cover animate-in fade-in duration-500"
-              />
+              {images[activeImgIndex]?.match(/\.(mp4|webm|mov)$/i) ? (
+                <video src={images[activeImgIndex]} autoPlay loop muted playsInline className="w-full h-full object-cover animate-in fade-in duration-500" />
+              ) : (
+                <img
+                  src={images[activeImgIndex]}
+                  alt={product.title}
+                  className="w-full h-full object-cover animate-in fade-in duration-500"
+                />
+              )}
               {product.compare_at_price > product.price && (
                 <Badge className="absolute top-4 left-4 bg-primary text-black font-bold uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg z-10 border-none">
                   Sale
@@ -155,11 +172,15 @@ export default function ModernProductLayout({
                         : "border-transparent opacity-50 hover:opacity-100 border-white/10"
                     )}
                   >
-                    <img
-                      src={img}
-                      className="w-full h-full object-cover"
-                      alt={`Thumbnail ${idx}`}
-                    />
+                    {img?.match(/\.(mp4|webm|mov)$/i) ? (
+                      <video src={img} className="w-full h-full object-cover" muted />
+                    ) : (
+                      <img
+                        src={img}
+                        className="w-full h-full object-cover"
+                        alt={`Thumbnail ${idx}`}
+                      />
+                    )}
                   </button>
                 ))}
               </div>
@@ -335,15 +356,12 @@ export default function ModernProductLayout({
                     </span>
                   )}
                 </div>
-
-                {/* AAA+ Fix: Safely fallback to empty string to prevent .split() crash */}
-                <div className="prose prose-invert max-w-none text-neutral-300 leading-relaxed mb-10 whitespace-pre-wrap">
-                  {(product?.description || "")
-                    .split("\n")
-                    .map((line: string, i: number) => (
-                      <p key={i}>{line}</p>
-                    ))}
-                </div>
+              
+              {product.short_description && (
+                <p className="text-neutral-400 text-lg mb-6 leading-relaxed animate-in fade-in">
+                  {product.short_description}
+                </p>
+              )}
 
                 {/* DYNAMIC OPTIONS / VARIANTS */}
                 {product.options?.length > 0 && (
@@ -356,12 +374,64 @@ export default function ModernProductLayout({
                           </Label>
                           <span className="text-xs text-primary font-medium">
                             {selectedVariants[opt.name]?.label}
+                            {selectedVariants[opt.name]?.price ? ` (+$${selectedVariants[opt.name].price})` : ''}
+
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-3">
                           {opt.values.map((val: any) => {
                             const isSelected =
                               selectedVariants[opt.name]?.label === val.label;
+                            const isRound = opt.visual_shape !== 'square';
+
+                            if (opt.visual_type === 'color') {
+                              return (
+                                <button
+                                  key={val.label}
+                                  onClick={() => setSelectedVariants((prev) => ({ ...prev, [opt.name]: val }))}
+                                  title={val.label + (val.price ? ` (+$${val.price})` : '')}
+                                  className={cn(
+                                    "relative transition-all duration-200 border-2 flex items-center justify-center bg-neutral-900",
+                                    isRound ? "rounded-full" : "rounded-lg",
+                                    isSelected ? "border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)] scale-105" : "border-transparent hover:scale-105 hover:border-white/30",
+                                    opt.visual_show_label ? "h-10 pl-2 pr-4 gap-2 w-max" : "w-10 h-10"
+                                  )}
+                                >
+                                  <span className={cn("block shadow-sm border border-white/10 shrink-0", isRound ? "rounded-full" : "rounded-[4px]", opt.visual_show_label ? "w-5 h-5" : "w-7 h-7")} style={{ backgroundColor: val.visual_value || '#000000' }} />
+                                  {opt.visual_show_label && <span className="text-sm font-medium">{val.label}</span>}
+                                </button>
+                              )
+                            }
+
+                            if (opt.visual_type === 'image') {
+                              return (
+                                <button
+                                  key={val.label}
+                                  onClick={() => setSelectedVariants((prev) => ({ ...prev, [opt.name]: val }))}
+                                  title={val.label + (val.price ? ` (+$${val.price})` : '')}
+                                  className={cn(
+                                    "relative transition-all duration-200 border-2 bg-neutral-900 flex items-center justify-center",
+                                    isRound ? "rounded-full" : "rounded-xl",
+                                    isSelected ? "border-primary shadow-[0_0_15px_rgba(var(--primary),0.3)] z-10 scale-105" : "border-white/10 hover:scale-105 hover:border-white/30",
+                                    opt.visual_show_label ? "h-14 pl-1.5 pr-5 gap-3 w-max" : "w-14 h-14 p-0.5 overflow-hidden"
+                                  )}
+                                >
+                                  <span className={cn(
+                                      "shrink-0 overflow-hidden flex items-center justify-center", 
+                                      isRound ? "rounded-full" : "rounded-lg", 
+                                      opt.visual_show_label ? "w-11 h-11" : "w-full h-full"
+                                  )}>
+                                    {val.visual_value ? (
+                                      <img src={val.visual_value} alt={val.label} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span className="text-[10px] text-neutral-500 font-medium px-2 text-center leading-tight bg-neutral-800 w-full h-full flex items-center justify-center">{val.label}</span>
+                                    )}
+                                  </span>
+                                  {opt.visual_show_label && <span className="text-sm font-medium">{val.label}</span>}
+                                </button>
+                              )
+                            }
+
                             return (
                               <button
                                 key={val.label}
@@ -480,14 +550,166 @@ export default function ModernProductLayout({
               {(product.sku || product.product_type || (product.requires_shipping && product.weight > 0)) && (
                 <div className="mt-8 pt-6 border-t border-white/10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-neutral-400 animate-in fade-in duration-500">
                   {product.sku && <div className="flex items-center gap-2"><Tag size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">SKU:</span> <span className="text-white font-mono">{product.sku}</span></div>}
-                  {product.product_type && <div className="flex items-center gap-2"><Layers size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Type:</span> <span className="text-white capitalize">{product.product_type}</span></div>}
+                  {product.product_type && <div className="flex items-center gap-2"><Layers size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Tag:</span> <span className="text-white capitalize">{product.product_type}</span></div>}
                   {product.requires_shipping && product.weight > 0 && <div className="flex items-center gap-2"><Box size={16} className="text-neutral-500" /> <span className="uppercase tracking-wider text-[10px] font-bold">Weight:</span> <span className="text-white">{product.weight} kg</span></div>}
+                </div>
+              )}
+              
+              {/* DYNAMIC ACCORDIONS (FAQs, Shipping Policies, Size Guides) */}
+              {product.accordions && product.accordions.length > 0 && (
+                <div className="mt-8 space-y-3 border-t border-white/10 pt-8 animate-in fade-in duration-500">
+                  {product.accordions.map((acc: any, i: number) => (
+                    <details key={i} className="group border border-white/10 bg-neutral-900/30 rounded-xl overflow-hidden transition-all duration-300 open:bg-neutral-900/60">
+                      <summary className="flex cursor-pointer items-center justify-between p-5 font-bold text-white hover:text-primary transition-colors select-none">
+                        {acc.title}
+                        <span className="transition-transform duration-300 group-open:rotate-180 text-neutral-500 group-hover:text-primary">
+                          <ChevronDown size={18} />
+                        </span>
+                      </summary>
+                      <div className="p-5 pt-0 text-sm text-neutral-400 leading-relaxed whitespace-pre-wrap border-t border-white/5 mx-5 mt-2">
+                        {acc.content}
+                      </div>
+                    </details>
+                  ))}
                 </div>
               )}
               </div>
             )}
           </div>
         </div>
+
+        {/* THE LONG DESCRIPTION (Below the fold) */}
+        {product.description && (
+          <div className="mt-20 pt-16 border-t border-white/10 w-full animate-in fade-in duration-500">
+            <h3 className="text-3xl font-bold text-white tracking-tight mb-10 text-center">Product Details</h3>
+            <div 
+              className="prose prose-invert prose-lg max-w-4xl mx-auto text-neutral-300 leading-relaxed prose-img:rounded-2xl prose-img:shadow-2xl prose-a:text-primary prose-a:font-bold prose-headings:text-white" 
+              dangerouslySetInnerHTML={{ __html: product.description }} 
+            />
+          </div>
+        )}
+
+        {/* RELATED PRODUCTS */}
+        {themeConfig?.store_related_products !== false && relatedProducts && relatedProducts.length > 0 && (
+          <div className="mt-20 pt-16 border-t border-white/10 w-full animate-in fade-in duration-500">
+            <h3 className="text-3xl font-bold text-white tracking-tight mb-10 text-center">You might also like</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+              {relatedProducts.map((rel: any) => (
+                <Link
+                  key={rel.id}
+                  to={`/${username}/product/${rel.slug || rel.id}`}
+                  className="group flex flex-col bg-neutral-900/50 border border-white/10 rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-[0_0_30px_rgba(var(--primary),0.1)] transition-all duration-300"
+                >
+                  <div className="aspect-[4/3] bg-black/50 relative overflow-hidden">
+                    {rel.images?.[0] ? (
+                      rel.images[0].match(/\.(mp4|webm|mov)$/i) ? (
+                        <video src={rel.images[0]} autoPlay loop muted playsInline className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      ) : (
+                        <img src={rel.images[0]} alt={rel.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      )
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-neutral-700">
+                        <ShoppingBag size={48} opacity={0.5} />
+                      </div>
+                    )}
+                    {rel.compare_at_price > rel.price && (
+                      <Badge className="absolute top-3 left-3 bg-primary text-black font-bold uppercase tracking-widest text-[10px] px-3 py-1 shadow-lg z-10 border-none">Sale</Badge>
+                    )}
+                    <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+                      <Badge className="bg-black/70 backdrop-blur-md text-white border-white/10 font-bold px-3 py-1 text-sm shadow-xl">${rel.price.toFixed(2)}</Badge>
+                    </div>
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    {rel.pro_collections?.title && <span className="text-[10px] uppercase tracking-widest text-primary font-bold mb-2 block">{rel.pro_collections.title}</span>}
+                    <h3 className="font-bold text-lg leading-tight mb-2 group-hover:text-primary transition-colors text-white line-clamp-2">{rel.title}</h3>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showReviews && (
+          <div className="mt-20 pt-16 border-t border-white/10 max-w-4xl mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+               <div>
+                 <h3 className="text-3xl font-bold text-white tracking-tight">Customer Reviews</h3>
+                 <p className="text-neutral-400 mt-2">See what others are saying about this product.</p>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
+              <div className="md:col-span-7 space-y-6">
+                {product.reviews && product.reviews.length > 0 ? (
+                  product.reviews.map((r: any) => (
+                    <div key={r.id} className="bg-white/5 p-6 rounded-2xl border border-white/10">
+                       <div className="flex items-center justify-between mb-4">
+                         <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold">
+                               {(r.pro_customers?.name || "C").charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                               <div className="font-bold text-sm text-white">{r.pro_customers?.name || "Customer"}</div>
+                               <div className="text-[10px] text-neutral-500">{new Date(r.created_at).toLocaleDateString()}</div>
+                            </div>
+                         </div>
+                         <div className="flex gap-1">
+                           {[...Array(5)].map((_, i) => <Star key={i} size={14} className={cn(i < r.rating ? "text-amber-500 fill-amber-500" : "text-neutral-700")} />)}
+                         </div>
+                       </div>
+                       {r.title && <h4 className="font-bold mb-2 text-white">{r.title}</h4>}
+                       <p className="text-sm text-neutral-300 leading-relaxed">"{r.content}"</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10 text-neutral-400">
+                     <Star className="w-10 h-10 mx-auto mb-4 opacity-20" />
+                     <p className="font-medium">No reviews yet.</p>
+                     <p className="text-sm opacity-60 mt-1">Be the first to review this product!</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="md:col-span-5">
+                <div className="bg-neutral-900/50 p-6 md:p-8 rounded-2xl border border-white/10 sticky top-24">
+                  <h4 className="text-xl font-bold text-white mb-6">Write a Review</h4>
+                  {customer ? (
+                    reviewSuccess ? (
+                      <div className="text-center py-8">
+                        <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                        <p className="font-bold text-white">Review Submitted!</p>
+                        <p className="text-sm text-neutral-400 mt-2">Thank you! Your review is pending approval.</p>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleReviewSubmit} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label className="text-neutral-400 text-xs uppercase tracking-widest font-bold">Rating</Label>
+                          <div className="flex gap-1">
+                            {[1,2,3,4,5].map(num => (
+                              <Star key={num} size={24} className={cn("cursor-pointer transition-all hover:scale-110", reviewForm?.rating >= num ? "text-amber-500 fill-amber-500" : "text-neutral-600")} onClick={() => setReviewForm?.({...reviewForm, rating: num})} />
+                            ))}
+                          </div>
+                        </div>
+                        <Input placeholder="Review Title" required value={reviewForm?.title} onChange={e => setReviewForm?.({...reviewForm, title: e.target.value})} className="bg-black/50 border-white/10 text-white" />
+                        <Textarea placeholder="Share your experience..." required value={reviewForm?.content} onChange={e => setReviewForm?.({...reviewForm, content: e.target.value})} className="bg-black/50 border-white/10 text-white min-h-[100px] resize-none" />
+                        <Button type="submit" disabled={isSubmittingReview} className="w-full bg-primary text-black hover:bg-primary/90 font-bold">
+                          {isSubmittingReview ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MessageSquare className="w-4 h-4 mr-2"/>} Submit Review
+                        </Button>
+                      </form>
+                    )
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-neutral-400 mb-4">You must be logged in to leave a review.</p>
+                      <Button asChild variant="outline" className="w-full border-white/20 text-white hover:bg-white/10">
+                        <Link to={`/${username ? username + '/' : ''}login`}>Log in to Account</Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

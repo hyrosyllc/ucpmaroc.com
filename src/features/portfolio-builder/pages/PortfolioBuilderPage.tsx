@@ -34,6 +34,7 @@ import {
   X,
   Lock,
   RefreshCw,
+  ShoppingCart,
   Zap,
   Circle,
   LayoutTemplate,
@@ -70,6 +71,8 @@ import {
   Briefcase,
   Store,
   Gift,
+  ChevronRight,
+  Package,
 } from "lucide-react";
 import {
   type PortfolioSection,
@@ -192,6 +195,8 @@ const IframePreview = ({
   publicSlug,
   editingSectionId,
   portfolioId,
+  activeTab,
+  editingStorePage,
 }: {
   sections: PortfolioSection[];
   theme: any;
@@ -203,6 +208,8 @@ const IframePreview = ({
   customPages: any[];
   publicSlug: string;
   editingSectionId?: string | null;
+  activeTab: string;
+  editingStorePage: string | null;
   portfolioId?: string | null;
 }) => {
   const iframeRef = React.useRef<HTMLIFrameElement>(null);
@@ -247,11 +254,16 @@ const IframePreview = ({
               ...previewSections,
             ]
           : previewSections;
+          
+      let previewMode = 'page';
+      if ((activeTab === 'store' || activeTab === 'preview') && editingStorePage) {
+        previewMode = editingStorePage.toLowerCase();
+      }
 
       iframeRef.current.contentWindow.postMessage(
         {
           type: "UPDATE_PREVIEW",
-          payload: { sections: finalSections, themeConfig: theme, actorId, portfolioId },
+          payload: { sections: finalSections, themeConfig: theme, actorId, portfolioId, previewMode },
         },
         "*"
       );
@@ -265,6 +277,8 @@ const IframePreview = ({
     customPages,
     publicSlug,
     portfolioId,
+    activeTab,
+    editingStorePage
   ]);
 
   useEffect(() => {
@@ -474,6 +488,7 @@ const PortfolioBuilderPage = () => {
   const [tempLabel, setTempLabel] = useState("");
 
   // Create Site / Onboarding State
+  const [activeBuilderTab, setActiveBuilderTab] = useState("content");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -493,6 +508,7 @@ const PortfolioBuilderPage = () => {
   const [activePageId, setActivePageId] = useState<string | "home">("home");
   const [lastLoadedKey, setLastLoadedKey] = useState<string | null>(null);
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
+  const [editingStorePage, setEditingStorePage] = useState<string | null>(null);
   const [newPageName, setNewPageName] = useState("");
   const [isCreatingPage, setIsCreatingPage] = useState(false);
   const [isDeletingPage, setIsDeletingPage] = useState(false);
@@ -631,6 +647,7 @@ const PortfolioBuilderPage = () => {
         setActivePortfolioId(fetchedPortfolio.id);
         setActivePageId("home");
         setEditingSection(null);
+        setEditingStorePage(null);
       }
 
       setIsPublished(prev => prev !== fetchedPortfolio.is_published ? fetchedPortfolio.is_published : prev);
@@ -1059,6 +1076,15 @@ const PortfolioBuilderPage = () => {
           activeCustomPage?.slug || ""
         }`;
 
+  const STORE_PAGES = [
+    { id: 'General', title: 'General Settings', description: 'Store-wide configurations', icon: Settings },
+    { id: 'Shop', title: 'Shop Page', description: 'Product grid & filters', icon: Store },
+    { id: 'Product', title: 'Product Page', description: 'Details, reviews & related', icon: Package },
+    { id: 'Cart', title: 'Cart Drawer', description: 'Global sliding cart', icon: ShoppingCart },
+    { id: 'Checkout', title: 'Checkout Page', description: 'Payment & shipping flow', icon: CreditCard },
+    { id: 'Portal', title: 'Customer Portal', description: 'Login & order history', icon: User },
+  ];
+
   if (isLoading || isSubLoading)
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -1313,8 +1339,17 @@ const PortfolioBuilderPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 flex-grow overflow-hidden min-h-0 relative pb-2">
         <div className="lg:col-span-1 flex flex-col h-full min-h-0 overflow-hidden pr-1">
-          <Tabs defaultValue="content" className="flex flex-col h-full min-h-0">
-            <TabsList className="w-full grid grid-cols-3 lg:grid-cols-2 gap-2 shrink-0 rounded-3xl bg-muted/40 p-2 h-12 mb-4">
+          <Tabs 
+            value={activeBuilderTab} 
+            onValueChange={(val) => {
+              setActiveBuilderTab(val);
+              if (val === 'content' || val === 'design') {
+                setEditingStorePage(null);
+              }
+            }} 
+            className="flex flex-col h-full min-h-0"
+          >
+            <TabsList className="w-full grid grid-cols-4 lg:grid-cols-3 gap-2 shrink-0 rounded-3xl bg-muted/40 p-2 h-12 mb-4">
               <TabsTrigger
                 value="content"
                 className="h-full rounded-2xl border border-transparent bg-muted/80 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:text-primary"
@@ -1326,6 +1361,12 @@ const PortfolioBuilderPage = () => {
                 className="h-full rounded-2xl border border-transparent bg-muted/80 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:text-primary"
               >
                 <Palette className="w-4 h-4 mr-2 hidden sm:inline" /> Design
+              </TabsTrigger>
+              <TabsTrigger
+                value="store"
+                className="h-full rounded-2xl border border-transparent bg-muted/80 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:border-primary data-[state=active]:text-primary"
+              >
+                <Store className="w-4 h-4 mr-2 hidden sm:inline" /> Store
               </TabsTrigger>
               <TabsTrigger
                 value="preview"
@@ -2053,6 +2094,165 @@ const PortfolioBuilderPage = () => {
               )}
             </TabsContent>
 
+            {/* STORE TAB */}
+            <TabsContent
+              value="store"
+              className="flex-grow flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden"
+            >
+              {editingStorePage ? (
+                <div className="flex flex-col h-full w-full animate-in slide-in-from-right-4 duration-200">
+                  <div className="pb-3 mb-2 border-b flex items-center justify-between shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingStorePage(null)}
+                      className="h-8 px-3 rounded-full"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+                    </Button>
+                    <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground mr-2 truncate">
+                    {STORE_PAGES.find(p => p.id === editingStorePage)?.title || "Settings"}
+                    </span>
+                  </div>
+                  <div className="flex-grow overflow-y-auto custom-scrollbar p-0 pb-12 space-y-6 animate-in fade-in">
+                   {editingStorePage === 'General' && (
+                     <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                        <div className="flex justify-between items-center">
+                           <div className="space-y-0.5">
+                             <Label className="font-bold">Enable Store Functionality</Label>
+                             <p className="text-[10px] text-muted-foreground">Globally toggle e-commerce features on or off.</p>
+                           </div>
+                           <Switch 
+                             checked={themeConfig.store_enabled !== false} 
+                             onCheckedChange={(c) => updateThemeConfig({ store_enabled: c })}
+                           />
+                        </div>
+                     </div>
+                   )}
+                   {editingStorePage === 'Product' && (
+                       <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                          <div className="flex justify-between items-center">
+                           <div className="space-y-0.5">
+                             <Label className="font-bold">Show Product Reviews</Label>
+                             <p className="text-[10px] text-muted-foreground">Allow logged in customers to leave reviews directly on the product page.</p>
+                           </div>
+                             <Switch 
+                               checked={themeConfig.store_product_reviews !== false} 
+                               onCheckedChange={(c) => updateThemeConfig({ store_product_reviews: c })}
+                             />
+                          </div>
+                          
+                          <div className="flex justify-between items-center pt-4 border-t border-border/50">
+                           <div className="space-y-0.5">
+                             <Label className="font-bold">Show Related Products</Label>
+                             <p className="text-[10px] text-muted-foreground">Display a grid of other items at the bottom of the product page.</p>
+                           </div>
+                             <Switch 
+                               checked={themeConfig.store_related_products !== false} 
+                               onCheckedChange={(c) => updateThemeConfig({ store_related_products: c })}
+                             />
+                          </div>
+                       </div>
+                     )}
+                   {editingStorePage === 'Shop' && (
+                       <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                          <div className="flex justify-between items-center">
+                           <div className="space-y-0.5">
+                             <Label className="font-bold">Show Sidebar Filters</Label>
+                             <p className="text-[10px] text-muted-foreground">Allow customers to filter products by category or price.</p>
+                           </div>
+                             <Switch 
+                               checked={themeConfig.store_shop_filters !== false} 
+                               onCheckedChange={(c) => updateThemeConfig({ store_shop_filters: c })}
+                             />
+                          </div>
+                       </div>
+                     )}
+                                        {editingStorePage === 'Cart' && (
+                     <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                        <div className="flex justify-between items-center">
+                           <div className="space-y-0.5">
+                             <Label className="font-bold">Order Notes Field</Label>
+                             <p className="text-[10px] text-muted-foreground">Allow customers to leave special instructions in the cart.</p>
+                           </div>
+                           <Switch 
+                             checked={themeConfig.store_cart_notes === true} 
+                             onCheckedChange={(c) => updateThemeConfig({ store_cart_notes: c })}
+                           />
+                        </div>
+                     </div>
+                   )}
+                   {editingStorePage === 'Checkout' && (
+                     <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                        <div className="space-y-3">
+                           <div className="space-y-0.5">
+                             <Label className="font-bold">Checkout Layout</Label>
+                             <p className="text-[10px] text-muted-foreground">Select the preferred design for the checkout process.</p>
+                           </div>
+                           <Select
+                             value={themeConfig.store_checkout_layout || "one-page"}
+                             onValueChange={(val) => updateThemeConfig({ store_checkout_layout: val })}
+                           >
+                             <SelectTrigger className="w-full bg-background font-medium">
+                               <SelectValue placeholder="Select layout" />
+                             </SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="one-page">One-Page Checkout (Default)</SelectItem>
+                               <SelectItem value="two-column">Two-Column (Shopify Style)</SelectItem>
+                               <SelectItem value="multi-step">Multi-Step Accordion</SelectItem>
+                             </SelectContent>
+                           </Select>
+                           <p className="text-[10px] text-amber-500 font-medium pt-1">
+                             Note: Advanced layouts will be fully supported in a future update. Currently defaults to One-Page.
+                           </p>
+                        </div>
+                     </div>
+                   )}
+                   {editingStorePage === 'Portal' && (
+                     <div className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                        <div className="flex justify-between items-center">
+                           <div className="space-y-0.5">
+                             <Label className="font-bold">Customer Portal</Label>
+                             <p className="text-[10px] text-muted-foreground">Allow customers to log in and view their order history.</p>
+                           </div>
+                           <Switch 
+                             checked={themeConfig.store_portal_enabled !== false} 
+                             onCheckedChange={(c) => updateThemeConfig({ store_portal_enabled: c })}
+                           />
+                        </div>
+                     </div>
+                   )}
+
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-grow overflow-y-auto min-h-[400px] lg:min-h-0 custom-scrollbar animate-in slide-in-from-left-4 duration-200 p-4 pt-2">
+                  <div className="mb-4 space-y-2">
+                  <h3 className="font-bold text-lg">Store Settings</h3>
+                  <p className="text-xs text-muted-foreground">Manage layouts and features for your e-commerce funnels.</p>
+                  </div>
+                  <div className="space-y-3">
+                  {STORE_PAGES.map(page => (
+                     <Card key={page.id} className="cursor-pointer hover:bg-muted/30 hover:border-primary/50 transition-colors" onClick={() => setEditingStorePage(page.id)}>
+                         <CardContent className="p-4 flex items-center justify-between">
+                           <div className="flex items-center gap-3">
+                             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                             <page.icon size={18}/>
+                             </div>
+                           <div>
+                             <div className="font-bold text-sm">{page.title}</div>
+                             <div className="text-[10px] text-muted-foreground">{page.description}</div>
+                           </div>
+                           </div>
+                           <ChevronRight size={16} className="text-muted-foreground"/>
+                         </CardContent>
+                       </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
             {/* PREVIEW TAB (MOBILE DEVICES ONLY) */}
             <TabsContent
               value="preview"
@@ -2070,6 +2270,8 @@ const PortfolioBuilderPage = () => {
                 customPages={customPages}
                 publicSlug={siteIdentity.slug}
                 editingSectionId={editingSection?.id}
+                activeTab={activeBuilderTab}
+                editingStorePage={editingStorePage}
               />
             </TabsContent>
           </Tabs>
@@ -2089,6 +2291,8 @@ const PortfolioBuilderPage = () => {
             customPages={customPages}
             publicSlug={siteIdentity.slug}
             editingSectionId={editingSection?.id}
+            activeTab={activeBuilderTab}
+            editingStorePage={editingStorePage}
           />
         </div>
       </div>

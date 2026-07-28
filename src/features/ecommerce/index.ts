@@ -20,6 +20,7 @@ export { default as AnalyticsPage } from './pages/AnalyticsPage';
 export { default as FormsPage } from './pages/FormsPage';
 export { default as LeadsPage } from './pages/LeadsPage';
 export { default as OrdersPage } from './pages/OrdersPage';
+export { default as ProOrderDetailPage } from './pages/ProOrderDetailPage';
 export { default as PaymentsPage } from './pages/PaymentsPage';
 export { default as StripeCallbackPage } from './pages/StripeCallbackPage';
 

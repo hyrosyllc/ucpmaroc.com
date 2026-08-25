@@ -49,6 +49,82 @@ function hexToHSLString(hex: string): string {
     l * 100
   )}%`;
 }
+// 🚀 THEME DICTIONARY
+const THEME_PALETTES: Record<string, any> = {
+  modern: {
+    light: {
+      background: "0 0% 100%", // White
+      foreground: "240 10% 3.9%", // Almost black
+      card: "0 0% 100%",
+      cardForeground: "240 10% 3.9%",
+      popover: "0 0% 100%",
+      popoverForeground: "240 10% 3.9%",
+      secondary: "240 4.8% 95.9%",
+      secondaryForeground: "240 5.9% 10%",
+      muted: "240 4.8% 95.9%", // Light gray
+      mutedForeground: "240 3.8% 46.1%",
+      accent: "240 4.8% 95.9%",
+      accentForeground: "240 5.9% 10%",
+      border: "240 5.9% 90%", // Soft border
+      input: "240 5.9% 90%",
+      ring: "240 5.9% 10%",
+    },
+    dark: {
+      background: "0 0% 4%", // Neutral 950
+      foreground: "0 0% 98%", // White
+      card: "0 0% 9%", // Neutral 900
+      cardForeground: "0 0% 98%",
+      popover: "0 0% 9%",
+      popoverForeground: "0 0% 98%",
+      secondary: "240 3.7% 15.9%",
+      secondaryForeground: "0 0% 98%",
+      muted: "0 0% 15%", // Neutral 800
+      mutedForeground: "240 5% 64.9%", // Neutral 400
+      accent: "240 3.7% 15.9%",
+      accentForeground: "0 0% 98%",
+      border: "240 3.7% 15.9%", // White/10
+      input: "240 3.7% 15.9%",
+      ring: "240 4.9% 83.9%",
+    }
+  },
+  cinematic: {
+    light: {
+      background: "222.2 84% 4.9%",
+      foreground: "210 40% 98%",
+      card: "222.2 84% 4.9%",
+      cardForeground: "210 40% 98%",
+      popover: "222.2 84% 4.9%",
+      popoverForeground: "210 40% 98%",
+      secondary: "217.2 32.6% 17.5%",
+      secondaryForeground: "210 40% 98%",
+      muted: "217.2 32.6% 17.5%",
+      mutedForeground: "215 20.2% 65.1%",
+      accent: "217.2 32.6% 17.5%",
+      accentForeground: "210 40% 98%",
+      border: "217.2 32.6% 17.5%",
+      input: "217.2 32.6% 17.5%",
+      ring: "212.7 26.8% 83.9%",
+    },
+    dark: {
+      background: "222.2 84% 4.9%",
+      foreground: "210 40% 98%",
+      card: "222.2 84% 4.9%",
+      cardForeground: "210 40% 98%",
+      popover: "222.2 84% 4.9%",
+      popoverForeground: "210 40% 98%",
+      secondary: "217.2 32.6% 17.5%",
+      secondaryForeground: "210 40% 98%",
+      muted: "217.2 32.6% 17.5%",
+      mutedForeground: "215 20.2% 65.1%",
+      accent: "217.2 32.6% 17.5%",
+      accentForeground: "210 40% 98%",
+      border: "217.2 32.6% 17.5%",
+      input: "217.2 32.6% 17.5%",
+      ring: "212.7 26.8% 83.9%",
+    }
+  }
+};
+
 
 interface PortfolioLayoutProps {
   customDomain?: string;
@@ -152,6 +228,10 @@ export default function PortfolioLayout({
   )}:wght@300;400;500;600;700;800;900&display=swap`;
   const activeRadius =
     themeConfig.radius !== undefined ? themeConfig.radius : 0.5;
+  const palette = THEME_PALETTES[themeId] || THEME_PALETTES.modern;
+  const colorMode = themeConfig.colorMode || "dark";
+  const activePalette = colorMode === "light" ? palette.light : palette.dark;
+
 
   return (
     <>
@@ -164,18 +244,35 @@ export default function PortfolioLayout({
         {`
           @import url('${fontUrl}');
           
-          :root {
+          :root, .portfolio-canvas-wrapper {
             --primary: ${primaryHsl};
             --radius: ${activeRadius}rem;
+            --background: ${activePalette.background};
+            --foreground: ${activePalette.foreground};
+            --card: ${activePalette.card};
+            --card-foreground: ${activePalette.cardForeground};
+            --popover: ${activePalette.popover};
+            --popover-foreground: ${activePalette.popoverForeground};
+            --secondary: ${activePalette.secondary};
+            --secondary-foreground: ${activePalette.secondaryForeground};
+            --muted: ${activePalette.muted};
+            --muted-foreground: ${activePalette.mutedForeground};
+            --accent: ${activePalette.accent};
+             --accent-foreground: ${activePalette.accentForeground};
+            --border: ${activePalette.border};
+            --input: ${activePalette.input};
+            --ring: ${activePalette.ring};
           }
+  
+
+
+
 
           .portfolio-canvas-wrapper {
             font-family: '${activeFont}', sans-serif;
             /* Force the background color of the wrapper to match the theme */
-            background-color: ${
-              themeId === "cinematic" ? "#0f172a" : "var(--background)"
-            };
-            color: ${themeId === "cinematic" ? "#f8fafc" : "var(--foreground)"};
+            background-color: var(--background);
+            color: var(--foreground);
           }
           
           .portfolio-canvas-wrapper button, 
@@ -191,8 +288,7 @@ export default function PortfolioLayout({
       <div
         className={cn(
           "portfolio-canvas-wrapper min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary",
-          // Add a global dark class if it's the cinematic theme
-          themeId === "cinematic" ? "dark" : ""
+          colorMode === "dark" ? "dark" : ""
         )}
       >
         {HeaderComponent && headerSection?.isVisible && (

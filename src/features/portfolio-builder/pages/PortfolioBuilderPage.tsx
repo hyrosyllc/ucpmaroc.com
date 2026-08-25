@@ -1837,28 +1837,46 @@ const PortfolioBuilderPage = () => {
                         Active Theme
                       </Label>
                     </div>
-                    <div className="border border-border bg-background rounded-2xl p-3 flex items-center gap-4 relative overflow-hidden shadow-sm">
-                      <div className="w-12 h-12 rounded-xl border border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
-                        <LayoutTemplate className="text-primary" />
+                    <div className="border border-border bg-background rounded-2xl p-4 flex flex-col gap-4 relative overflow-hidden shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl border border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
+                          <LayoutTemplate className="text-primary" />
+                        </div>
+                        <div className="flex-grow">
+                          <h4 className="font-bold text-sm">
+                            {ALL_THEMES.find(
+                              (t) => t.id === themeConfig.templateId
+                            )?.name || "Modern Minimal"}
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            Currently applied to your site.
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setIsBrowsingThemes(true)}
+                          className="rounded-full shrink-0"
+                        >
+                          Change
+                        </Button>
                       </div>
-                      <div className="flex-grow">
-                        <h4 className="font-bold text-sm">
-                          {ALL_THEMES.find(
-                            (t) => t.id === themeConfig.templateId
-                          )?.name || "Modern Minimal"}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          Currently applied to your site.
-                        </p>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                        <div className="space-y-0.5">
+                           <Label className="text-sm font-bold">Color Mode</Label>
+                           <p className="text-[10px] text-muted-foreground">Toggle between Light and Dark mode.</p>
+                        </div>
+                        <ToggleGroup
+                          type="single"
+                          value={themeConfig.colorMode || "dark"}
+                          onValueChange={(val) => val && updateThemeConfig({ colorMode: val })}
+                          className="bg-muted/50 p-1 rounded-xl border"
+                        >
+                           <ToggleGroupItem value="light" className="h-8 px-4 text-xs font-bold rounded-lg data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground transition-all">Light</ToggleGroupItem>
+                           <ToggleGroupItem value="dark" className="h-8 px-4 text-xs font-bold rounded-lg data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground transition-all">Dark</ToggleGroupItem>
+                        </ToggleGroup>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => setIsBrowsingThemes(true)}
-                        className="rounded-full"
-                      >
-                        Change
-                      </Button>
                     </div>
                     {!hasThemeAccess(themeConfig.templateId) &&
                       (() => {

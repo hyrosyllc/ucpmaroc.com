@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 // Import Layouts
 import ModernShopLayout from "@/themes/modern/ShopLayout";
 import CartDrawerContainer from "@/features/ecommerce/components/CartDrawerContainer";
+import { useCartStore } from "../store/useCartStore";
 
 // Ensure this matches App.tsx
 const MAIN_DOMAINS = [
@@ -28,6 +29,7 @@ export default function PublicShopPage() {
   const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [portfolioId, setPortfolioId] = useState<string | null>(null);
   const [themeConfig, setThemeConfig] = useState<any>({});
 
   // Filter State
@@ -90,7 +92,13 @@ export default function PublicShopPage() {
 
       setTheme(currentTheme);
       setResolvedPublicSlug(currentPublicSlug);
+      setPortfolioId(currentPortfolioId);
       setThemeConfig(currentThemeConfig);
+      
+      // 🚀 FORCE CONTEXT SWITCH IMMEDIATELY
+      if (currentPortfolioId) {
+        useCartStore.getState().validateStoreContext(currentPortfolioId);
+      }
 
       // 2. Fetch Products & Collections (WITH STORE SEPARATION LOGIC)
       let productsQuery = supabase
@@ -184,7 +192,7 @@ export default function PublicShopPage() {
   // ROUTER: Inject the exact layout based on the actor's active theme
   return (
     <>
-      <CartDrawerContainer theme={theme} username={layoutProps.username} />
+      <CartDrawerContainer theme={theme} username={layoutProps.username} storeId={portfolioId} />
       <ModernShopLayout {...layoutProps} />
     </>
   );

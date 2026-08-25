@@ -24,6 +24,7 @@ export { default as ProOrderDetailPage } from './pages/ProOrderDetailPage';
 export { default as PaymentsPage } from './pages/PaymentsPage';
 export { default as StripeCallbackPage } from './pages/StripeCallbackPage';
 
+
 // Checkout
 export { default as PublicCheckoutPage } from './checkout/PublicCheckoutPage';
 export { default as PublicThankYouPage } from './checkout/PublicThankYouPage';

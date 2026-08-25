@@ -181,19 +181,41 @@ const SiteReviewsManager = ({ portfolioId }: { portfolioId: string }) => {
         ) : display.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground border border-dashed rounded-lg">No reviews in this tab.</div>
         ) : (
-          display.map((r) => (
+          display.map((r) => {
+            const isVideo = r.review_type === 'video';
+            const displayImages = r.images && r.images.length > 0 ? r.images : (r.image_url ? [r.image_url] : []);
+            
+            return (
             <div key={r.id} className="bg-background border rounded-xl p-3 shadow-sm flex flex-col gap-2">
-              {r.image_url && <img src={r.image_url} alt="Review" className="w-full h-24 object-cover rounded-md border" />}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-sm">{r.reviewer_name}</span>
-                  <div className="flex gap-0.5 text-amber-500">
-                    {[...Array(5)].map((_, i) => <Star key={i} size={10} className={cn("fill-current", i < r.rating ? "text-amber-500" : "text-muted")} />)}
+              
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-sm truncate">{r.reviewer_name}</span>
+                {!isVideo && (
+                  <div className="flex gap-0.5 text-amber-500 shrink-0">
+                    {[...Array(5)].map((_, i) => <Star key={i} size={10} className={cn("fill-current", i < (r.rating || 5) ? "text-amber-500" : "text-muted")} />)}
                   </div>
+                )}
+              </div>
+
+              {isVideo && r.video_url ? (
+                <div className="w-full h-32 bg-black rounded-lg relative overflow-hidden flex items-center justify-center border">
+                  <video src={r.video_url} className="w-full h-full object-contain" controls />
                 </div>
-                <span className="text-xs font-semibold block">{r.title}</span>
+              ) : displayImages.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                  {displayImages.map((img: string, i: number) => (
+                    <img key={i} src={img} className="h-16 w-16 object-cover rounded-md border shrink-0" />
+                  ))}
+                </div>
+              ) : null}
+
+              {!isVideo && (
+              <div>
+                  {r.title && <span className="text-xs font-semibold block truncate">{r.title}</span>}
                 <p className="text-xs text-muted-foreground italic line-clamp-3">"{r.content}"</p>
               </div>
+              )}
+
               <div className="flex gap-2 pt-2 border-t border-border/50 mt-1">
                 <Button size="sm" variant={r.is_published ? "outline" : "default"} className={cn("flex-1 h-8 text-[10px] font-bold", !r.is_published && "bg-green-500 hover:bg-green-600 text-white")} onClick={() => togglePublish(r.id, r.is_published)}>
                   {r.is_published ? "Hide Review" : "Approve Review"}
@@ -203,7 +225,8 @@ const SiteReviewsManager = ({ portfolioId }: { portfolioId: string }) => {
                 </Button>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
@@ -4877,6 +4900,23 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
                 rows={2}
               />
             </div>
+            
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
+              <div className="space-y-0.5">
+                <Label>Show Text Reviews</Label>
+                <p className="text-[10px] text-muted-foreground">Display standard text and photo reviews.</p>
+              </div>
+              <Switch checked={formData.showTextReviews !== false} onCheckedChange={(c) => updateField("showTextReviews", c)} />
+            </div>
+            
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
+              <div className="space-y-0.5">
+                <Label>Show Video Reviews</Label>
+                <p className="text-[10px] text-muted-foreground">Display vertical video testimonials below text reviews.</p>
+              </div>
+              <Switch checked={formData.showVideoReviews !== false} onCheckedChange={(c) => updateField("showVideoReviews", c)} />
+            </div>
+            
             </div>
             
             <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-sm animate-in fade-in flex items-start gap-3">

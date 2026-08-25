@@ -285,27 +285,27 @@ const SpotlightCheckout = ({
 
   if (step === "success") {
     return (
-      <div className="bg-neutral-900/30 border border-white/10 rounded-[2.5rem] overflow-hidden min-h-[500px] flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
+      <div className="bg-card/30 border border-border rounded-[2.5rem] overflow-hidden min-h-[500px] flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
         <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mb-6 ring-1 ring-green-500/50">
           <CheckCircle2 size={40} className="animate-in zoom-in duration-500" />
         </div>
-        <h3 className="text-3xl font-bold text-white mb-2">
+        <h3 className="text-3xl font-bold text-foreground mb-2">
           {formTemplate?.success_title || "Order Received!"}
         </h3>
-        <p className="text-neutral-400 max-w-md mx-auto mb-6">
+        <p className="text-muted-foreground max-w-md mx-auto mb-6">
           {formTemplate?.success_message ||
             `Thank you. We have received your order for ${product.title}.`}
         </p>
 
         {/* 🚀 BEAUTIFUL INVOICE SUMMARY */}
-        <div className="w-full max-w-sm mx-auto bg-black/40 p-5 rounded-2xl border border-white/5 text-left mb-8 shadow-inner">
-          <h4 className="text-xs font-bold uppercase tracking-widest text-neutral-500 border-b border-white/10 pb-2 mb-3">
+        <div className="w-full max-w-sm mx-auto bg-background/40 p-5 rounded-2xl border border-border/50 text-left mb-8 shadow-inner">
+          <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70 border-b border-border pb-2 mb-3">
             Order Summary
           </h4>
-          <div className="flex justify-between items-start gap-4 text-sm font-bold text-white">
+          <div className="flex justify-between items-start gap-4 text-sm font-bold text-foreground">
             <div className="leading-tight">
               {product.title}{" "}
-              <span className="text-neutral-500 font-medium ml-1">
+              <span className="text-muted-foreground/70 font-medium ml-1">
                 x{quantity}
               </span>
             </div>
@@ -317,15 +317,15 @@ const SpotlightCheckout = ({
           {Object.keys(selectedVariants).length > 0 && (
             <div className="mt-2 space-y-1">
               {Object.entries(selectedVariants).map(([key, val]: any, i) => (
-                <div key={i} className="text-xs font-medium text-neutral-400">
-                  <span className="text-neutral-600 mr-1">{key}:</span>{" "}
+              <div key={i} className="text-xs font-medium text-muted-foreground">
+                <span className="text-muted-foreground/70 mr-1">{key}:</span>{" "}
                   {val.label || val}
                 </div>
               ))}
             </div>
           )}
 
-          <div className="pt-3 mt-3 border-t border-white/10 flex justify-between items-center text-base font-black text-white">
+        <div className="pt-3 mt-3 border-t border-border flex justify-between items-center text-base font-black text-foreground">
             <span>Total</span>
             <span className="font-mono text-primary">
               ${calculateTotalPrice(product.price, selectedVariants, quantity)}
@@ -335,7 +335,7 @@ const SpotlightCheckout = ({
 
         <Button
           onClick={() => setStep("details")}
-          className="bg-white text-black hover:bg-neutral-200 h-12 px-8 rounded-full font-bold"
+          className="bg-foreground text-background hover:bg-foreground/90 h-12 px-8 rounded-full font-bold"
         >
           Continue Shopping
         </Button>
@@ -344,9 +344,9 @@ const SpotlightCheckout = ({
   }
 
   return (
-    <div className="bg-neutral-900/30 border border-white/10 rounded-[2.5rem] overflow-hidden md:grid md:grid-cols-2 min-h-[600px] shadow-2xl">
+    <div className="bg-card/30 border border-border rounded-[2.5rem] overflow-hidden md:grid md:grid-cols-2 min-h-[600px] shadow-2xl">
       {/* LEFT: IMAGE GALLERY */}
-      <div className="bg-black/50 relative flex flex-col h-[400px] md:h-auto group/gallery">
+      <div className="bg-muted/50 relative flex flex-col h-[400px] md:h-auto group/gallery">
         <div className="flex-grow relative overflow-hidden">
           {images.length > 0 ? (
             <>
@@ -359,13 +359,13 @@ const SpotlightCheckout = ({
                 <>
                   <button
                     onClick={prevImage}
-                    className="absolute left-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
+                  className="absolute left-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-background/40 hover:bg-background/70 text-foreground p-3 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
                   >
                     <ChevronLeft size={20} />
                   </button>
                   <button
                     onClick={nextImage}
-                    className="absolute right-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-3 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
+                    className="absolute right-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-background/40 hover:bg-background/70 text-foreground p-3 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -373,7 +373,7 @@ const SpotlightCheckout = ({
               )}
             </>
           ) : (
-            <div className="flex items-center justify-center h-full text-neutral-600">
+            <div className="flex items-center justify-center h-full text-muted-foreground/50">
               <ShoppingBag size={64} />
             </div>
           )}
@@ -388,7 +388,7 @@ const SpotlightCheckout = ({
                   "w-12 h-12 rounded-lg border-2 overflow-hidden transition-all shadow-sm shrink-0",
                   activeImgIndex === idx
                     ? "border-primary scale-110"
-                    : "border-white/30 opacity-60 hover:opacity-100"
+                    : "border-border/50 opacity-60 hover:opacity-100"
                 )}
               >
                 <img src={img} className="w-full h-full object-cover" />
@@ -408,7 +408,7 @@ const SpotlightCheckout = ({
                   On Sale
                 </Badge>
               )}
-              <h3 className="text-3xl md:text-4xl font-bold text-white leading-tight tracking-tight">
+          <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight tracking-tight">
                 {product.title}
               </h3>
               <div className="flex items-end gap-3 mt-3">
@@ -417,7 +417,7 @@ const SpotlightCheckout = ({
                     <span className="text-3xl text-primary font-bold font-mono">
                       {product.salePrice}
                     </span>
-                    <span className="text-lg text-neutral-500 line-through mb-1 font-mono">
+                <span className="text-lg text-muted-foreground/70 line-through mb-1 font-mono">
                       {product.price}
                     </span>
                   </>
@@ -429,13 +429,13 @@ const SpotlightCheckout = ({
               </div>
             </div>
 
-            <p className="text-lg text-neutral-300 leading-relaxed">
+        <p className="text-lg text-foreground/80 leading-relaxed">
               {product.description}
             </p>
 
             {/* VARIANTS */}
             {product.variants && product.variants.length > 0 && (
-              <div className="space-y-4 pt-4 border-t border-white/10">
+          <div className="space-y-4 pt-4 border-t border-border">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {product.variants.map((v: any, i: number) => {
                     const optionsArray = Array.isArray(v.options)
@@ -452,7 +452,7 @@ const SpotlightCheckout = ({
 
                     return (
                       <div key={i} className="space-y-2">
-                        <Label className="text-xs text-neutral-400 font-bold uppercase tracking-wider">
+                    <Label className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
                           {v.name}
                         </Label>
                         <Select
@@ -467,15 +467,15 @@ const SpotlightCheckout = ({
                             });
                           }}
                         >
-                          <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl">
+                      <SelectTrigger className="bg-foreground/5 border-border text-foreground h-12 rounded-xl">
                             <SelectValue placeholder={`Select ${v.name}`} />
                           </SelectTrigger>
-                          <SelectContent className="z-[100000] border-white/10 bg-neutral-900 text-white">
+                      <SelectContent className="z-[100000] border-border bg-card text-foreground">
                             {optionsArray.map((opt: any, optIdx: number) => (
                               <SelectItem
                                 key={optIdx}
                                 value={opt.label}
-                                className="focus:bg-white/10 focus:text-white"
+                            className="focus:bg-foreground/10 focus:text-foreground"
                               >
                                 {opt.label} {opt.price && `(+$${opt.price})`}
                               </SelectItem>
@@ -491,18 +491,18 @@ const SpotlightCheckout = ({
 
             {/* FAQS */}
             {product.faqs && product.faqs.length > 0 && (
-              <div className="space-y-2 pt-4 border-t border-white/10">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-white/70 flex items-center gap-2 mb-3">
+          <div className="space-y-2 pt-4 border-t border-border">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 flex items-center gap-2 mb-3">
                   <HelpCircle size={14} /> Details & FAQs
                 </h4>
                 {product.faqs.map((faq: any, i: number) => (
                   <div
                     key={i}
-                    className="bg-white/5 rounded-lg border border-white/5 overflow-hidden"
+                className="bg-card/50 rounded-lg border border-border/50 overflow-hidden"
                   >
                     <button
                       type="button"
-                      className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-white/90 hover:bg-white/5 transition-colors"
+                  className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-foreground/90 hover:bg-foreground/5 transition-colors"
                       onClick={() =>
                         setExpandedFaq(expandedFaq === i ? null : i)
                       }
@@ -519,7 +519,7 @@ const SpotlightCheckout = ({
                       />
                     </button>
                     {expandedFaq === i && (
-                      <div className="px-4 pb-3 pt-1 text-xs text-neutral-400 leading-relaxed animate-in slide-in-from-top-1 fade-in">
+                  <div className="px-4 pb-3 pt-1 text-xs text-muted-foreground leading-relaxed animate-in slide-in-from-top-1 fade-in">
                         {faq.answer}
                       </div>
                     )}
@@ -529,27 +529,27 @@ const SpotlightCheckout = ({
             )}
 
             {/* ACTIONS */}
-            <div className="pt-6 flex flex-col sm:flex-row gap-4 border-t border-white/10">
+        <div className="pt-6 flex flex-col sm:flex-row gap-4 border-t border-border">
               {actionType !== "link" && (
-                <div className="flex items-center bg-white/5 rounded-xl p-1 border border-white/10 w-max shrink-0">
+            <div className="flex items-center bg-foreground/5 rounded-xl p-1 border border-border w-max shrink-0">
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={() =>
                       setQuantity((q: number) => Math.max(1, q - 1))
                     }
-                    className="h-10 w-10 text-white hover:bg-white/10"
+                className="h-10 w-10 text-foreground hover:bg-foreground/10"
                   >
                     <Minus size={16} />
                   </Button>
-                  <span className="w-12 text-center font-mono text-lg text-white font-bold">
+              <span className="w-12 text-center font-mono text-lg text-foreground font-bold">
                     {quantity}
                   </span>
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={() => setQuantity((q: number) => q + 1)}
-                    className="h-10 w-10 text-white hover:bg-white/10"
+                className="h-10 w-10 text-foreground hover:bg-foreground/10"
                   >
                     <Plus size={16} />
                   </Button>
@@ -557,7 +557,7 @@ const SpotlightCheckout = ({
               )}
               <Button
                 size="lg"
-                className="flex-grow h-12 text-base rounded-xl bg-white text-black hover:bg-neutral-200 font-bold"
+            className="flex-grow h-12 text-base rounded-xl bg-foreground text-background hover:bg-foreground/90 font-bold"
                 onClick={handleMainAction}
               >
                 {product.buttonText ||
@@ -580,7 +580,7 @@ const SpotlightCheckout = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setStep("details")}
-                className="text-neutral-400 hover:text-white"
+            className="text-muted-foreground hover:text-foreground"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" /> Back
               </Button>
@@ -594,10 +594,10 @@ const SpotlightCheckout = ({
             ) : (
               <div className="flex-grow flex flex-col">
                 <div className="mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-2">
+              <h3 className="text-2xl font-bold text-foreground mb-2">
                     {formTemplate?.title || "Complete Order"}
                   </h3>
-                  <p className="text-sm text-neutral-400">
+              <p className="text-sm text-muted-foreground">
                     {formTemplate?.subheadline ||
                       "Enter your details to finalize the purchase."}
                   </p>
@@ -624,7 +624,7 @@ const SpotlightCheckout = ({
                                   : "col-span-1 sm:col-span-2"
                               )}
                             >
-                              <Label className="text-neutral-400 flex items-center gap-2 text-xs uppercase tracking-widest font-bold ml-1">
+                            <Label className="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-widest font-bold ml-1">
                                 {getFieldIcon(field.type)} {field.label}{" "}
                                 {field.required && (
                                   <span className="text-primary">*</span>
@@ -634,7 +634,7 @@ const SpotlightCheckout = ({
                                 <Textarea
                                   required={field.required}
                                   placeholder={field.placeholder}
-                                  className="bg-white/5 border-white/10 text-white min-h-[100px] resize-none rounded-xl p-4"
+                                className="bg-background/50 border-border text-foreground min-h-[100px] resize-none rounded-xl p-4"
                                   value={formValues[field.id] || ""}
                                   onChange={(e) =>
                                     setFormValues({
@@ -646,7 +646,7 @@ const SpotlightCheckout = ({
                               ) : field.type === "select" ? (
                                 <select
                                   required={field.required}
-                                  className="w-full bg-white/5 border border-white/10 text-white h-12 rounded-xl px-4 text-sm appearance-none outline-none"
+                                className="w-full bg-background/50 border-border text-foreground h-12 rounded-xl px-4 text-sm appearance-none outline-none"
                                   value={formValues[field.id] || ""}
                                   onChange={(e) =>
                                     setFormValues({
@@ -658,7 +658,7 @@ const SpotlightCheckout = ({
                                   <option
                                     value=""
                                     disabled
-                                    className="text-neutral-900"
+                                  className="text-background"
                                   >
                                     Select...
                                   </option>
@@ -667,7 +667,7 @@ const SpotlightCheckout = ({
                                       <option
                                         key={i}
                                         value={opt}
-                                        className="text-neutral-900"
+                                      className="text-background"
                                       >
                                         {opt}
                                       </option>
@@ -680,9 +680,9 @@ const SpotlightCheckout = ({
                                     (opt: string, i: number) => (
                                       <label
                                         key={i}
-                                        className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30"
+                                          className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl border border-border/50 bg-foreground/[0.02] hover:bg-foreground/5 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30"
                                       >
-                                        <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-white/20 group-hover:border-primary bg-white/5">
+                                          <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/50 group-hover:border-primary bg-foreground/5">
                                           <input
                                             type="radio"
                                             name={field.id}
@@ -698,7 +698,7 @@ const SpotlightCheckout = ({
                                           />
                                           <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
                                         </div>
-                                        <span className="text-neutral-300 text-sm font-medium">
+                                          <span className="text-foreground/80 text-sm font-medium">
                                           {opt}
                                         </span>
                                       </label>
@@ -717,7 +717,7 @@ const SpotlightCheckout = ({
                                   }
                                   placeholder={field.placeholder}
                                   className={cn(
-                                    "bg-white/5 border-white/10 text-white h-12 rounded-xl",
+                                    "bg-background/50 border-border text-foreground h-12 rounded-xl",
                                     field.type === "date" &&
                                       "[color-scheme:dark]"
                                   )}
@@ -769,14 +769,14 @@ const SpotlightCheckout = ({
                     </div>
                   )}
 
-                  <div className="mt-auto pt-6 border-t border-white/10">
+                      <div className="mt-auto pt-6 border-t border-border">
                     <div className="flex items-end justify-between mb-6 bg-primary/10 p-4 rounded-xl border border-primary/20">
                       <div className="space-y-1">
                         <p className="text-xs text-primary font-bold uppercase tracking-widest">
                           Total Due
                         </p>
                       </div>
-                      <div className="text-3xl font-black text-white font-mono tracking-tighter">
+                          <div className="text-3xl font-black text-foreground font-mono tracking-tighter">
                         $
                         {calculateTotalPrice(
                           product.price,
@@ -788,7 +788,7 @@ const SpotlightCheckout = ({
                     <Button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full h-14 text-base font-bold rounded-xl bg-primary text-black hover:bg-primary/90 transition-transform hover:scale-[1.02]"
+                      className="w-full h-14 text-base font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-transform hover:scale-[1.02]"
                     >
                       {isSubmitting ? (
                         <Loader2 className="animate-spin mr-2 w-5 h-5" />
@@ -995,10 +995,10 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
 
     return (
       <div
-        className="group h-full flex flex-col bg-neutral-900/40 border border-white/10 rounded-[2rem] overflow-hidden hover:border-white/20 transition-all duration-500 hover:bg-neutral-900/60 shadow-xl cursor-pointer"
+        className="group h-full flex flex-col bg-card/40 border border-border rounded-[2rem] overflow-hidden hover:border-primary/30 transition-all duration-500 hover:bg-card/60 shadow-xl cursor-pointer"
         onClick={(e) => handleProductAction(product, e)}
       >
-        <div className="relative aspect-square sm:aspect-[4/3] overflow-hidden bg-neutral-950 group/gallery">
+        <div className="relative aspect-square sm:aspect-[4/3] overflow-hidden bg-muted group/gallery">
           {images.length > 0 ? (
             <>
               <img
@@ -1015,8 +1015,8 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                         className={cn(
                           "w-2 h-2 rounded-full transition-all",
                           i === activeImageIdx
-                            ? "bg-white scale-125"
-                            : "bg-white/50 hover:bg-white/80"
+                            ? "bg-foreground scale-125"
+                            : "bg-foreground/50 hover:bg-foreground/80"
                         )}
                         onClick={(e) => {
                           e.preventDefault();
@@ -1035,7 +1035,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                         (prev) => (prev - 1 + images.length) % images.length
                       );
                     }}
-                    className="absolute left-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
+                    className="absolute left-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-background/40 hover:bg-background/70 text-foreground p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
                   >
                     <ChevronLeft size={18} />
                   </button>
@@ -1045,7 +1045,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                       e.stopPropagation();
                       setActiveImageIdx((prev) => (prev + 1) % images.length);
                     }}
-                    className="absolute right-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
+                    className="absolute right-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-background/40 hover:bg-background/70 text-foreground p-2 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-sm"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -1053,19 +1053,19 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
               )}
             </>
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/20">
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
               <ShoppingCart size={40} />
             </div>
           )}
           {product.salePrice && (
-            <div className="absolute top-4 right-4 bg-primary text-black text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">
+            <div className="absolute top-4 right-4 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">
               Sale
             </div>
           )}
         </div>
         <div className="p-6 md:p-8 flex flex-col flex-grow">
           <div className="mb-4">
-            <h3 className="text-xl md:text-2xl font-bold text-white tracking-tight mb-2">
+            <h3 className="text-xl md:text-2xl font-bold text-foreground tracking-tight mb-2">
               {product.title || "Product Name"}
             </h3>
             <div className="flex items-end gap-3 flex-wrap">
@@ -1074,18 +1074,18 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                   <span className="text-2xl font-mono text-primary font-bold">
                     {product.salePrice}
                   </span>
-                  <span className="text-sm font-mono text-neutral-500 line-through pb-1">
+                  <span className="text-sm font-mono text-muted-foreground/70 line-through pb-1">
                     {product.price}
                   </span>
                 </>
               ) : (
-                <span className="text-2xl font-mono text-white font-bold">
+                <span className="text-2xl font-mono text-foreground font-bold">
                   {product.price || "$0.00"}
                 </span>
               )}
             </div>
           </div>
-          <p className="text-sm text-neutral-400 leading-relaxed mb-6 line-clamp-3">
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6 line-clamp-3">
             {product.description}
           </p>
 
@@ -1103,7 +1103,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                 return (
                   <span
                     key={i}
-                    className="text-xs bg-white/5 border border-white/10 px-2 py-1 rounded text-neutral-300"
+                    className="text-xs bg-foreground/5 border border-border/50 px-2 py-1 rounded text-muted-foreground"
                   >
                     {v.name}: {optionsArray.length} options
                   </span>
@@ -1112,9 +1112,9 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
             </div>
           )}
 
-          <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between">
-            <span className="text-sm font-bold text-white">View Details</span>
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-primary group-hover:text-black transition-colors">
+          <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between">
+            <span className="text-sm font-bold text-foreground">View Details</span>
+            <div className="w-8 h-8 rounded-full bg-foreground/10 text-foreground flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
               <ArrowRight
                 size={14}
                 className="group-hover:translate-x-0.5 transition-transform"
@@ -1152,8 +1152,8 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                 className={cn(
                   "absolute top-4 right-4 sm:top-6 sm:right-6 rounded-full z-50 transition-colors",
                   showImageCover
-                    ? "text-white bg-black/20 hover:bg-black/50 backdrop-blur-sm"
-                    : "text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10"
+                    ? "text-foreground bg-background/20 hover:bg-background/50 backdrop-blur-sm"
+                    : "text-muted-foreground hover:text-foreground bg-foreground/5 hover:bg-foreground/10"
                 )}
                 onClick={() => setIsModalOpen(false)}
               >
@@ -1161,13 +1161,13 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
               </Button>
 
               {showImageCover && (
-                <div className="hidden sm:flex sm:w-2/5 relative border-r border-white/10 bg-neutral-900 shrink-0">
+                <div className="hidden sm:flex sm:w-2/5 relative border-r border-border bg-muted shrink-0">
                   <img
                     src={formTemplate.image}
                     alt="Cover"
                     className="absolute inset-0 w-full h-full object-cover opacity-80"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
                 </div>
               )}
 
@@ -1176,21 +1176,21 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                   "flex-grow overflow-y-auto flex flex-col p-6 sm:p-10",
                   // Custom Scrollbar styles!
                   "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent",
-                  "[&::-webkit-scrollbar-thumb]:bg-white/10 hover:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full",
+                  "[&::-webkit-scrollbar-thumb]:bg-foreground/10 hover:[&::-webkit-scrollbar-thumb]:bg-foreground/20 [&::-webkit-scrollbar-thumb]:rounded-full",
                   showImageCover ? "sm:w-3/5" : "w-full"
                 )}
               >
                 {isLoadingForm ? (
                   <div className="py-20 flex flex-col items-center justify-center text-primary h-full">
                     <Loader2 className="w-8 h-8 animate-spin mb-4" />
-                    <p className="text-sm text-neutral-400 font-medium">
+                    <p className="text-sm text-muted-foreground font-medium">
                       Loading checkout...
                     </p>
                   </div>
                 ) : !formTemplate &&
                   selectedProduct?.actionType === "form_order" ? (
                   <div className="py-20 text-center h-full flex items-center justify-center">
-                    <p className="text-neutral-400">
+                    <p className="text-muted-foreground">
                       Checkout template could not be loaded.
                     </p>
                   </div>
@@ -1199,23 +1199,23 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                     <div className="w-20 h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto ring-1 ring-green-500/50">
                       <CheckCircle2 size={40} className="animate-in zoom-in" />
                     </div>
-                    <h3 className="text-3xl font-bold text-white tracking-tight">
+                    <h3 className="text-3xl font-bold text-foreground tracking-tight">
                       {formTemplate?.success_title || "Order Received!"}
                     </h3>
-                    <p className="text-neutral-400 max-w-sm mx-auto mb-2">
+                    <p className="text-muted-foreground max-w-sm mx-auto mb-2">
                       {formTemplate?.success_message ||
                         `Thanks for ordering ${selectedProduct?.title}. We'll process it shortly.`}
                     </p>
 
                     {/* 🚀 BEAUTIFUL INVOICE SUMMARY */}
-                    <div className="w-full max-w-sm mx-auto bg-white/5 p-5 rounded-2xl border border-white/10 text-left mb-4 shadow-inner">
-                      <h4 className="text-xs font-bold uppercase tracking-widest text-neutral-500 border-b border-white/10 pb-2 mb-3">
+                    <div className="w-full max-w-sm mx-auto bg-foreground/5 p-5 rounded-2xl border border-border/50 text-left mb-4 shadow-inner">
+                      <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2 mb-3">
                         Order Summary
                       </h4>
-                      <div className="flex justify-between items-start gap-4 text-sm font-bold text-white">
+                      <div className="flex justify-between items-start gap-4 text-sm font-bold text-foreground">
                         <div className="leading-tight">
                           {selectedProduct?.title}{" "}
-                          <span className="text-neutral-500 font-medium ml-1">
+                          <span className="text-muted-foreground/70 font-medium ml-1">
                             x{quantity}
                           </span>
                         </div>
@@ -1235,9 +1235,9 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                             ([key, val]: any, i) => (
                               <div
                                 key={i}
-                                className="text-xs font-medium text-neutral-400"
+                                className="text-xs font-medium text-muted-foreground"
                               >
-                                <span className="text-neutral-600 mr-1">
+                                <span className="text-muted-foreground/70 mr-1">
                                   {key}:
                                 </span>{" "}
                                 {val.label || val}
@@ -1247,7 +1247,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                         </div>
                       )}
 
-                      <div className="pt-3 mt-3 border-t border-white/10 flex justify-between items-center text-base font-black text-white">
+                      <div className="pt-3 mt-3 border-t border-border flex justify-between items-center text-base font-black text-foreground">
                         <span>Total</span>
                         <span className="font-mono text-primary">
                           $
@@ -1261,7 +1261,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                     </div>
 
                     <Button
-                      className="mt-6 rounded-full px-8 bg-white text-black hover:bg-neutral-200 h-12 font-bold"
+                      className="mt-6 rounded-full px-8 bg-foreground text-background hover:bg-foreground/90 h-12 font-bold"
                       onClick={() => setIsModalOpen(false)}
                     >
                       Close
@@ -1269,16 +1269,16 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                   </div>
                 ) : (
                   <div className="space-y-8 mt-4 sm:mt-0">
-                    <div className="text-left space-y-3 pb-6 border-b border-white/10">
-                      <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight pr-8">
+                    <div className="text-left space-y-3 pb-6 border-b border-border">
+                      <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight pr-8">
                         {formTemplate?.title || "Complete Your Order"}
                       </h3>
-                      <p className="text-sm text-neutral-400">
+                      <p className="text-sm text-muted-foreground">
                         {formTemplate?.subheadline ||
                           "Please fill in your details to finalize the purchase."}
                       </p>
-                      <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 flex gap-4 items-center">
-                        <div className="w-16 h-16 rounded-md overflow-hidden bg-black shrink-0 border border-white/10">
+                      <div className="mt-4 p-4 rounded-xl bg-card/50 border border-border flex gap-4 items-center">
+                        <div className="w-16 h-16 rounded-md overflow-hidden bg-muted shrink-0 border border-border/50">
                           <img
                             src={
                               selectedProduct?.images?.[0] ||
@@ -1289,7 +1289,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                           />
                         </div>
                         <div className="flex-grow min-w-0">
-                          <h4 className="font-bold text-white truncate text-sm">
+                          <h4 className="font-bold text-foreground truncate text-sm">
                             {selectedProduct?.title}
                           </h4>
                           <div className="text-primary font-mono text-sm mt-1">
@@ -1304,7 +1304,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                       {selectedProduct?.variants &&
                         selectedProduct.variants.length > 0 && (
                           <div className="space-y-4">
-                            <h4 className="text-xs font-bold uppercase tracking-widest text-white/70 flex items-center gap-2">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 flex items-center gap-2">
                               <Tag size={14} /> Customization
                             </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1324,7 +1324,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                     : [];
                                   return (
                                     <div key={i} className="space-y-2">
-                                      <Label className="text-xs text-neutral-400">
+                                      <Label className="text-xs text-muted-foreground">
                                         {v.name}
                                       </Label>
                                       <Select
@@ -1342,18 +1342,18 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                           });
                                         }}
                                       >
-                                        <SelectTrigger className="bg-white/5 border-white/10 text-white h-12 rounded-xl">
+                                        <SelectTrigger className="bg-foreground/5 border-border text-foreground h-12 rounded-xl">
                                           <SelectValue
                                             placeholder={`Select ${v.name}`}
                                           />
                                         </SelectTrigger>
-                                        <SelectContent className="z-[100000] border-white/10 bg-neutral-900 text-white">
+                                        <SelectContent className="z-[100000] border-border bg-card text-foreground">
                                           {optionsArray.map(
                                             (opt: any, optIdx: number) => (
                                               <SelectItem
                                                 key={optIdx}
                                                 value={opt.label}
-                                                className="focus:bg-white/10 focus:text-white"
+                                                className="focus:bg-foreground/10 focus:text-foreground"
                                               >
                                                 {opt.label}{" "}
                                                 {opt.price &&
@@ -1375,17 +1375,17 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                       {selectedProduct?.faqs &&
                         selectedProduct.faqs.length > 0 && (
                           <div className="space-y-2">
-                            <h4 className="text-xs font-bold uppercase tracking-widest text-white/70 flex items-center gap-2 mb-3">
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 flex items-center gap-2 mb-3">
                               <HelpCircle size={14} /> Details & FAQs
                             </h4>
                             {selectedProduct.faqs.map((faq: any, i: number) => (
                               <div
                                 key={i}
-                                className="bg-white/5 rounded-lg border border-white/5 overflow-hidden"
+                                className="bg-card/50 rounded-lg border border-border/50 overflow-hidden"
                               >
                                 <button
                                   type="button"
-                                  className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-white/90 hover:bg-white/5 transition-colors"
+                                  className="w-full px-4 py-3 flex items-center justify-between text-left text-sm font-medium text-foreground/90 hover:bg-foreground/5 transition-colors"
                                   onClick={() =>
                                     setExpandedModalFaq(
                                       expandedModalFaq === i ? null : i
@@ -1404,7 +1404,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                   />
                                 </button>
                                 {expandedModalFaq === i && (
-                                  <div className="px-4 pb-3 pt-1 text-xs text-neutral-400 leading-relaxed animate-in slide-in-from-top-1 fade-in">
+                                  <div className="px-4 pb-3 pt-1 text-xs text-muted-foreground leading-relaxed animate-in slide-in-from-top-1 fade-in">
                                     {faq.answer}
                                   </div>
                                 )}
@@ -1415,7 +1415,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
 
                       {/* DYNAMIC FORM FIELDS */}
                       <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-white/70 flex items-center gap-2">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/70 flex items-center gap-2">
                           <User size={14} /> Your Details
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-6 gap-4 sm:gap-5">
@@ -1435,7 +1435,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                       "col-span-1", widthClass
                                     )}
                                   >
-                                    <Label className="text-neutral-400 flex items-center gap-2 text-xs uppercase tracking-widest font-bold ml-1">
+                                    <Label className="text-muted-foreground flex items-center gap-2 text-xs uppercase tracking-widest font-bold ml-1">
                                       {getFieldIcon(field.type)} {field.label}{" "}
                                       {field.required && (
                                         <span className="text-primary">*</span>
@@ -1445,7 +1445,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                       <Textarea
                                         required={field.required}
                                         placeholder={field.placeholder}
-                                        className="bg-white/5 border-white/10 focus-visible:border-primary text-white min-h-[100px] resize-none rounded-xl p-4"
+                                        className="bg-background/50 border-border text-foreground min-h-[100px] resize-none rounded-xl p-4"
                                         value={formValues[field.id] || ""}
                                         onChange={(e) =>
                                           setFormValues({
@@ -1457,7 +1457,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                     ) : field.type === "select" ? (
                                       <select
                                         required={field.required}
-                                        className="w-full bg-white/5 border border-white/10 focus:border-primary text-white h-12 rounded-xl px-4 text-sm appearance-none outline-none"
+                                        className="w-full bg-background/50 border-border text-foreground h-12 rounded-xl px-4 text-sm appearance-none outline-none"
                                         value={formValues[field.id] || ""}
                                         onChange={(e) =>
                                           setFormValues({
@@ -1491,9 +1491,9 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                           (opt: string, i: number) => (
                                             <label
                                               key={i}
-                                              className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/5 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30"
+                                              className="flex items-center gap-3 cursor-pointer group p-3 rounded-xl border border-border/50 bg-foreground/[0.02] hover:bg-foreground/5 transition-colors has-[:checked]:bg-primary/5 has-[:checked]:border-primary/30"
                                             >
-                                              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-white/20 group-hover:border-primary bg-white/5">
+                                              <div className="relative flex items-center justify-center w-5 h-5 rounded-full border border-border/50 group-hover:border-primary bg-foreground/5">
                                                 <input
                                                   type="radio"
                                                   name={field.id}
@@ -1510,7 +1510,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                                 />
                                                 <div className="w-2.5 h-2.5 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" />
                                               </div>
-                                              <span className="text-neutral-300 text-sm font-medium">
+                                              <span className="text-foreground/80 text-sm font-medium">
                                                 {opt}
                                               </span>
                                             </label>
@@ -1529,7 +1529,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                         }
                                         placeholder={field.placeholder}
                                         className={cn(
-                                          "bg-white/5 border-white/10 focus-visible:border-primary text-white h-12 rounded-xl",
+                                          "bg-background/50 border-border text-foreground h-12 rounded-xl focus:border-primary/50",
                                           field.type === "date" &&
                                             "[color-scheme:dark]"
                                         )}
@@ -1548,7 +1548,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                           ) : (
                             <div className="space-y-4 col-span-2">
                               <div className="space-y-2">
-                                <Label className="text-neutral-400">
+                                <Label className="text-muted-foreground">
                                   Full Name
                                 </Label>
                                 <Input
@@ -1560,12 +1560,12 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                       name: e.target.value,
                                     })
                                   }
-                                  className="bg-white/5 border-white/10 h-12 rounded-xl"
+                                  className="bg-background/50 border-border h-12 rounded-xl"
                                   placeholder="Your Name"
                                 />
                               </div>
                               <div className="space-y-2">
-                                <Label className="text-neutral-400">
+                                <Label className="text-muted-foreground">
                                   Phone
                                 </Label>
                                 <Input
@@ -1577,7 +1577,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                                       phone: e.target.value,
                                     })
                                   }
-                                  className="bg-white/5 border-white/10 h-12 rounded-xl"
+                                  className="bg-background/50 border-border h-12 rounded-xl"
                                   placeholder="Phone Number"
                                 />
                               </div>
@@ -1627,7 +1627,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                         <Button
                           type="submit"
                           disabled={isSubmitting}
-                          className="w-full h-14 text-base font-bold rounded-xl bg-primary text-black hover:bg-primary/90 transition-transform hover:scale-[1.02]"
+                          className="w-full h-14 text-base font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-transform hover:scale-[1.02]"
                         >
                           {isSubmitting ? (
                             <Loader2 className="animate-spin mr-2 w-5 h-5" />
@@ -1653,7 +1653,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
 
       {/* 🚀 THE ACTUAL SHOP SECTION */}
       <section
-        className="relative py-24 md:py-32 bg-neutral-950 overflow-hidden"
+        className="relative py-24 md:py-32 bg-background overflow-hidden text-foreground"
         id="shop"
       >
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
@@ -1662,7 +1662,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
             <div className="text-center max-w-3xl mx-auto mb-16 md:mb-24 space-y-6">
               <InlineEdit
                 tagName="h2"
-                className="text-4xl md:text-5xl lg:text-6xl font-black text-white tracking-tighter block"
+                className="text-4xl md:text-5xl lg:text-6xl font-black text-foreground tracking-tighter block"
                 text={data.title || "Shop"}
                 sectionId={id}
                 fieldKey="title"
@@ -1671,7 +1671,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
               <div className="h-1 w-24 bg-gradient-to-r from-primary to-transparent mx-auto rounded-full" />
               <InlineEdit
                 tagName="p"
-                className="text-lg md:text-xl text-neutral-400 font-medium block"
+                className="text-lg md:text-xl text-muted-foreground font-medium block"
                 text={data.subheadline || "Browse our latest collection."}
                 sectionId={id}
                 fieldKey="subheadline"
@@ -1681,7 +1681,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
           )}
 
           {!hasProducts && isPreview && (
-            <div className="w-full py-24 border-2 border-dashed border-white/10 rounded-3xl flex flex-col items-center justify-center text-white/40 bg-white/5">
+            <div className="w-full py-24 border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center text-muted-foreground/50 bg-card/30">
               <Store className="w-12 h-12 mb-4 opacity-50" />
               <p className="font-medium tracking-wide">
                 No products added yet.
@@ -1708,7 +1708,7 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
                   <div className="mb-12 text-center md:text-left">
                     <InlineEdit
                       tagName="h2"
-                      className="text-3xl md:text-4xl lg:text-5xl font-black text-white block tracking-tight"
+                      className="text-3xl md:text-4xl lg:text-5xl font-black text-foreground block tracking-tight"
                       text={data.title || "Featured Product"}
                       sectionId={id}
                       fieldKey="title"
@@ -1727,13 +1727,13 @@ const Shop: React.FC<any> = ({ data, settings = {}, id, isPreview, actorId, port
               {variant === "carousel" && (
                 <div className="relative group/carousel -mx-6 px-6 md:mx-0 md:px-0">
                   <button
-                    className="absolute left-4 top-[40%] group-hover/carousel:top-1/2 -translate-y-1/2 z-20 flex items-center justify-center bg-black/50 hover:bg-black/80 text-white rounded-full h-14 w-14 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 border border-white/10 hidden md:flex backdrop-blur-md"
+                  className="absolute left-4 top-[40%] group-hover/carousel:top-1/2 -translate-y-1/2 z-20 flex items-center justify-center bg-background/50 hover:bg-background/80 text-foreground rounded-full h-14 w-14 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 border border-border hidden md:flex backdrop-blur-md shadow-2xl hover:scale-105"
                     onClick={() => scrollCarousel("left")}
                   >
                     <ChevronLeft className="w-8 h-8" />
                   </button>
                   <button
-                    className="absolute right-4 top-[40%] group-hover/carousel:top-1/2 -translate-y-1/2 z-20 flex items-center justify-center bg-black/50 hover:bg-black/80 text-white rounded-full h-14 w-14 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 border border-white/10 hidden md:flex backdrop-blur-md"
+                  className="absolute right-4 top-[40%] group-hover/carousel:top-1/2 -translate-y-1/2 z-20 flex items-center justify-center bg-background/50 hover:bg-background/80 text-foreground rounded-full h-14 w-14 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 border border-border hidden md:flex backdrop-blur-md shadow-2xl hover:scale-105"
                     onClick={() => scrollCarousel("right")}
                   >
                     <ChevronRight className="w-8 h-8" />

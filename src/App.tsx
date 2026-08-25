@@ -79,7 +79,7 @@ import {
 } from "@/features/ecommerce";
 import { SettingsPage } from "@/features/portfolio-builder";
 const CustomersPage = lazy(() => import("@/features/ecommerce/pages/CustomersPage"));
-const ProductReviewsPage = lazy(() => import("@/features/ecommerce/pages/ProductReviewsPage"));
+const ReviewsPage = lazy(() => import("@/features/ecommerce/pages/ReviewsPage.tsx"));
 const CustomerLoginPage = lazy(() => import("@/features/ecommerce/pages/CustomerLoginPage"));
 const CustomerDashboardLayout = lazy(() => import("@/layouts/CustomerDashboardLayout"));
 const CustomerDashboardOverview = lazy(() => import("@/features/ecommerce/pages/CustomerDashboardOverview"));
@@ -337,7 +337,7 @@ function App() {
                       <Route path="markets" element={<MarketsPage />} />
                       <Route path="payments" element={<PaymentsPage />} />
                       <Route path="customers" element={<CustomersPage />} />
-                      <Route path="product-reviews" element={<ProductReviewsPage />} />
+                      <Route path="reviews" element={<ReviewsPage />} />
                       <Route path="studio" element={<ThemeStudioPage />} />
                       <Route
                         path="creator-hub"

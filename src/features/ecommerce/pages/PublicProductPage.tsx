@@ -127,6 +127,11 @@ export default function PublicProductPage() {
       setResolvedPublicSlug(currentPublicSlug);
       setPortfolioId(currentPortfolioId);
       setThemeConfig(currentThemeConfig);
+      
+      // 🚀 FORCE CONTEXT SWITCH IMMEDIATELY
+      if (currentPortfolioId) {
+        useCartStore.getState().validateStoreContext(currentPortfolioId);
+      }
 
       // Check for Customer Session
       const { data: { session } } = await supabase.auth.getSession();
@@ -441,7 +446,7 @@ export default function PublicProductPage() {
 
   return (
     <>
-      <CartDrawerContainer theme={theme} username={layoutProps.username} />
+      <CartDrawerContainer theme={theme} username={layoutProps.username} storeId={portfolioId} />
 
       {theme === "minimal" ? (
         <MinimalProductLayout {...layoutProps} />

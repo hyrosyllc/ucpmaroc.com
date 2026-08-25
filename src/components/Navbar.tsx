@@ -74,33 +74,15 @@ const useAuth = () => {
 const allMenuItems = [
   { icon: Home, label: "Home", to: "/", type: "link" },
   { icon: AudioLinesIcon, label: "Voice Over", to: "/voiceover", type: "link" },
-  {
-    icon: Youtube,
-    label: "Cinematography",
-    to: "/cinema-portfolio",
-    type: "link",
-  },
-  {
-    icon: BracesIcon,
-    label: "Software Development",
-    to: "/software-development",
-    type: "link",
-  },
-  {
-    icon: MegaphoneIcon,
-    label: "Digital Marketing",
-    to: "/digital-marketing",
-    type: "link",
-  },
+ 
+  
   {
     icon: GalleryHorizontalEnd,
     label: "Gallery Room",
     to: "/portfolio",
     type: "link",
   },
-  { icon: Package, label: "Packages", to: "/#packages", type: "hash" },
   { icon: Phone, label: "Contact Us", to: "/contact", type: "link" },
-  { icon: Heart, label: "My Shortlist", to: "/my-shortlist", type: "link" },
 ];
 
 const serviceDropdownItems = [
@@ -112,7 +94,6 @@ const serviceDropdownItems = [
 
 const desktopNavLinks = [
   { label: "Gallery", to: "/portfolio", type: "link" as const },
-  { label: "Shortlist", to: "/my-shortlist", type: "link" as const },
   { label: "Contact", to: "/contact", type: "link" as const },
 ];
 

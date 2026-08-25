@@ -283,12 +283,12 @@ const Header: React.FC<any> = ({
       : "top-0",
     variant === "floating"
       ? cn(
-          "right-0 mx-auto max-w-5xl rounded-full border border-white/10 bg-neutral-900/60 backdrop-blur-md px-6 py-3 shadow-2xl w-[95%]",
+          "right-0 mx-auto max-w-5xl rounded-full border border-border bg-card/60 backdrop-blur-md px-6 py-3 shadow-2xl w-[95%]",
           !isScrolled && hasAnnouncement && !isPreview ? "mt-4" : "mt-4"
         )
       : cn("border-b border-transparent py-4"),
     variant !== "floating" && isSticky && isScrolled
-      ? "bg-neutral-950/80 backdrop-blur-md border-white/10 py-3 shadow-lg top-0"
+      ? "bg-background/80 backdrop-blur-md border-border py-3 shadow-lg top-0"
       : "",
     !isScrolled && variant !== "floating" && "bg-transparent"
   );
@@ -321,7 +321,7 @@ const Header: React.FC<any> = ({
       ) : (
         <InlineEdit
           tagName="span"
-          className="text-xl md:text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60 block"
+          className="text-xl md:text-2xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-foreground to-foreground/60 block"
           text={data.logoText || "BRAND."}
           sectionId={id}
           fieldKey="logoText"
@@ -338,7 +338,7 @@ const Header: React.FC<any> = ({
         if (item.type === "folder") {
           return (
             <div key={item.id} className="relative group px-1 py-4 -my-4">
-              <button className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors rounded-full hover:bg-white/5">
+              <button className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-foreground/70 hover:text-foreground transition-colors rounded-full hover:bg-foreground/5">
                 {item.label}
                 <ChevronDown
                   size={14}
@@ -349,13 +349,13 @@ const Header: React.FC<any> = ({
               {/* 🚀 THE FIX: The Invisible Bridge (pt-3 instead of mt-2) */}
               <div className="absolute top-full left-0 pt-3 w-56 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
                 {/* The Actual Visual Card */}
-                <div className="rounded-2xl bg-neutral-950/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
+                <div className="rounded-2xl bg-background/95 backdrop-blur-xl border border-border shadow-2xl overflow-hidden">
                   <div className="p-2 flex flex-col gap-1">
                     {item.children.map((child: any) => (
                       <button
                         key={child.id}
                         onClick={() => handleNavClick(child)}
-                        className="text-left px-4 py-2.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+                        className="text-left px-4 py-2.5 text-sm font-medium text-foreground/70 hover:text-foreground hover:bg-foreground/10 rounded-xl transition-colors"
                       >
                         {child.label}
                       </button>
@@ -372,7 +372,7 @@ const Header: React.FC<any> = ({
           <button
             key={item.id}
             onClick={() => handleNavClick(item)}
-            className="relative px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors group rounded-full hover:bg-white/5"
+            className="relative px-4 py-2 text-sm font-medium text-foreground/70 hover:text-foreground transition-colors group rounded-full hover:bg-foreground/5"
           >
             {item.label}
           </button>
@@ -381,13 +381,13 @@ const Header: React.FC<any> = ({
     </nav>
   );
   const SocialLinks = () => (
-    <div className="hidden md:flex items-center gap-3 px-3 text-white/70 shrink-0">
+    <div className="hidden md:flex items-center gap-3 px-3 text-foreground/70 shrink-0">
       {data.socialInstagram && (
         <a
           href={data.socialInstagram}
           target="_blank"
           rel="noreferrer"
-          className="hover:text-white transition-colors"
+          className="hover:text-foreground transition-colors"
         >
           <Instagram size={16} />
         </a>
@@ -397,7 +397,7 @@ const Header: React.FC<any> = ({
           href={data.socialTwitter}
           target="_blank"
           rel="noreferrer"
-          className="hover:text-white transition-colors"
+          className="hover:text-foreground transition-colors"
         >
           <Twitter size={16} />
         </a>
@@ -407,7 +407,7 @@ const Header: React.FC<any> = ({
           href={data.socialYoutube}
           target="_blank"
           rel="noreferrer"
-          className="hover:text-white transition-colors"
+          className="hover:text-foreground transition-colors"
         >
           <Youtube size={16} />
         </a>
@@ -417,7 +417,7 @@ const Header: React.FC<any> = ({
           href={data.socialImdb}
           target="_blank"
           rel="noreferrer"
-          className="hover:text-white transition-colors"
+          className="hover:text-foreground transition-colors"
         >
           <Film size={16} />
         </a>
@@ -430,7 +430,7 @@ const Header: React.FC<any> = ({
       <Button
         size="sm"
         asChild
-        className="rounded-full bg-white text-black hover:bg-neutral-200 px-6 font-semibold h-10 hidden md:flex shrink-0"
+        className="rounded-full bg-foreground text-background hover:bg-foreground/90 px-6 font-semibold h-10 hidden md:flex shrink-0"
       >
         <a
           href={data.ctaLink || "#contact"}
@@ -463,7 +463,7 @@ const Header: React.FC<any> = ({
         e.stopPropagation();
         openCart();
       }}
-      className="relative p-2 text-white/70 hover:text-white transition-colors shrink-0"
+      className="relative p-2 text-foreground/70 hover:text-foreground transition-colors shrink-0"
     >
       <ShoppingBag className="w-5 h-5 md:w-6 md:h-6" />
       {cartCount > 0 && (
@@ -482,7 +482,7 @@ const Header: React.FC<any> = ({
         if (isPreview) return;
         navigate(`${pathPrefix}/${username}/dashboard`);
       }}
-      className="relative p-2 text-white/70 hover:text-white transition-colors shrink-0"
+      className="relative p-2 text-foreground/70 hover:text-foreground transition-colors shrink-0"
       title="My Account"
     >
       <User className="w-5 h-5 md:w-6 md:h-6" />
@@ -596,17 +596,17 @@ const Header: React.FC<any> = ({
               <div className="flex items-center gap-2 md:gap-4">
                 <DesktopNav />
                 {hasSocial && (
-                  <div className="border-l border-white/10 pl-1">
+                  <div className="border-l border-border pl-1">
                     <SocialLinks />
                   </div>
                 )}
                 <AccountButton />
                 <CartButton />
-                <div className="pl-4 ml-2 border-l border-white/10 hidden md:block">
+                <div className="pl-4 ml-2 border-l border-border hidden md:block">
                   <CTA />
                 </div>
                 <button
-                  className="md:hidden p-2 text-white"
+                  className="md:hidden p-2 text-foreground"
                   onClick={() => setIsMenuOpen(true)}
                 >
                   <Menu />
@@ -620,12 +620,12 @@ const Header: React.FC<any> = ({
               <div className="justify-self-start flex items-center">
                 <DesktopNav />
                 {hasSocial && (
-                  <div className="hidden md:block border-l border-white/10 pl-1 ml-4">
+                  <div className="hidden md:block border-l border-border pl-1 ml-4">
                     <SocialLinks />
                   </div>
                 )}
                 <button
-                  className="md:hidden p-2 text-white"
+                  className="md:hidden p-2 text-foreground"
                   onClick={() => setIsMenuOpen(true)}
                 >
                   <Menu />
@@ -658,7 +658,7 @@ const Header: React.FC<any> = ({
                   <CTA />
                 </div>
                 <button
-                  className="md:hidden p-2 text-white"
+                  className="md:hidden p-2 text-foreground"
                   onClick={() => setIsMenuOpen(true)}
                 >
                   <Menu />
@@ -672,14 +672,14 @@ const Header: React.FC<any> = ({
       {/* 🚀 UPGRADED: MOBILE MENU WITH ACCORDIONS */}
       <div
         className={cn(
-          "fixed inset-0 z-[60] bg-neutral-950 md:hidden flex flex-col items-center justify-start transition-all duration-500 ease-in-out overflow-y-auto custom-scrollbar",
+          "fixed inset-0 z-[60] bg-background md:hidden flex flex-col items-center justify-start transition-all duration-500 ease-in-out overflow-y-auto custom-scrollbar",
           isMenuOpen
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
         )}
       >
         <button
-          className="absolute top-6 right-6 p-2 text-white/50 hover:text-white z-10"
+          className="absolute top-6 right-6 p-2 text-foreground/50 hover:text-foreground z-10"
           onClick={() => setIsMenuOpen(false)}
         >
           <X size={32} />
@@ -698,7 +698,7 @@ const Header: React.FC<any> = ({
                   <button
                     onClick={() => toggleMobileFolder(item.id)}
                     className={cn(
-                      "flex items-center gap-2 text-3xl font-bold text-white/90 hover:text-white transition-all duration-300 transform",
+                      "flex items-center gap-2 text-3xl font-bold text-foreground/90 hover:text-foreground transition-all duration-300 transform",
                       isMenuOpen
                         ? "translate-y-0 opacity-100"
                         : "translate-y-8 opacity-0"
@@ -725,7 +725,7 @@ const Header: React.FC<any> = ({
                       <button
                         key={child.id}
                         onClick={() => handleNavClick(child)}
-                        className="text-xl font-medium text-white/60 hover:text-white transition-colors"
+                        className="text-xl font-medium text-foreground/60 hover:text-foreground transition-colors"
                       >
                         {child.label}
                       </button>
@@ -740,7 +740,7 @@ const Header: React.FC<any> = ({
                 key={item.id}
                 onClick={() => handleNavClick(item)}
                 className={cn(
-                  "text-3xl font-bold text-white/90 hover:text-white transition-all duration-300 transform",
+                  "text-3xl font-bold text-foreground/90 hover:text-foreground transition-all duration-300 transform",
                   isMenuOpen
                     ? "translate-y-0 opacity-100"
                     : "translate-y-8 opacity-0"
@@ -755,7 +755,7 @@ const Header: React.FC<any> = ({
           {hasSocial && (
             <div
               className={cn(
-                "flex items-center justify-center gap-6 mt-8 pt-8 border-t border-white/10 w-full max-w-[200px] transition-all duration-500",
+                "flex items-center justify-center gap-6 mt-8 pt-8 border-t border-border w-full max-w-[200px] transition-all duration-500",
                 isMenuOpen
                   ? "translate-y-0 opacity-100"
                   : "translate-y-8 opacity-0"
@@ -767,7 +767,7 @@ const Header: React.FC<any> = ({
                   href={data.socialInstagram}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-white/70 hover:text-white"
+                  className="text-foreground/70 hover:text-foreground"
                 >
                   <Instagram size={24} />
                 </a>
@@ -777,7 +777,7 @@ const Header: React.FC<any> = ({
                   href={data.socialTwitter}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-white/70 hover:text-white"
+                  className="text-foreground/70 hover:text-foreground"
                 >
                   <Twitter size={24} />
                 </a>
@@ -787,7 +787,7 @@ const Header: React.FC<any> = ({
                   href={data.socialYoutube}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-white/70 hover:text-white"
+                  className="text-foreground/70 hover:text-foreground"
                 >
                   <Youtube size={24} />
                 </a>
@@ -797,7 +797,7 @@ const Header: React.FC<any> = ({
                   href={data.socialImdb}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-white/70 hover:text-white"
+                  className="text-foreground/70 hover:text-foreground"
                 >
                   <Film size={24} />
                 </a>
@@ -817,7 +817,7 @@ const Header: React.FC<any> = ({
             >
               <Button
                 size="lg"
-                className="w-full rounded-full bg-white text-black hover:bg-neutral-200 text-lg h-14"
+                className="w-full rounded-full bg-foreground text-background hover:bg-foreground/90 text-lg h-14"
                 asChild
               >
                 <a

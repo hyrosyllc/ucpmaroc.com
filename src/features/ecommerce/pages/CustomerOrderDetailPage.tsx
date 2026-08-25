@@ -21,9 +21,14 @@ export default function CustomerOrderDetailPage() {
 
   useEffect(() => {
     const fetchOrderAndMessages = async () => {
-      if (!customer?.id || !id) return;
+      if (!id) return;
       
-      const { data: oData } = await supabase.from("pro_orders").select("*").eq("id", id).eq("customer_id", customer.id).maybeSingle();
+      if (!customer?.id) {
+        setLoading(false);
+        return;
+      }
+      
+      const { data: oData } = await supabase.from("pro_orders").select("*").eq("id", id).or(`customer_id.eq.${customer.id},notes.ilike.%${customer.email}%`).maybeSingle();
       if (!oData) { navigate("../orders"); return; }
       setOrder(oData);
 

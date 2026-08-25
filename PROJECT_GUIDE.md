@@ -13,6 +13,7 @@ At its core, the platform is a **Multi-Tenant Portfolio Builder & E-Commerce CRM
 - [📬 4. CRM & Order Management](#-4-crm--order-management)
 - [📊 5. Analytics & Insights](#-5-analytics--insights)
 - [⚙️ 6. System Architecture & Context](#️-6-system-architecture--context)
+- [🌓 7. Theme Engine & Color Modes (Light / Dark)](#-7-theme-engine--color-modes-light--dark)
 - [🛠️ Technical Stack Summary](#️-technical-stack-summary)
 
 ---
@@ -224,6 +225,73 @@ To keep the sidebar perfectly clean, a toggle allows users approved for the inte
 - Integrates via edge functions (`manage-domains`) to dynamically map external CNAME / A Records to specific portfolios.
 
 ---
+## 🌓 7. Theme Engine & Color Modes (Light / Dark)
+The platform features a highly advanced, scoped theming engine. It allows the storefront to flip between Light and Dark mode *independently* of the Admin Dashboard's global dark mode.
+
+### 🧠 The Core Concept: Semantic Variables
+Instead of hardcoding literal Tailwind colors (e.g., `bg-neutral-950` or `text-white`) inside the theme files, all storefront components use **Semantic Variables** (e.g., `bg-background`, `text-foreground`, `bg-card`, `border-border`). 
+
+This means the theme components don't actually know *what* color they are; they just know their role. The actual Hex/HSL values for those roles are dictated by the **Theme Dictionary**.
+
+### 📚 The Theme Dictionary (`THEME_PALETTES`)
+Located at the top of both `BuilderPreview.tsx` and `PortfolioLayout.tsx`, this dictionary defines the exact shades of colors for both Light and Dark modes for every specific theme.
+
+```javascript
+const THEME_PALETTES = {
+  modern: {
+    light: { background: "0 0% 100%", foreground: "240 10% 3.9%", ... },
+    dark: { background: "0 0% 4%", foreground: "0 0% 98%", ... }
+  },
+  cinematic: {
+    light: { background: "222.2 84% 4.9%", ... },
+    dark: { background: "222.2 84% 4.9%", ... }
+  }
+}
+```
+*Why this matters:* The `modern` dark mode uses a pure neutral black (`0 0% 4%`), while the `cinematic` dark mode uses a deep slate blue (`222.2 84% 4.9%`). The dictionary allows each theme to maintain its unique "vibe" while using the same underlying JSX files!
+
+### 🏗️ How it works in the Builder (`BuilderPreview.tsx`)
+When a user clicks the "Light / Dark" toggle in the Design tab:
+1. The setting is saved to `themeConfig.colorMode`.
+2. The `PortfolioBuilderPage.tsx` sends this configuration to the iframe via `postMessage`.
+3. `BuilderPreview.tsx` receives the data and selects the correct palette from the dictionary:
+   `const activePalette = colorMode === "light" ? palette.light : palette.dark;`
+4. It dynamically injects a `<style>` block into the iframe, mapping the semantic variables to the exact HSL values.
+
+### 🌍 How it works on the Live Site (`PortfolioLayout.tsx`)
+The live site uses the exact same logic but reads the `themeConfig` directly from the database during the initial page load. 
+1. It fetches the portfolio data.
+2. It identifies the `templateId` and `colorMode`.
+3. It injects the same `<style>` block into the DOM, ensuring public visitors see exactly what was built in the preview.
+
+### 🛡️ The "Scope" Hack (Avoiding the `.dark` class)
+**The Problem:** The Admin Dashboard uses `next-themes`, which forces a `<html class="dark">` tag globally. If we relied on standard Tailwind dark mode (`.dark .bg-background`), the storefront would get stuck in dark mode because it inherits the dashboard's class.
+
+**The Solution:** We *do not* use the `.dark` class in our injected styles. 
+Instead, we forcefully target `:root` and the specific wrapper classes (`.builder-preview-wrapper` and `.portfolio-canvas-wrapper`) and overwrite the variables directly:
+
+```css
+/* Instead of doing this: */
+:root { --background: white; }
+.dark { --background: black; }
+
+/* We calculate the active palette in React and force it like this: */
+:root, .portfolio-canvas-wrapper {
+   --background: ${activePalette.background};
+   --foreground: ${activePalette.foreground};
+}
+```
+By doing this, the storefront is completely immune to the Admin Dashboard's environment and perfectly respects the user's explicit Light/Dark choice!
+
+### 📁 Files Responsible
+*   **`src/features/portfolio-builder/pages/BuilderPreview.tsx`**: Injects styles for the iframe sandbox.
+*   **`src/features/portfolio-builder/layouts/PortfolioLayout.tsx`**: Injects styles for the live public website.
+*   **`src/features/portfolio-builder/pages/PortfolioBuilderPage.tsx`**: Contains the actual UI Toggle that saves `colorMode` to the database.
+*   **`src/themes/modern/*` (All Theme Files)**: Consume the variables via Tailwind utilities (`bg-background`, `text-foreground`).
+
+---
+
+
 
 ## 🛠️ Technical Stack Summary
 - **Frontend Framework:** React (Vite / CRA)

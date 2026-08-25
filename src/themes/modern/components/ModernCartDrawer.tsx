@@ -96,12 +96,12 @@ export default function ModernCartDrawer({
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && closeCart()}>
       {/* 🚀 GLASSMORPHISM & THEME BACKGROUND */}
-      <SheetContent className="w-full sm:max-w-md flex flex-col p-0 bg-neutral-950/95 backdrop-blur-2xl border-l border-white/10 text-white z-[99999] shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
-        <SheetHeader className="p-6 border-b border-white/10 text-left relative overflow-hidden shrink-0">
+      <SheetContent className="w-full sm:max-w-md flex flex-col p-0 bg-background/95 backdrop-blur-2xl border-l border-border text-foreground z-[99999] shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
+        <SheetHeader className="p-6 border-b border-border text-left relative overflow-hidden shrink-0">
           {/* Subtle Primary Glow behind the header */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full pointer-events-none" />
 
-          <SheetTitle className="flex items-center text-2xl font-bold text-white relative z-10">
+          <SheetTitle className="flex items-center text-2xl font-bold text-foreground relative z-10">
             <ShoppingBag className="w-6 h-6 mr-3 text-primary" />
             Your Cart
           </SheetTitle>
@@ -114,21 +114,21 @@ export default function ModernCartDrawer({
         <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar relative z-10">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-5 opacity-70 animate-in fade-in duration-500">
-              <div className="w-24 h-24 rounded-full bg-neutral-900/50 border border-white/5 flex items-center justify-center">
-                <ShoppingBag className="w-10 h-10 text-neutral-500" />
+              <div className="w-24 h-24 rounded-full bg-card/50 border border-border/50 flex items-center justify-center">
+                <ShoppingBag className="w-10 h-10 text-muted-foreground" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl font-bold text-white">
+                <h3 className="text-xl font-bold text-foreground">
                   Your cart is empty
                 </h3>
-                <p className="text-sm font-medium text-neutral-400 max-w-[200px] mx-auto">
+                <p className="text-sm font-medium text-muted-foreground/80 max-w-[200px] mx-auto">
                   Looks like you haven't added anything yet.
                 </p>
               </div>
               <Button
                 variant="outline"
                 onClick={closeCart}
-                className="mt-4 border-white/10 bg-neutral-900/50 text-white hover:bg-white/10 transition-colors"
+                className="mt-4 border-border bg-card/50 text-foreground hover:bg-foreground/10 transition-colors"
               >
                 Continue Shopping
               </Button>
@@ -137,9 +137,9 @@ export default function ModernCartDrawer({
             items.map((item) => (
               <div
                 key={`${item.id}-${item.variant}`}
-                className="flex gap-4 relative group bg-neutral-900/40 p-3 rounded-2xl border border-white/5 hover:border-primary/30 hover:bg-neutral-900/60 transition-all duration-300"
+                className="flex gap-4 relative group bg-card/40 p-3 rounded-2xl border border-border/50 hover:border-primary/30 hover:bg-card/60 transition-all duration-300"
               >
-                <div className="w-20 h-20 rounded-xl border border-white/10 bg-black overflow-hidden flex-shrink-0 relative">
+                <div className="w-20 h-20 rounded-xl border border-border bg-muted overflow-hidden flex-shrink-0 relative">
                   {item.image ? (
                     <img
                       src={item.image}
@@ -147,14 +147,14 @@ export default function ModernCartDrawer({
                       alt={item.title}
                     />
                   ) : (
-                    <ShoppingBag className="w-6 h-6 m-auto text-neutral-600 mt-7" />
+                    <ShoppingBag className="w-6 h-6 m-auto text-muted-foreground mt-7" />
                   )}
                   {/* Subtle overlay gradient on images */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
                 </div>
 
                 <div className="flex flex-col flex-1 py-1 pr-6">
-                  <h3 className="font-bold text-white leading-tight line-clamp-2 group-hover:text-primary transition-colors text-sm">
+                  <h3 className="font-bold text-foreground leading-tight line-clamp-2 group-hover:text-primary transition-colors text-sm">
                     {item.title}
                   </h3>
                   {item.variant && (
@@ -164,9 +164,9 @@ export default function ModernCartDrawer({
                   )}
 
                   <div className="mt-auto flex items-center justify-between pt-3">
-                    <div className="flex items-center border border-white/10 rounded-lg bg-black/50">
+                    <div className="flex items-center border border-border rounded-lg bg-background/50">
                       <button
-                        className="px-2.5 py-1.5 text-neutral-400 hover:text-white transition-colors"
+                        className="px-2.5 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() =>
                           updateQuantity(
                             item.id,
@@ -177,11 +177,11 @@ export default function ModernCartDrawer({
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="text-xs font-bold w-6 text-center text-white">
+                      <span className="text-xs font-bold w-6 text-center text-foreground">
                         {item.quantity}
                       </span>
                       <button
-                        className="px-2.5 py-1.5 text-neutral-400 hover:text-white transition-colors"
+                        className="px-2.5 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() =>
                           updateQuantity(
                             item.id,
@@ -193,14 +193,14 @@ export default function ModernCartDrawer({
                         <Plus size={12} />
                       </button>
                     </div>
-                    <span className="font-bold text-white text-base">
+                    <span className="font-bold text-foreground text-base">
                       ${(item.price * item.quantity).toFixed(2)}
                     </span>
                   </div>
 
                   <button
                     onClick={() => removeItem(item.id, item.variant)}
-                    className="absolute top-2 right-2 p-2 rounded-full text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
+                    className="absolute top-2 right-2 p-2 rounded-full text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100"
                     title="Remove item"
                   >
                     <Trash2 size={14} />
@@ -212,7 +212,7 @@ export default function ModernCartDrawer({
         </div>
 
         {items.length > 0 && (
-          <div className="p-6 bg-neutral-950 border-t border-white/10 space-y-4 shrink-0 relative">
+          <div className="p-6 bg-background border-t border-border space-y-4 shrink-0 relative">
             
             {/* Coupon Input Area */}
             <div className="space-y-2">
@@ -223,7 +223,7 @@ export default function ModernCartDrawer({
                     placeholder="Discount code"
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 text-sm focus:outline-none focus:border-primary transition-colors uppercase placeholder:normal-case text-white"
+                    className="flex-1 bg-foreground/5 border border-border rounded-lg px-3 text-sm focus:outline-none focus:border-primary transition-colors uppercase placeholder:normal-case text-foreground"
                   />
                   <Button variant="secondary" onClick={handleApplyCoupon} disabled={isValidatingCoupon || !couponInput.trim()} className="h-10 px-4">
                     {isValidatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
@@ -241,8 +241,8 @@ export default function ModernCartDrawer({
             {/* Subtotal & Total */}
             <div className="space-y-1.5 pt-2">
                <div className="flex justify-between items-center text-sm">
-                  <span className="text-neutral-400">Subtotal</span>
-                  <span className="text-white">${subtotal.toFixed(2)}</span>
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="text-foreground">${subtotal.toFixed(2)}</span>
                </div>
                {coupon && discount > 0 && (
                  <div className="flex justify-between items-center text-sm text-primary font-medium">
@@ -250,9 +250,9 @@ export default function ModernCartDrawer({
                     <span>-${discount.toFixed(2)}</span>
                  </div>
                )}
-               <div className="flex justify-between items-center text-lg mt-2 border-t border-white/10 pt-3">
+               <div className="flex justify-between items-center text-lg mt-2 border-t border-border pt-3">
                   <span className="text-neutral-400 font-medium text-sm uppercase tracking-wider">Total</span>
-                  <span className="text-3xl font-bold text-white">${cartTotal.toFixed(2)}</span>
+                  <span className="text-3xl font-bold text-foreground">${cartTotal.toFixed(2)}</span>
                </div>
             </div>
 

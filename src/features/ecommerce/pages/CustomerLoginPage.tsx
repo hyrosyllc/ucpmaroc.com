@@ -20,10 +20,12 @@ export default function CustomerLoginPage() {
 
   const [portfolio, setPortfolio] = useState<any>(null);
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"email" | "verify">("email");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState("modern");
 
   useEffect(() => {
@@ -59,47 +61,118 @@ export default function CustomerLoginPage() {
     fetchPortfolio();
   }, [slug, navigate]);
 
-  const handleSendCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setIsLoading(true);
-    setError(null);
+  const handlePostAuth = async (user: any) => {
+    if (!user || !portfolio?.id) return;
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-      },
-    });
+      // 🚀 CREATE/SYNC THE CUSTOMER RECORD
+        const { data: existingCustomer } = await supabase
+          .from("pro_customers")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("portfolio_id", portfolio.id)
+          .maybeSingle();
 
-    setIsLoading(false);
-    if (error) {
-      setError(error.message);
-    } else {
-      setStep("verify");
-    }
-  };
+      if (!existingCustomer) {
+        const fallbackName =
+          name || user.user_metadata?.full_name || user.email?.split("@")[0] || "Customer";
 
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp) return;
-    setIsLoading(true);
-    setError(null);
+        const { data: newCustomer, error: insertError } = await supabase
+          .from("pro_customers")
+          .insert({
+            user_id: user.id,
+            portfolio_id: portfolio.id,
+            email: user.email,
+            name: fallbackName,
+          })
+          .select()
+          .single();
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: "email",
-    });
+        if (insertError) {
+          console.error("Error creating customer record:", insertError);
+          setError(
+            "Could not create your customer profile. Please contact support."
+          );
+          return;
+        }
 
-    if (error) {
-      setError(error.message);
-      setIsLoading(false);
-    } else if (data.session) {
+        // 🚀 Now, link past guest orders to this new customer account
+        if (newCustomer) {
+          await supabase
+            .from("pro_orders")
+            .update({ customer_id: newCustomer.id })
+            .eq("portfolio_id", portfolio.id)
+            .is("customer_id", null) // Only update orders that are still guests
+            .ilike("notes", `%${user.email}%`);
+        }
+      } else {
+        // Customer record already exists, but let's check for unlinked guest orders anyway.
+        // This handles the case where a user logged in once, then made guest purchases later.
+        await supabase
+          .from("pro_orders")
+          .update({ customer_id: existingCustomer.id })
+          .eq("portfolio_id", portfolio.id)
+          .is("customer_id", null)
+          .ilike("notes", `%${user.email}%`);
+      }
+
       const isCustomDomain = !MAIN_DOMAINS.some((domain) => window.location.hostname.includes(domain));
       const dashboardUrl = isCustomDomain ? '/dashboard' : `/pro/${portfolio.public_slug}/dashboard`;
       navigate(dashboardUrl);
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    setIsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    if (isSignUp) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: name }
+        }
+      });
+
+      if (error) {
+        // Gracefully handle existing user error by attempting to sign them in
+        if (error.message.toLowerCase().includes('user already registered')) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (signInError) {
+            // If login fails (e.g. wrong password), show the original sign-up error
+            setError("An account with this email already exists. Please log in instead.");
+          } else if (signInData.session) {
+            // On successful login, run the post-auth logic to create customer record
+            await handlePostAuth(signInData.session.user);
+          }
+        } else {
+          setError(error.message);
+        }
+      } else {
+        if (data.session) {
+          await handlePostAuth(data.session.user);
+        } else {
+          setSuccessMessage("Sign up successful! Please check your email to confirm your account.");
+        }
+      }
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else if (data.session) {
+        await handlePostAuth(data.session.user);
+      }
     }
+    setIsLoading(false);
   };
 
   if (!portfolio) {
@@ -117,13 +190,16 @@ export default function CustomerLoginPage() {
     portfolio,
     email,
     setEmail,
-    otp,
-    setOtp,
-    step,
+    name,
+    setName,
+    password,
+    setPassword,
+    isSignUp,
+    setIsSignUp,
     isLoading,
     error,
-    handleSendCode,
-    handleVerifyCode,
+    successMessage,
+    handleAuth,
     navigate,
     shopUrl,
   };

@@ -23,18 +23,26 @@ export default function CustomerOrdersPage() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!customer?.id) return;
+      if (!portfolio?.id) return;
+      
+      if (!customer?.id) {
+        setLoading(false);
+        return;
+      }
+      
+      // 🚀 Auto-link previous guest orders by checking the email inside the notes column!
       const { data } = await supabase
         .from("pro_orders")
         .select("*")
-        .eq("customer_id", customer.id)
+        .eq("portfolio_id", portfolio.id)
+        .or(`customer_id.eq.${customer.id},notes.ilike.%${customer.email}%`)
         .order("created_at", { ascending: false });
 
       if (data) setOrders(data);
       setLoading(false);
     };
     fetchOrders();
-  }, [customer]);
+  }, [customer, portfolio?.id]);
 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 

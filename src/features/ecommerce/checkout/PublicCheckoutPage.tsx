@@ -41,8 +41,8 @@ const ContactShippingForm = ({ formTemplate, formValues, setFormValues, isLoadin
     <form onSubmit={onSubmit} className="space-y-8 animate-in fade-in duration-500 w-full">
       <div className="space-y-6">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-white">Contact & Shipping</h2>
-          <p className="text-sm text-neutral-400 mt-1">Where should we send your order?</p>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Contact & Shipping</h2>
+          <p className="text-sm text-muted-foreground mt-1">Where should we send your order?</p>
         </div>
         {isLoadingForm ? (
           <div className="flex items-center justify-center py-6"><Loader2 className="animate-spin text-primary" /></div>
@@ -56,27 +56,27 @@ const ContactShippingForm = ({ formTemplate, formValues, setFormValues, isLoadin
               }
               return (
                 <div key={idx} className={cn("space-y-2 col-span-1", widthClass)}>
-                  <label className="text-sm font-medium text-neutral-300 flex items-center gap-1.5">
+                  <label className="text-sm font-medium text-foreground/80 flex items-center gap-1.5">
                      {field.label} {field.required && <span className="text-primary">*</span>}
                   </label>
                   {field.type === "textarea" ? (
-                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 min-h-[100px] resize-none rounded-md p-3 border-white/10 shadow-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent text-white transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                    <Textarea required={field.required} placeholder={field.placeholder} className="bg-card hover:border-foreground/30 focus:bg-card min-h-[100px] resize-none rounded-md p-3 border-border shadow-sm focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-transparent text-foreground transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
                   ) : field.type === "select" ? (
-                    <select required={field.required} className="w-full bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 border border-white/10 text-white h-11 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
+                    <select required={field.required} className="w-full bg-card hover:border-foreground/30 focus:bg-card border border-border text-foreground h-11 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })}>
                       <option value="" disabled>Select...</option>
                       {fieldOptions.map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
                     </select>
                   ) : field.type === "radio" ? (
                     <div className="flex flex-col gap-2">
                       {fieldOptions.map((opt: string, i: number) => (
-                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-3 rounded-md border border-white/10 bg-neutral-900 shadow-sm hover:border-white/30 transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary">
-                          <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 group-hover:border-primary bg-neutral-800"><input type="radio" name={field.id} value={opt} required={field.required} checked={formValues[field.id] === opt} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} /><div className="w-2 h-2 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" /></div>
-                          <span className="text-white text-sm font-medium">{opt}</span>
+                        <label key={i} className="flex items-center gap-3 cursor-pointer group p-3 rounded-md border border-border bg-card shadow-sm hover:border-foreground/30 transition-colors has-[:checked]:bg-primary/10 has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary">
+                          <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-border/50 group-hover:border-primary bg-muted"><input type="radio" name={field.id} value={opt} required={field.required} checked={formValues[field.id] === opt} className="peer sr-only" onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} /><div className="w-2 h-2 rounded-full bg-primary opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100" /></div>
+                          <span className="text-foreground text-sm font-medium">{opt}</span>
                         </label>
                       ))}
                     </div>
                   ) : (
-                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
+                    <Input required={field.required} type={field.type === "email" ? "email" : field.type === "tel" ? "tel" : field.type === "date" ? "date" : "text"} placeholder={field.placeholder} className={cn("bg-card hover:border-foreground/30 focus:bg-card text-foreground h-11 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all", field.type === "date" && "dark:[color-scheme:dark]")} value={formValues[field.id] || ""} onChange={(e) => setFormValues({ ...formValues, [field.id]: e.target.value })} />
                   )}
                 </div>
               );
@@ -84,19 +84,19 @@ const ContactShippingForm = ({ formTemplate, formValues, setFormValues, isLoadin
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Full Name</label><Input required placeholder="Jane Doe" value={formValues.name || ""} onChange={(e) => setFormValues({ ...formValues, name: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+            <div className="space-y-2"><label className="text-sm font-medium text-foreground/80">Full Name</label><Input required placeholder="Jane Doe" value={formValues.name || ""} onChange={(e) => setFormValues({ ...formValues, name: e.target.value })} className="bg-card hover:border-foreground/30 focus:bg-card text-foreground h-11 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Email Address</label><Input required type="email" placeholder="jane@example.com" value={formValues.email || ""} onChange={(e) => setFormValues({ ...formValues, email: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
-              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Phone (Optional)</label><Input type="tel" placeholder="+1 234 567 890" value={formValues.phone || ""} onChange={(e) => setFormValues({ ...formValues, phone: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+              <div className="space-y-2"><label className="text-sm font-medium text-foreground/80">Email Address</label><Input required type="email" placeholder="jane@example.com" value={formValues.email || ""} onChange={(e) => setFormValues({ ...formValues, email: e.target.value })} className="bg-card hover:border-foreground/30 focus:bg-card text-foreground h-11 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+              <div className="space-y-2"><label className="text-sm font-medium text-foreground/80">Phone (Optional)</label><Input type="tel" placeholder="+1 234 567 890" value={formValues.phone || ""} onChange={(e) => setFormValues({ ...formValues, phone: e.target.value })} className="bg-card hover:border-foreground/30 focus:bg-card text-foreground h-11 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
             </div>
-            <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Street Address</label><Input placeholder="123 Main St" value={formValues.address || ""} onChange={(e) => setFormValues({ ...formValues, address: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+            <div className="space-y-2"><label className="text-sm font-medium text-foreground/80">Street Address</label><Input placeholder="123 Main St" value={formValues.address || ""} onChange={(e) => setFormValues({ ...formValues, address: e.target.value })} className="bg-card hover:border-foreground/30 focus:bg-card text-foreground h-11 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">City</label><Input placeholder="City" value={formValues.city || ""} onChange={(e) => setFormValues({ ...formValues, city: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
-              <div className="space-y-2"><label className="text-sm font-medium text-neutral-300">Zip / Postal Code</label><Input placeholder="Zip" value={formValues.zip || ""} onChange={(e) => setFormValues({ ...formValues, zip: e.target.value })} className="bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-11 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+              <div className="space-y-2"><label className="text-sm font-medium text-foreground/80">City</label><Input placeholder="City" value={formValues.city || ""} onChange={(e) => setFormValues({ ...formValues, city: e.target.value })} className="bg-card hover:border-foreground/30 focus:bg-card text-foreground h-11 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
+              <div className="space-y-2"><label className="text-sm font-medium text-foreground/80">Zip / Postal Code</label><Input placeholder="Zip" value={formValues.zip || ""} onChange={(e) => setFormValues({ ...formValues, zip: e.target.value })} className="bg-card hover:border-foreground/30 focus:bg-card text-foreground h-11 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all" /></div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-neutral-300">Country</label>
-              <select className="w-full bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 border border-white/10 text-white h-11 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm" value={formValues.country || ""} onChange={(e) => setFormValues({ ...formValues, country: e.target.value })}>
+              <label className="text-sm font-medium text-foreground/80">Country</label>
+              <select className="w-full bg-card hover:border-foreground/30 focus:bg-card border border-border text-foreground h-11 rounded-md px-3 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm" value={formValues.country || ""} onChange={(e) => setFormValues({ ...formValues, country: e.target.value })}>
                 <option value="" disabled>Select Country</option>
                 {(allowedCountries?.length > 0 ? allowedCountries : ["United States", "United Kingdom", "Canada", "Morocco", "France", "Spain", "Other"]).map((opt: string, i: number) => <option key={i} value={opt}>{opt}</option>)}
               </select>
@@ -313,15 +313,15 @@ const PaymentForm = ({
       {/* PAYMENT SECURE SECTION */}
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">Payment</h2>
-          <p className="text-sm text-neutral-400 mt-1">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Payment</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             {isFreeOrder ? "No payment required for this order." : "All transactions are secure and encrypted."}
           </p>
         </div>
 
-        <div className="border border-white/10 bg-neutral-900 rounded-md overflow-hidden shadow-sm">
+        <div className="border border-border bg-card rounded-md overflow-hidden shadow-sm">
           {isFreeOrder ? (
-            <div className="p-6 bg-neutral-900/50 text-center text-sm text-neutral-400">
+            <div className="p-6 bg-card/50 text-center text-sm text-muted-foreground">
               Your order total is $0.00. No payment is required.
             </div>
           ) : (
@@ -331,17 +331,17 @@ const PaymentForm = ({
                   <label
                     className={cn(
                       "flex items-center gap-3 p-4 cursor-pointer transition-colors",
-                      paymentMethod === "card" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                      paymentMethod === "card" ? "bg-primary/10 border-b border-border" : "hover:bg-muted"
                     )}
                     onClick={() => setPaymentMethod("card")}
                   >
-                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-border/50 bg-muted">
                       <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "card" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
                     </div>
-                    <span className="font-medium text-white text-sm">Credit card</span>
+                    <span className="font-medium text-foreground text-sm">Credit card</span>
                   </label>
                   {paymentMethod === "card" && (
-                    <div className="p-4 bg-neutral-900/50 border-b border-white/10">
+                    <div className="p-4 bg-card/50 border-b border-border">
                       <PaymentElement />
                     </div>
                   )}
@@ -350,21 +350,21 @@ const PaymentForm = ({
 
               {(paymentConfig?.cod?.enabled ?? true) && (
                 <>
-                  {clientSecret && <div className="h-px bg-white/10 w-full" />}
+                  {clientSecret && <div className="h-px bg-border w-full" />}
                   <label
                     className={cn(
                       "flex items-center gap-3 p-4 cursor-pointer transition-colors",
-                      paymentMethod === "cod" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                      paymentMethod === "cod" ? "bg-primary/10 border-b border-border" : "hover:bg-muted"
                     )}
                     onClick={() => setPaymentMethod("cod")}
                   >
-                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-border/50 bg-muted">
                       <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "cod" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
                     </div>
-                    <span className="font-medium text-white text-sm">Cash on Delivery</span>
+                    <span className="font-medium text-foreground text-sm">Cash on Delivery</span>
                   </label>
                   {paymentMethod === "cod" && (
-                    <div className="p-6 bg-neutral-900/50 border-b border-white/10 text-center text-sm text-neutral-400">
+                    <div className="p-6 bg-card/50 border-b border-border text-center text-sm text-muted-foreground">
                       You will pay for your order upon delivery.
                     </div>
                   )}
@@ -374,33 +374,33 @@ const PaymentForm = ({
 
               {paymentConfig?.bank?.enabled && (
                 <>
-                  <div className="h-px bg-white/10 w-full" />
+                  <div className="h-px bg-border w-full" />
                   <label
                     className={cn(
                       "flex items-center gap-3 p-4 cursor-pointer transition-colors",
-                      paymentMethod === "bank" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                      paymentMethod === "bank" ? "bg-primary/10 border-b border-border" : "hover:bg-muted"
                     )}
                     onClick={() => setPaymentMethod("bank")}
                   >
-                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-border/50 bg-muted">
                       <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "bank" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
 
                     </div>
-                    <span className="font-medium text-white text-sm">Bank Transfer</span>
+                    <span className="font-medium text-foreground text-sm">Bank Transfer</span>
                   </label>
                   {paymentMethod === "bank" && (
-                    <div className="p-6 bg-neutral-900/50 border-b border-white/10">
+                    <div className="p-6 bg-card/50 border-b border-border">
                       {bankAccounts.length > 1 && (
                         <div className="mb-5 space-y-2">
-                          <p className="text-sm font-medium text-white mb-2">Select a Bank to transfer to:</p>
+                          <p className="text-sm font-medium text-foreground mb-2">Select a Bank to transfer to:</p>
                           <div className="space-y-2">
                             {bankAccounts.map((bank: any, index: number) => (
-                              <label key={index} className={cn("flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors", selectedBankIndex === index ? "bg-primary/10 border-primary" : "border-white/10 bg-neutral-900 hover:border-white/30")}>
+                              <label key={index} className={cn("flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors", selectedBankIndex === index ? "bg-primary/10 border-primary" : "border-border bg-card hover:border-foreground/30")}>
                                 <input type="radio" name="selected_bank" value={index} checked={selectedBankIndex === index} onChange={() => setSelectedBankIndex(index)} className="sr-only" />
-                                <div className={cn("w-4 h-4 rounded-full border flex items-center justify-center", selectedBankIndex === index ? "border-primary" : "border-white/20")}>
+                                <div className={cn("w-4 h-4 rounded-full border flex items-center justify-center", selectedBankIndex === index ? "border-primary" : "border-border/50")}>
                                   {selectedBankIndex === index && <div className="w-2 h-2 rounded-full bg-primary" />}
                                 </div>
-                                <span className="font-medium text-white text-sm">{bank.name || `Account ${index + 1}`}</span>
+                                <span className="font-medium text-foreground text-sm">{bank.name || `Account ${index + 1}`}</span>
                               </label>
                             ))}
                           </div>
@@ -410,12 +410,12 @@ const PaymentForm = ({
                       {bankAccounts[selectedBankIndex] && (
                         <>
                           {bankAccounts.length === 1 && (
-                            <p className="text-sm font-medium text-white mb-3 text-center">Transfer the total amount to:</p>
+                            <p className="text-sm font-medium text-foreground mb-3 text-center">Transfer the total amount to:</p>
                           )}
-                          <div className="space-y-2 text-sm text-neutral-300 bg-neutral-900 p-4 rounded-md border border-white/10 shadow-sm">
-                            <div className="flex justify-between"><span className="text-neutral-500">Bank</span><span className="font-medium text-white text-right">{bankAccounts[selectedBankIndex].name || "N/A"}</span></div>
-                            <div className="flex justify-between"><span className="text-neutral-500">Account Holder</span><span className="font-medium text-white text-right">{bankAccounts[selectedBankIndex].holder || "N/A"}</span></div>
-                            <div className="flex justify-between items-center"><span className="text-neutral-500">IBAN/Account No</span><span className="font-medium text-white break-all text-right ml-4">{bankAccounts[selectedBankIndex].iban || "N/A"}</span></div>
+                          <div className="space-y-2 text-sm text-foreground/80 bg-card p-4 rounded-md border border-border shadow-sm">
+                            <div className="flex justify-between"><span className="text-muted-foreground">Bank</span><span className="font-medium text-foreground text-right">{bankAccounts[selectedBankIndex].name || "N/A"}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Account Holder</span><span className="font-medium text-foreground text-right">{bankAccounts[selectedBankIndex].holder || "N/A"}</span></div>
+                            <div className="flex justify-between items-center"><span className="text-muted-foreground">IBAN/Account No</span><span className="font-medium text-foreground break-all text-right ml-4">{bankAccounts[selectedBankIndex].iban || "N/A"}</span></div>
                           </div>
                         </>
                       )}
@@ -426,26 +426,26 @@ const PaymentForm = ({
 
               {paymentConfig?.crypto?.enabled && (
                 <>
-                  <div className="h-px bg-white/10 w-full" />
+                  <div className="h-px bg-border w-full" />
                   <label
                     className={cn(
                       "flex items-center gap-3 p-4 cursor-pointer transition-colors",
-                      paymentMethod === "crypto" ? "bg-primary/10 border-b border-white/10" : "hover:bg-neutral-800"
+                      paymentMethod === "crypto" ? "bg-primary/10 border-b border-border" : "hover:bg-muted"
                     )}
                     onClick={() => setPaymentMethod("crypto")}
                   >
-                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                    <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-border/50 bg-muted">
                       <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", paymentMethod === "crypto" ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
 
                     </div>
-                    <span className="font-medium text-white text-sm">Crypto (USDC/SOL)</span>
+                    <span className="font-medium text-foreground text-sm">Crypto (USDC/SOL)</span>
                   </label>
                   {paymentMethod === "crypto" && (
-                    <div className="p-6 bg-neutral-900/50 border-b border-white/10">
-                      <p className="text-sm font-medium text-white mb-3 text-center flex items-center justify-center gap-2">
+                    <div className="p-6 bg-card/50 border-b border-border">
+                      <p className="text-sm font-medium text-foreground mb-3 text-center flex items-center justify-center gap-2">
                          Send USDC or SOL to:
                       </p>
-                      <div className="text-sm text-neutral-300 bg-neutral-900 p-4 rounded-md border border-white/10 shadow-sm break-all text-center font-mono font-bold text-primary">
+                      <div className="text-sm text-foreground/80 bg-card p-4 rounded-md border border-border shadow-sm break-all text-center font-mono font-bold text-primary">
                         {paymentConfig?.crypto?.wallet || "N/A"}
                       </div>
                     </div>
@@ -500,28 +500,28 @@ const OrderSummaryContent = ({ items, total, subtotal, discount, coupon, shippin
     <div className="space-y-4 mb-6 flex-grow">
       {items.map((item: CartItem) => (
         <div key={item.id} className="flex items-center gap-4">
-          <div className="relative w-16 h-16 bg-neutral-900 border border-white/10 rounded-lg flex items-center justify-center shrink-0">
+          <div className="relative w-16 h-16 bg-card border border-border rounded-lg flex items-center justify-center shrink-0">
             {item.image ? (
               <img src={item.image} className="w-full h-full object-cover rounded-lg" alt={item.title} />
             ) : (
-              <ShoppingBag className="w-6 h-6 text-neutral-600" />
+              <ShoppingBag className="w-6 h-6 text-muted-foreground/50" />
             )}
-            <span className="absolute -top-2 -right-2 bg-neutral-700/90 backdrop-blur-sm text-white text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
+            <span className="absolute -top-2 -right-2 bg-background/90 backdrop-blur-sm text-foreground text-xs font-medium w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
               {item.quantity}
             </span>
           </div>
           <div className="flex-1 min-w-0 pr-4">
-            <h4 className="font-medium text-white text-sm truncate">{item.title}</h4>
-            {item.variant && <p className="text-xs text-neutral-400 truncate mt-0.5">{item.variant}</p>}
+            <h4 className="font-medium text-foreground text-sm truncate">{item.title}</h4>
+            {item.variant && <p className="text-xs text-muted-foreground truncate mt-0.5">{item.variant}</p>}
           </div>
-          <div className="font-medium text-white shrink-0 text-right text-sm">
+          <div className="font-medium text-foreground shrink-0 text-right text-sm">
             ${(item.price * item.quantity).toFixed(2)}
           </div>
         </div>
       ))}
     </div>
 
-    <div className="border-t border-white/10 pt-5 space-y-4">
+    <div className="border-t border-border pt-5 space-y-4">
       {/* COUPON INPUT */}
       <div className="space-y-2">
         {!coupon ? (
@@ -531,7 +531,7 @@ const OrderSummaryContent = ({ items, total, subtotal, discount, coupon, shippin
               placeholder="Discount code"
               value={couponInput}
               onChange={(e) => setCouponInput(e.target.value)}
-              className="flex-1 bg-neutral-900 hover:border-white/30 focus:bg-neutral-900 text-white h-10 rounded-md border-white/10 shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all uppercase placeholder:normal-case"
+              className="flex-1 bg-card hover:border-foreground/30 focus:bg-card text-foreground h-10 rounded-md border-border shadow-sm focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-primary transition-all uppercase placeholder:normal-case"
             />
             <Button 
               type="button"
@@ -553,9 +553,9 @@ const OrderSummaryContent = ({ items, total, subtotal, discount, coupon, shippin
       </div>
 
       <div className="space-y-3">
-        <div className="flex justify-between text-sm text-neutral-400">
+        <div className="flex justify-between text-sm text-muted-foreground">
           <span>Subtotal</span>
-          <span className="font-medium text-white">${subtotal.toFixed(2)}</span>
+          <span className="font-medium text-foreground">${subtotal.toFixed(2)}</span>
         </div>
       {coupon && discount > 0 && (
         <div className="flex justify-between text-sm text-primary font-medium">
@@ -563,23 +563,23 @@ const OrderSummaryContent = ({ items, total, subtotal, discount, coupon, shippin
           <span>-${discount.toFixed(2)}</span>
         </div>
       )}
-      <div className="flex justify-between text-sm text-neutral-400">
+      <div className="flex justify-between text-sm text-muted-foreground">
         <span>Shipping</span>
         {requiresShipping ? (
           selectedShippingRate ? (
-            <span className="font-medium text-white">{shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}</span>
+            <span className="font-medium text-foreground">{shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}</span>
           ) : (
-            <span className="text-neutral-500 text-xs">Calculated at next step</span>
+            <span className="text-muted-foreground/70 text-xs">Calculated at next step</span>
           )
         ) : (
-          <span className="text-neutral-500 text-xs">Free</span>
+          <span className="text-muted-foreground/70 text-xs">Free</span>
         )}
       </div>
-      <div className="flex justify-between items-center mt-4 border-t border-white/10 pt-5">
-        <span className="text-base font-semibold text-white">Total</span>
+      <div className="flex justify-between items-center mt-4 border-t border-border pt-5">
+        <span className="text-base font-semibold text-foreground">Total</span>
         <div className="flex items-end gap-2">
-          <span className="text-xs text-neutral-500 mb-1">USD</span>
-          <span className="text-2xl font-bold text-white tracking-tight">${total.toFixed(2)}</span>
+          <span className="text-xs text-muted-foreground mb-1">USD</span>
+          <span className="text-2xl font-bold text-foreground tracking-tight">${total.toFixed(2)}</span>
         </div>
       </div>
     </div>
@@ -612,6 +612,9 @@ const PublicCheckoutPage = () => {
   const [couponError, setCouponError] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
+  const colorMode = portfolio?.theme_config?.colorMode || "dark";
+  const isLightMode = colorMode === "light";
+
   const MAIN_DOMAINS = [
     "ucpmaroc.com",
     "www.ucpmaroc.com",
@@ -627,6 +630,13 @@ const PublicCheckoutPage = () => {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const discount = getCartDiscount();
   const total = Math.max(0, subtotal - discount);
+  
+  // 🚀 Force Context validation when landing on the checkout page
+  useEffect(() => {
+    if (portfolio?.id) {
+      useCartStore.getState().validateStoreContext(portfolio.id);
+    }
+  }, [portfolio?.id]);
 
     
   // Shipping Logic
@@ -779,10 +789,10 @@ const PublicCheckoutPage = () => {
 
   // --- CHECKOUT VIEW ---
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-neutral-950 font-sans text-white w-full overflow-x-hidden selection:bg-primary/20 selection:text-white">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background font-sans text-foreground w-full overflow-x-hidden selection:bg-primary/20 selection:text-primary-foreground">
       
       {/* MOBILE ACCORDION (Hidden on Desktop) */}
-      <div className="lg:hidden bg-neutral-900/30 border-b border-white/10 w-full pt-20 sm:pt-24">
+      <div className="lg:hidden bg-card/30 border-b border-border w-full pt-20 sm:pt-24">
         <div 
           className="flex items-center justify-between p-5 sm:px-6 cursor-pointer"
           onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
@@ -792,25 +802,25 @@ const PublicCheckoutPage = () => {
             {isSummaryExpanded ? "Hide order summary" : "Show order summary"}
             {isSummaryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
-          <span className="font-semibold text-white text-lg">${finalTotal.toFixed(2)}</span>
+          <span className="font-semibold text-foreground text-lg">${finalTotal.toFixed(2)}</span>
         </div>
         {isSummaryExpanded && (
-          <div className="p-5 sm:px-6 border-t border-white/10 bg-neutral-900/30">
+          <div className="p-5 sm:px-6 border-t border-border bg-card/30">
             <OrderSummaryContent items={items} total={finalTotal} subtotal={subtotal} discount={discount} coupon={coupon} shippingCost={shippingCost} requiresShipping={requiresShipping} selectedShippingRate={selectedShippingRate} couponInput={couponInput} setCouponInput={setCouponInput} handleApplyCoupon={handleApplyCoupon} removeCoupon={removeCoupon} isValidatingCoupon={isValidatingCoupon} couponError={couponError} />
           </div>
         )}
       </div>
 
       {/* LEFT COLUMN: ACTIVE FORM (White Background) */}
-      <div className="w-full lg:w-[45%] xl:w-[48%] flex justify-end bg-neutral-950 pt-6 lg:pt-32">
+      <div className="w-full lg:w-[45%] xl:w-[48%] flex justify-end bg-background pt-6 lg:pt-32">
         <div className="w-full max-w-2xl flex flex-col px-5 pb-8 sm:px-10 sm:pb-10 lg:px-12 lg:pb-12 xl:pr-16 lg:pl-8 mx-auto lg:mx-0">
           
           {/* Header Link / Logo */}
           <div className="mb-8">
-            <Link to={shopUrl} className="inline-flex items-center text-sm font-medium text-neutral-400 hover:text-white transition-colors mb-6">
+            <Link to={shopUrl} className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-6">
               <ChevronLeft size={16} className="mr-1" /> Return to cart
             </Link>
-            <h1 className="text-2xl font-semibold tracking-tight text-white">{portfolio.site_name || portfolio.public_slug}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{portfolio.site_name || portfolio.public_slug}</h1>
           </div>
 
           {initError ? (
@@ -834,15 +844,15 @@ const PublicCheckoutPage = () => {
             <div className="space-y-8 animate-in slide-in-from-right-4 duration-500 w-full">
               
               {/* REVIEW INFORMATION */}
-              <div className="border border-white/10 rounded-md p-5 bg-neutral-900/50 shadow-sm relative group overflow-hidden">
+              <div className="border border-border rounded-md p-5 bg-card/50 shadow-sm relative group overflow-hidden">
                  <div className="absolute right-0 top-0 h-full w-2 bg-primary/20" />
                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-semibold text-sm text-white uppercase tracking-widest">Contact & Shipping</h3>
+                    <h3 className="font-semibold text-sm text-foreground uppercase tracking-widest">Contact & Shipping</h3>
                     <button onClick={() => setCheckoutStep(1)} className="text-xs text-primary font-bold hover:underline flex items-center gap-1"><Edit2 size={12}/> Edit</button>
                  </div>
-                 <p className="text-sm text-white font-bold truncate mb-1">{formValues.checkout_name || formValues.name || "No name provided"}</p>
-                 <p className="text-sm text-neutral-300 font-medium truncate mb-1">{formValues.checkout_email || formValues.email || "No email provided"} • {formValues.checkout_phone || formValues.phone || "No phone provided"}</p>
-                 <p className="text-sm text-neutral-400 truncate">
+                 <p className="text-sm text-foreground font-bold truncate mb-1">{formValues.checkout_name || formValues.name || "No name provided"}</p>
+                 <p className="text-sm text-foreground/80 font-medium truncate mb-1">{formValues.checkout_email || formValues.email || "No email provided"} • {formValues.checkout_phone || formValues.phone || "No phone provided"}</p>
+                 <p className="text-sm text-muted-foreground truncate">
                     {[formValues.checkout_address, formValues.checkout_city, formValues.checkout_country].filter(Boolean).join(", ") || 
                      [formValues.address, formValues.city, formValues.country].filter(Boolean).join(", ") || 
                      "No address provided"}
@@ -852,18 +862,18 @@ const PublicCheckoutPage = () => {
               {/* SHIPPING METHOD SELECTION */}
               {requiresShipping && applicableRates.length > 0 && (
                  <div className="space-y-4">
-                    <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2"><Truck size={20} className="text-neutral-500" /> Shipping Method</h2>
+                    <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2"><Truck size={20} className="text-muted-foreground" /> Shipping Method</h2>
                     <div className="space-y-3">
                        {applicableRates.map(rate => (
-                          <label key={rate.id} className={cn("flex items-center justify-between p-4 cursor-pointer border rounded-md transition-colors", selectedShippingRate?.id === rate.id ? "border-primary bg-primary/10" : "border-white/10 hover:border-white/30 bg-neutral-900")}>
+                          <label key={rate.id} className={cn("flex items-center justify-between p-4 cursor-pointer border rounded-md transition-colors", selectedShippingRate?.id === rate.id ? "border-primary bg-primary/10" : "border-border hover:border-foreground/30 bg-card")}>
                              <div className="flex items-center gap-3">
-                                <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-white/20 bg-neutral-800">
+                                <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-border/50 bg-muted">
                                    <input type="radio" name="shippingRate" value={rate.id} checked={selectedShippingRate?.id === rate.id} onChange={() => setSelectedShippingRate(rate)} className="peer sr-only" />
                                    <div className={cn("w-2 h-2 rounded-full bg-primary transition-all", selectedShippingRate?.id === rate.id ? "opacity-100 scale-100" : "opacity-0 scale-50")} />
                                 </div>
-                                <span className="font-medium text-white text-sm">{rate.name}</span>
+                                <span className="font-medium text-foreground text-sm">{rate.name}</span>
                              </div>
-                             <span className="font-medium text-white text-sm">
+                             <span className="font-medium text-foreground text-sm">
                                 {rate.type === 'free_over' ? 'Free' : `$${(rate.rate_cents / 100).toFixed(2)}`}
                              </span>
                           </label>
@@ -874,7 +884,7 @@ const PublicCheckoutPage = () => {
 
               {/* PAYMENT SECTION */}
               {!clientSecret && finalTotal > 0 ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-neutral-500">
+                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                    <Loader2 className="w-8 h-8 animate-spin mb-4" />
                    <p>Loading secure payment...</p>
                  </div>
@@ -884,20 +894,20 @@ const PublicCheckoutPage = () => {
                   options={{ 
                     clientSecret, 
                     appearance: { 
-                      theme: "night",
+                      theme: isLightMode ? "stripe" : "night",
                       variables: {
                         fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
                         borderRadius: '6px',
-                        colorBackground: '#171717',
-                        colorText: '#ffffff',
+                        colorBackground: isLightMode ? '#ffffff' : '#171717',
+                        colorText: isLightMode ? '#0a0a0a' : '#ffffff',
                         colorPrimary: 'var(--primary)',
                         colorDanger: '#ef4444',
-                        colorTextPlaceholder: '#a3a3a3',
-                        colorBorder: '#333333',
+                        colorTextPlaceholder: isLightMode ? '#737373' : '#a3a3a3',
+                        colorBorder: isLightMode ? '#e5e5e5' : '#333333',
                       },
                       rules: {
                         '.Input': {
-                          backgroundColor: '#171717',
+                          backgroundColor: isLightMode ? '#ffffff' : '#171717',
                           boxShadow: 'none',
                           padding: '12px',
                         },
@@ -907,7 +917,7 @@ const PublicCheckoutPage = () => {
                         },
                         '.Label': {
                           fontWeight: '500',
-                          color: '#d4d4d4',
+                          color: isLightMode ? '#404040' : '#d4d4d4',
                           marginBottom: '4px'
                         },
                         '.Tab--selected': {
@@ -956,7 +966,7 @@ const PublicCheckoutPage = () => {
       </div>
 
       {/* RIGHT COLUMN: PASSIVE SUMMARY (Desktop Only) */}
-      <div className="hidden lg:block flex-1 bg-neutral-900/30 border-l border-white/10 px-6 pb-12 lg:pt-32 lg:pb-12 xl:pl-16 lg:pr-12 xl:pr-16">
+      <div className="hidden lg:block flex-1 bg-card/30 border-l border-border px-6 pb-12 lg:pt-32 lg:pb-12 xl:pl-16 lg:pr-12 xl:pr-16">
         <div className="w-full max-w-xl sticky top-32">
            <OrderSummaryContent items={items} total={finalTotal} subtotal={subtotal} discount={discount} coupon={coupon} shippingCost={shippingCost} requiresShipping={requiresShipping} selectedShippingRate={selectedShippingRate} couponInput={couponInput} setCouponInput={setCouponInput} handleApplyCoupon={handleApplyCoupon} removeCoupon={removeCoupon} isValidatingCoupon={isValidatingCoupon} couponError={couponError} />
         </div>

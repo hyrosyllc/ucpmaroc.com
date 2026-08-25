@@ -119,7 +119,7 @@ const NAV_GROUPS = [
         description: "Manage client accounts",
       },
       {
-        to: "/dashboard/product-reviews",
+        to: "/dashboard/reviews",
         name: "Reviews",
         icon: Star,
         description: "Approve store reviews",

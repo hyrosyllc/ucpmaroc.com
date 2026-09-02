@@ -9,6 +9,7 @@ import {
   ArrowRight,
   UserRound,
   Building,
+  Trash2,
 } from "lucide-react"; // Added new icons
 
 // --- shadcn/ui Imports ---
@@ -86,6 +87,22 @@ const AdminClientListPage: React.FC = () => {
   useEffect(() => {
     fetchClients();
   }, [fetchClients]);
+
+  const handleDeleteClient = async (client: ClientProfile) => {
+    if (!window.confirm(`Permanently delete ${client.full_name}? This removes the account and its platform data.`)) return;
+
+    setError("");
+    try {
+      const { data, error: functionError } = await supabase.functions.invoke("admin-delete-account", {
+        body: { accountId: client.id, accountType: "client" },
+      });
+      if (functionError) throw functionError;
+      if (!data?.success) throw new Error(data?.error || "Account deletion failed.");
+      setClients((current) => current.filter((item) => item.id !== client.id));
+    } catch (deleteError) {
+      setError(`Failed to delete client: ${(deleteError as Error).message}`);
+    }
+  };
 
   if (loading) {
     return (
@@ -175,13 +192,15 @@ const AdminClientListPage: React.FC = () => {
                       </TableCell>
                                                          {" "}
                       <TableCell className="text-right">
-                        {/* Example action button */}
-                        {/* <Button asChild variant="outline" size="sm">
-                                          <Link to={`/admin/client/${client.id}/orders`}>
-                                              <span className="hidden sm:inline">View Orders</span>
-                                              <ArrowRight className="h-4 w-4 sm:hidden" />
-                                          </Link>
-                                        </Button> */}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteClient(client)}
+                          title="Permanently delete client and account data"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </Button>
                                                            {" "}
                       </TableCell>
                                                      {" "}

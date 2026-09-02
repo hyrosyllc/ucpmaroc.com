@@ -64,7 +64,7 @@ const Footer = () => {
   // --- END NEW Function ---
 
   return (
-    <footer className="relative bg-background text-white">
+    <footer className="dark relative bg-zinc-950 text-zinc-300 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-6 py-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
@@ -72,7 +72,7 @@ const Footer = () => {
           {/* Company Info Column */}
           <div className="space-y-4 md:col-span-2 lg:col-span-1">
             <img 
-              src="https://ucpmarocgo.s3.us-east-1.amazonaws.com/logo-ucp-maroc.png" 
+              src="https://pub-c6d2173b02a643659ef133753f7ee574.r2.dev/identity/ucp%20logo%20t%20b%20(7).png" 
               alt="UCPMAROC Logo" 
               className="h-10 w-auto mb-4"
             />
@@ -87,7 +87,7 @@ const Footer = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={social.label}
-                  className="p-2 bg-card rounded-full hover:bg-purple-600/20 text-muted-foreground hover:text-purple-400 transition-colors"
+                  className="p-2 bg-white/5 rounded-full hover:bg-purple-600/20 text-zinc-400 hover:text-purple-400 transition-colors"
                 >
                   <social.icon size={18} />
                 </a>
@@ -97,7 +97,7 @@ const Footer = () => {
 
           {/* Services Column */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white">Services</h3>
+            <h3 className="text-lg font-bold text-zinc-50">Services</h3>
             <ul className="space-y-2">
               {services.map(link => <FooterLink key={link.text} {...link} />)}
             </ul>
@@ -105,7 +105,7 @@ const Footer = () => {
 
           {/* Legal Column */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white">Company</h3>
+            <h3 className="text-lg font-bold text-zinc-50">Company</h3>
             <ul className="space-y-2">
               {legalLinks.map(link => <FooterLink key={link.text} {...link} />)}
             </ul>
@@ -113,7 +113,7 @@ const Footer = () => {
 
           {/* Contact Column */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white">Contact Us</h3>
+            <h3 className="text-lg font-bold text-zinc-50">Contact Us</h3>
             <div className="space-y-3">
               <ContactInfo icon={Phone} text="+1 (209) 442-6729" />
               <ContactInfo icon={Mail} text="Support@ucpmaroc.com" />
@@ -125,7 +125,7 @@ const Footer = () => {
 {/* --- MODIFIED: Google Translate Widget --- */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
-             <h3 className="text-lg font-bold text-white flex items-center gap-2">
+             <h3 className="text-lg font-bold text-zinc-50 flex items-center gap-2">
                 <Globe size={20} /> Translate
              </h3>
              {/* NEW: Reset Button */}

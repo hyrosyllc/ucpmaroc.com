@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Loader2, ArrowLeft, KeyRound } from "lucide-react";
+import { Loader2, ArrowLeft, KeyRound, ArrowRightLeft } from "lucide-react";
 
 // --- shadcn/ui Imports ---
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 
 const GoogleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22">
     <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
     <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
     <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -28,13 +28,13 @@ const GoogleIcon = () => (
 );
 
 const AppleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
     <path d="M17.05 20.28c-.98.95-2.05 1.8-3.08 1.8-1.09 0-1.44-.67-2.73-.67-1.3 0-1.72.65-2.71.65-1.07 0-2.19-.92-3.13-1.92-1.98-2.12-3.41-6.04-2.39-8.99.5-1.45 1.58-2.5 2.86-3.08 1.25-.56 2.6-.47 3.65-.47 1.09 0 2.23.27 3.25.75.76.36 1.42.87 1.89 1.49-.13.08-1.89 1.08-1.89 3.09 0 2.37 2.12 3.21 2.25 3.26-.03.09-.37 1.25-1.15 2.37-.62.91-1.34 1.84-2.32 1.84M15.17 4.79c.72-.94 1.15-2.16 1.02-3.35-1.07.05-2.39.75-3.16 1.7-.63.78-1.15 2.05-.98 3.26 1.2.1 2.38-.64 3.12-1.61z" />
   </svg>
 );
 
 const FacebookIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
     <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
   </svg>
 );
@@ -215,39 +215,60 @@ const ActorSignUpPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center items-center p-4 relative overflow-hidden">
-      {/* Abstract Background */}
-      <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '10s' }} />
-      <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '12s', animationDelay: '2s' }} />
-
-      <div className="w-full max-w-[450px] relative z-10 py-10">
-        {showOtpInput && (
-          <Button
-            variant="ghost"
-            className="absolute -top-4 left-0 text-muted-foreground hover:text-foreground"
-            onClick={() => setShowOtpInput(false)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-        )}
-
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight mb-2">
-            {showOtpInput ? "Check your email" : "Create your account"}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {showOtpInput
-              ? `We sent a 6-digit code to ${email}`
-              : "Join the UCP Platform today"}
-          </p>
+    <div className="w-full min-h-screen lg:grid lg:grid-cols-2 bg-background">
+      {/* LEFT COLUMN - BRANDING (Hidden on Mobile) */}
+      <div className="hidden lg:flex flex-col justify-between relative bg-zinc-950 p-10 lg:p-16 text-white overflow-hidden">
+        <div className="absolute inset-0 z-0">
+           {/* Abstract Aura */}
+           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(120,119,198,0.15),transparent_50%),radial-gradient(circle_at_bottom_left,rgba(56,189,248,0.15),transparent_50%)]" />
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-primary/20 blur-[120px] rounded-[100%] opacity-50 rotate-45 pointer-events-none" />
+           <div className="absolute inset-0 bg-zinc-950/[0.02] backdrop-blur-[1px]" />
+           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/10 to-zinc-950" />
         </div>
+        <div className="relative z-10 flex items-center justify-between mt-4">
+           <Link to="/">
+             <img src="https://pub-c6d2173b02a643659ef133753f7ee574.r2.dev/identity/ucp%20logo%20t%20b%20(7).png" alt="UCP Logo" className="h-8 brightness-0 invert hover:opacity-80 transition-opacity" />
+           </Link>
+           <div className="flex items-center gap-6 text-sm font-bold text-zinc-400">
+             <Link to="/" className="hover:text-white transition-colors">Home</Link>
+             <Link to="/client-auth" className="flex items-center gap-1.5 hover:text-white transition-colors">
+               <ArrowRightLeft size={14} /> Client Portal
+             </Link>
+           </div>
+        </div>
+        <div className="relative z-10 mt-auto max-w-lg mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-4">Turn Your Talent Into a Business.</h2>
+           <p className="text-lg text-zinc-400 font-medium leading-relaxed">Join the industry's fastest-growing network. Build your digital storefront and start monetizing your skills today.</p>
+        </div>
+      </div>
 
-        <div className="bg-card/50 backdrop-blur-xl border border-border/50 shadow-2xl rounded-3xl p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* RIGHT COLUMN - FORM */}
+      <div className="flex items-center justify-center p-6 pt-28 sm:p-12 sm:pt-32 lg:p-16 relative">
+        <div className="w-full max-w-[450px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          
+          <div className="space-y-2 text-center lg:text-left relative">
+            {showOtpInput && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute -top-10 lg:-top-8 left-0 lg:-left-3 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowOtpInput(false)}
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" /> Back
+              </Button>
+            )}
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {showOtpInput ? "Check your email" : "Join as a Talent"}
+            </h1>
+            <p className="text-muted-foreground text-sm font-medium">
+              {showOtpInput
+                ? `We sent a 6-digit code to ${email}`
+                : "Create your talent account to build your storefront and start monetizing your skills."}
+            </p>
+          </div>
+
           {message && (
-            <Alert
-              variant={message.includes("Error") ? "destructive" : "default"}
-              className="mb-6"
-            >
+            <Alert variant={message.includes("Error") ? "destructive" : "default"} className={cn("rounded-xl", message.includes("Error") ? "bg-red-500/10 text-red-500 border-red-500/50" : "")}>
               <AlertDescription className="font-medium text-sm">
                 {message}
               </AlertDescription>
@@ -256,9 +277,9 @@ const ActorSignUpPage = () => {
 
           {showOtpInput ? (
             // --- OTP FORM ---
-            <form onSubmit={handleVerifyOtp} className="space-y-6">
+            <form onSubmit={handleVerifyOtp} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
               <div className="space-y-2">
-                <Label htmlFor="otp" className="sr-only">
+                <Label htmlFor="otp" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                   Verification Code
                 </Label>
                 <div className="relative">
@@ -273,138 +294,120 @@ const ActorSignUpPage = () => {
                     required
                     placeholder="000000"
                     maxLength={6}
-                    className="pl-14 h-16 text-center text-3xl tracking-[0.5em] font-mono rounded-2xl bg-background/50 border-muted-foreground/20 focus-visible:ring-primary transition-all"
+                    className="pl-14 h-16 text-center text-3xl tracking-[0.5em] font-mono rounded-2xl bg-background border-input focus-visible:ring-primary transition-all shadow-sm"
                   />
                 </div>
               </div>
               <Button
                 type="submit"
                 disabled={loading || otpToken.length < 6}
-                className="w-full h-12 text-base rounded-xl font-bold shadow-lg"
+                className="w-full h-14 text-base rounded-xl font-bold bg-foreground text-background hover:bg-foreground/90 transition-all shadow-sm"
               >
                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Code"}
               </Button>
             </form>
           ) : (
             // --- STANDARD SIGNUP FORM ---
-            <>
+            <div className="animate-in slide-in-from-left-4 duration-300">
               <form onSubmit={handleSignUp} className="space-y-5">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Full Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  placeholder="e.g., John Doe"
-                  className="h-12 bg-background/50 border-muted-foreground/20 focus-visible:ring-primary rounded-xl"
-                />
-              </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@example.com"
-                  className="h-12 bg-background/50 border-muted-foreground/20 focus-visible:ring-primary rounded-xl"
-                />
-              </div>
-              
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Full Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    placeholder="e.g., John Doe"
+                    className="h-12 bg-background border-input focus-visible:ring-primary rounded-xl transition-colors shadow-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="you@example.com"
+                    className="h-12 bg-background border-input focus-visible:ring-primary rounded-xl transition-colors shadow-sm"
+                  />
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="password" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  className="h-12 bg-background/50 border-muted-foreground/20 focus-visible:ring-primary rounded-xl"
-                />
-              </div>
-              
-                  <div className="space-y-1.5">
-                    <Label htmlFor="country" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Country</Label>
-                <Select value={country} onValueChange={setCountry} required>
-                      <SelectTrigger className="h-12 bg-background/50 border-muted-foreground/20 focus-visible:ring-primary rounded-xl">
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      className="h-12 bg-background border-input focus-visible:ring-primary rounded-xl transition-colors shadow-sm"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="country" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Country</Label>
+                    <Select value={country} onValueChange={setCountry} required>
+                      <SelectTrigger className="h-12 bg-background border-input focus-visible:ring-primary rounded-xl transition-colors shadow-sm">
                         <SelectValue placeholder="Location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Morocco">Morocco</SelectItem>
-                    <SelectItem value="United States">United States</SelectItem>
-                    <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                    <SelectItem value="Canada">Canada</SelectItem>
-                    <SelectItem value="France">France</SelectItem>
-                    <SelectItem value="Spain">Spain</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border">
+                        <SelectItem value="Morocco">Morocco</SelectItem>
+                        <SelectItem value="United States">United States</SelectItem>
+                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                        <SelectItem value="Canada">Canada</SelectItem>
+                        <SelectItem value="France">France</SelectItem>
+                        <SelectItem value="Spain">Spain</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-              <Button
-                type="submit"
-                disabled={loading}
-                  className="w-full h-12 rounded-xl font-bold text-base shadow-lg hover:shadow-xl transition-all mt-2"
-              >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Get Started"}
-              </Button>
-            </form>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 rounded-xl font-bold text-base bg-foreground text-background hover:bg-foreground/90 transition-all shadow-sm mt-2"
+                >
+                    {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Get Started"}
+                </Button>
+              </form>
 
               <div className="flex items-center gap-4 my-8">
-                <div className="flex-1 h-px bg-border/50"></div>
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Or sign up with</span>
-                <div className="flex-1 h-px bg-border/50"></div>
+                <div className="flex-1 h-px bg-border"></div>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Or sign up with</span>
+                <div className="flex-1 h-px bg-border"></div>
               </div>
 
-              <div className="flex items-center justify-center gap-4">
-                <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() => handleOAuthSignIn("google")}
-                  disabled={loading}
-                  className="h-16 w-16 rounded-2xl hover:bg-muted/80 transition-all flex items-center justify-center"
-                >
+              <div className="grid grid-cols-3 gap-3">
+                <Button variant="outline" type="button" onClick={() => handleOAuthSignIn("google")} disabled={loading} className="h-12 rounded-xl shadow-sm border-border hover:bg-muted/50">
                   <GoogleIcon />
                 </Button>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() => handleOAuthSignIn("apple")}
-                  disabled={loading}
-                  className="h-16 w-16 rounded-2xl hover:bg-muted/80 transition-all flex items-center justify-center"
-                >
+                <Button variant="outline" type="button" onClick={() => handleOAuthSignIn("apple")} disabled={loading} className="h-12 rounded-xl shadow-sm border-border hover:bg-muted/50">
                   <AppleIcon />
                 </Button>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  onClick={() => handleOAuthSignIn("facebook")}
-                  disabled={loading}
-                  className="h-16 w-16 rounded-2xl hover:bg-muted/80 transition-all flex items-center justify-center"
-                >
+                <Button variant="outline" type="button" onClick={() => handleOAuthSignIn("facebook")} disabled={loading} className="h-12 rounded-xl shadow-sm border-border hover:bg-muted/50">
                   <FacebookIcon />
                 </Button>
               </div>
-            </>
+            </div>
+          )}
+
+          {!showOtpInput && (
+            <div className="text-center pt-4">
+              <p className="text-sm text-muted-foreground font-medium">
+                Already have an account?{" "}
+                <Link to="/actor-login" className="text-primary font-bold hover:underline">
+                  Log in
+                </Link>
+              </p>
+            </div>
           )}
         </div>
-
-        {!showOtpInput && (
-          <div className="text-center mt-8">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Link to="/actor-login" className="text-primary font-semibold hover:underline">
-                Log in
-              </Link>
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

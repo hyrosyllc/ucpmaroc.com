@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from "react";
+import React, { useEffect, useState, Suspense, lazy } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -134,6 +134,13 @@ const Layout = ({
   isCustomDomain: boolean;
 }) => {
   const location = useLocation();
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const hideFooterPaths = [
     "/dashboard",
@@ -143,15 +150,34 @@ const Layout = ({
     "/pro",
     "/builder-preview",
     "/studio-preview",
+    "/actor-login",
+    "/actor-signup",
+    "/client-auth",
+    "/create-profile",
   ];
-  const hideNavbarPaths = ["/pro", "/builder-preview","/studio-preview", "/dashboard", "/admin"]; // 🚀 2. ADDED /admin TO HIDE MAIN NAVBAR
+
+  const alwaysHideNavbarPaths = [
+    "/pro", 
+    "/builder-preview",
+    "/studio-preview", 
+    "/dashboard", 
+    "/admin"
+  ]; 
+
+  const desktopHideNavbarPaths = [
+    "/actor-login", 
+    "/actor-signup", 
+    "/client-auth", 
+    "/create-profile"
+  ];
 
   const shouldHideFooter =
     isCustomDomain ||
     hideFooterPaths.some((path) => location.pathname.startsWith(path));
   const shouldHideNavbar =
     isCustomDomain ||
-    hideNavbarPaths.some((path) => location.pathname.startsWith(path));
+    alwaysHideNavbarPaths.some((path) => location.pathname.startsWith(path)) ||
+    (!isMobile && desktopHideNavbarPaths.some((path) => location.pathname.startsWith(path)));
 
   return (
     <>

@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
-import { useLocation, useNavigate } from "react-router-dom";
-import { UserCircle, RefreshCw, KeyRound, ArrowLeft } from "lucide-react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
+import { UserCircle, RefreshCw, KeyRound, ArrowLeft, Loader2, ArrowRightLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 
 // --- shadcn/ui Imports ---
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const GoogleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22">
+    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+  </svg>
+);
+
+const AppleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+    <path d="M17.05 20.28c-.98.95-2.05 1.8-3.08 1.8-1.09 0-1.44-.67-2.73-.67-1.3 0-1.72.65-2.71.65-1.07 0-2.19-.92-3.13-1.92-1.98-2.12-3.41-6.04-2.39-8.99.5-1.45 1.58-2.5 2.86-3.08 1.25-.56 2.6-.47 3.65-.47 1.09 0 2.23.27 3.25.75.76.36 1.42.87 1.89 1.49-.13.08-1.89 1.08-1.89 3.09 0 2.37 2.12 3.21 2.25 3.26-.03.09-.37 1.25-1.15 2.37-.62.91-1.34 1.84-2.32 1.84M15.17 4.79c.72-.94 1.15-2.16 1.02-3.35-1.07.05-2.39.75-3.16 1.7-.63.78-1.15 2.05-.98 3.26 1.2.1 2.38-.64 3.12-1.61z" />
+  </svg>
+);
+
+const FacebookIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+    <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
+  </svg>
+);
 
 const ClientAuthPage = () => {
   const { t } = useTranslation();
@@ -91,6 +113,15 @@ const ClientAuthPage = () => {
       } else if (authData.user?.identities?.length === 0) {
         setMessage("Error: Email already registered. Please log in.");
       } else {
+        // 🚀 Create the Client profile in the database instantly
+        if (authData.user) {
+          await supabase.from("clients").upsert({
+            user_id: authData.user.id,
+            full_name: name,
+            email: email
+          }, { onConflict: "user_id" });
+        }
+
         // Transition to OTP Screen
         setShowOtpInput(true);
         setMessage("Verification code sent! Please check your email.");
@@ -123,6 +154,22 @@ const ClientAuthPage = () => {
     setLoading(false);
   };
 
+  // --- OAuth Handler ---
+  const handleOAuthSignIn = async (
+    provider: "google" | "facebook" | "apple"
+  ) => {
+    setLoading(true);
+    setMessage("");
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/client-dashboard` },
+    });
+    if (error) {
+      setMessage(`Error signing in with ${provider}: ${error.message}`);
+      setLoading(false);
+    }
+  };
+
   // --- OTP VERIFICATION ACTION ---
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,60 +198,68 @@ const ClientAuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-background text-foreground pt-20">
-      {/* 1. Left Branding Column */}
-      <div className="hidden md:flex flex-col justify-center items-center p-12 bg-gradient-to-br from-purple-900 via-slate-900 to-slate-900 border-r border-border">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-white/10 rounded-full mb-6 border border-foreground/20 shadow-xl">
-            <UserCircle size={40} className="text-white" />
-          </div>
-          <h1 className="text-5xl font-bold mb-4 tracking-tight text-white">
-            {t("auth.clientPortal")}
-          </h1>
-          <p className="text-slate-300 max-w-sm text-lg">
-            {t("auth.accessOrders")}
-          </p>
+    <div className="w-full min-h-screen lg:grid lg:grid-cols-2 bg-background">
+      {/* LEFT COLUMN - BRANDING (Hidden on Mobile) */}
+      <div className="hidden lg:flex flex-col justify-between relative bg-zinc-950 p-10 lg:p-16 text-white overflow-hidden">
+        <div className="absolute inset-0 z-0">
+           {/* Tech/Enterprise Grid */}
+           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+           <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-indigo-500 opacity-20 blur-[100px]" />
+           <div className="absolute bottom-0 right-0 -z-10 m-auto h-[250px] w-[250px] rounded-full bg-purple-500 opacity-20 blur-[100px]" />
+           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/50 to-zinc-950" />
+        </div>
+        <div className="relative z-10 flex items-center justify-between mt-4">
+           <Link to="/">
+             <img src="https://pub-c6d2173b02a643659ef133753f7ee574.r2.dev/identity/ucp%20logo%20t%20b%20(7).png" alt="UCP Logo" className="h-8 brightness-0 invert hover:opacity-80 transition-opacity" />
+           </Link>
+           <div className="flex items-center gap-6 text-sm font-bold text-zinc-400">
+             <Link to="/" className="hover:text-white transition-colors">Home</Link>
+             <Link to="/actor-login" className="flex items-center gap-1.5 hover:text-white transition-colors">
+               <ArrowRightLeft size={14} /> Talent Portal
+             </Link>
+           </div>
+        </div>
+        <div className="relative z-10 mt-auto max-w-lg mb-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+           <h2 className="text-3xl lg:text-4xl font-bold tracking-tight mb-4">Bring Your Vision to Life.</h2>
+           <p className="text-lg text-zinc-400 font-medium leading-relaxed">Discover top-tier creative professionals, manage your bookings, and track your projects in one seamless platform.</p>
         </div>
       </div>
 
-      {/* 2. Right Form Column */}
-      <div className="flex flex-col justify-center items-center p-8 bg-background relative">
-        {showOtpInput && (
-          <Button
-            variant="ghost"
-            className="absolute top-8 left-8 text-muted-foreground"
-            onClick={() => setShowOtpInput(false)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back
-          </Button>
-        )}
-
-        <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* HEADER DYNAMICS */}
-          <div className="mb-8 text-center md:text-left">
-            <h2 className="text-4xl font-bold mb-2 tracking-tight">
+      {/* RIGHT COLUMN - FORM */}
+      <div className="flex items-center justify-center p-6 pt-28 sm:p-12 sm:pt-32 lg:p-16 relative">
+        <div className="w-full max-w-[400px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          
+          <div className="space-y-2 text-center lg:text-left relative">
+            {showOtpInput && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute -top-10 lg:-top-8 left-0 lg:-left-3 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowOtpInput(false)}
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" /> Back
+              </Button>
+            )}
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
               {showOtpInput
                 ? "Check your email"
                 : isSignUp
-                ? t("auth.createClientAccount")
-                : t("auth.logInBtn")}
-            </h2>
-            <p className="text-muted-foreground">
+                ? t("auth.createClientAccount", "Create a Client Account")
+                : t("auth.clientLogin", "Client Portal Login")}
+            </h1>
+            <p className="text-muted-foreground text-sm font-medium">
               {showOtpInput
                 ? `We sent a 6-digit code to ${email}`
                 : isSignUp
-                ? t("auth.accessOrders")
-                : "Welcome back! Enter your details."}
+                ? t("auth.signUpDesc", "Sign up to hire talents, track your orders, and manage your creative projects.")
+                : t("auth.logInDesc", "Log in to manage your bookings, orders, and favorite talents.")}
             </p>
           </div>
 
           {/* ALERTS */}
           {message && (
-            <Alert
-              variant={message.includes("Error") ? "destructive" : "default"}
-              className="mb-6"
-            >
-              <AlertDescription className="font-medium">
+            <Alert variant={message.includes("Error") ? "destructive" : "default"} className={cn("rounded-xl", message.includes("Error") ? "bg-red-500/10 text-red-500 border-red-500/50" : "")}>
+              <AlertDescription className="font-medium text-sm">
                 {message}
               </AlertDescription>
             </Alert>
@@ -213,9 +268,9 @@ const ClientAuthPage = () => {
           {/* FORMS */}
           {showOtpInput ? (
             // --- OTP FORM ---
-            <form onSubmit={handleVerifyOtp} className="space-y-6">
+            <form onSubmit={handleVerifyOtp} className="space-y-6 animate-in slide-in-from-right-4 duration-300">
               <div className="space-y-2">
-                <Label htmlFor="otp" className="sr-only">
+                <Label htmlFor="otp" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                   Verification Code
                 </Label>
                 <div className="relative">
@@ -230,101 +285,103 @@ const ClientAuthPage = () => {
                     required
                     placeholder="000000"
                     maxLength={6}
-                    className="pl-14 py-8 text-center text-3xl tracking-[0.5em] font-mono rounded-xl bg-muted/50 border-2 focus-visible:border-primary transition-all"
+                    className="pl-14 h-16 text-center text-3xl tracking-[0.5em] font-mono rounded-2xl bg-background border-input focus-visible:ring-primary transition-all shadow-sm"
                   />
                 </div>
               </div>
               <Button
                 type="submit"
                 disabled={loading || otpToken.length < 6}
-                className="w-full py-6 text-lg rounded-xl shadow-lg"
+                className="w-full h-14 text-base rounded-xl font-bold bg-foreground text-background hover:bg-foreground/90 transition-all shadow-sm"
               >
-                {loading && <RefreshCw className="mr-2 h-5 w-5 animate-spin" />}
-                {loading ? "Verifying..." : "Verify Code"}
+                {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Verify Code"}
               </Button>
             </form>
           ) : (
             // --- STANDARD FORM ---
-            <form onSubmit={handleAuthAction} className="space-y-5">
-              {isSignUp && (
+            <div className="animate-in slide-in-from-left-4 duration-300">
+              <form onSubmit={handleAuthAction} className="space-y-5">
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{t("auth.fullName", "Full Name")}</Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      placeholder="e.g., Jane Doe"
+                      className="h-12 bg-background border-input focus-visible:ring-primary rounded-xl transition-colors shadow-sm"
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label htmlFor="name">{t("auth.fullName")}</Label>
+                  <Label htmlFor="email" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{t("auth.email", "Email Address")}</Label>
                   <Input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="e.g., Jane Doe"
-                    className="py-5"
+                    placeholder="you@example.com"
+                    className="h-12 bg-background border-input focus-visible:ring-primary rounded-xl transition-colors shadow-sm"
                   />
                 </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">{t("auth.email")}</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="you@example.com"
-                  className="py-5"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">{t("auth.password")}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  className="py-5"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full py-6 text-lg rounded-xl shadow-lg mt-2"
-              >
-                {loading && <RefreshCw className="mr-2 h-5 w-5 animate-spin" />}
-                {loading
-                  ? "Processing..."
-                  : isSignUp
-                  ? t("auth.createAccountBtn")
-                  : t("auth.logInBtn")}
-              </Button>
-            </form>
-          )}
-
-          {/* FOOTER TOGGLES (Hidden during OTP) */}
-          {!showOtpInput && (
-            <>
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator />
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{t("auth.password", "Password")}</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                    className="h-12 bg-background border-input focus-visible:ring-primary rounded-xl transition-colors shadow-sm"
+                  />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase font-bold tracking-widest">
-                  <span className="bg-background px-3 text-muted-foreground">
-                    {t("auth.orContinueWith")}
-                  </span>
-                </div>
-              </div>
-              <div className="text-center mt-4">
+
                 <Button
-                  variant="ghost"
-                  onClick={() => setIsSignUp(!isSignUp)}
-                  className="text-muted-foreground hover:text-primary"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 rounded-xl font-bold text-base bg-foreground text-background hover:bg-foreground/90 transition-all shadow-sm mt-2"
                 >
-                  {isSignUp
-                    ? t("auth.alreadyHaveAccount")
-                    : t("auth.needAccount")}
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : isSignUp ? t("auth.createAccountBtn", "Get Started") : t("auth.logInBtn", "Sign In")}
+                </Button>
+              </form>
+
+              <div className="flex items-center gap-4 my-8">
+                <div className="flex-1 h-px bg-border"></div>
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Or continue with</span>
+                <div className="flex-1 h-px bg-border"></div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <Button variant="outline" type="button" onClick={() => handleOAuthSignIn("google")} disabled={loading} className="h-12 rounded-xl shadow-sm border-border hover:bg-muted/50">
+                  <GoogleIcon />
+                </Button>
+                <Button variant="outline" type="button" onClick={() => handleOAuthSignIn("apple")} disabled={loading} className="h-12 rounded-xl shadow-sm border-border hover:bg-muted/50">
+                  <AppleIcon />
+                </Button>
+                <Button variant="outline" type="button" onClick={() => handleOAuthSignIn("facebook")} disabled={loading} className="h-12 rounded-xl shadow-sm border-border hover:bg-muted/50">
+                  <FacebookIcon />
                 </Button>
               </div>
-            </>
+            </div>
+          )}
+
+          {!showOtpInput && (
+            <div className="text-center pt-4">
+              <p className="text-sm text-muted-foreground font-medium">
+                {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-primary font-bold hover:underline"
+                >
+                  {isSignUp ? "Log in" : "Sign up now"}
+                </button>
+              </p>
+            </div>
           )}
         </div>
       </div>

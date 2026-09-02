@@ -25,6 +25,14 @@ const DynamicPage = lazy(() => import("@/features/portfolio-builder/pages/Dynami
 
 // --- LAZY LOADED MAIN PAGES ---
 const HomePage = lazy(() => import("./pages/HomePage"));
+const TalentLandingPage = lazy(() => import("./pages/TalentLandingPage"));
+const ClientLandingPage = lazy(() => import("./pages/ClientLandingPage"));
+
+// --- LAZY LOADED FEATURE PAGES ---
+const FeaturePortfolioBuilder = lazy(() => import("./pages/features/FeaturePortfolioBuilder"));
+const FeatureEcommerce = lazy(() => import("./pages/features/FeatureEcommerce"));
+const FeatureThemeStudio = lazy(() => import("./pages/features/FeatureThemeStudio"));
+const FeatureWallet = lazy(() => import("./pages/features/FeatureWallet"));
 
 // --- STANDARD IMPORTS ---
 import PrivacyPolicyPage from "./components/PrivacyPolicy.tsx";
@@ -245,6 +253,15 @@ function App() {
                   /* 🚀 ROUTE SPLIT B: MAIN PLATFORM VISITORS */
                   <>
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/for-talents" element={<TalentLandingPage />} />
+                    <Route path="/for-clients" element={<ClientLandingPage />} />
+                    
+                    {/* 🚀 FEATURE DEEP DIVES */}
+                    <Route path="/features/portfolio-builder" element={<FeaturePortfolioBuilder />} />
+                    <Route path="/features/ecommerce" element={<FeatureEcommerce />} />
+                    <Route path="/features/theme-studio" element={<FeatureThemeStudio />} />
+                    <Route path="/features/wallet" element={<FeatureWallet />} />
+
                     <Route
                       path="/my-favorites"
                       element={<FavoriteActorsPage />}

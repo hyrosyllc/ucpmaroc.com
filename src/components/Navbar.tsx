@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { HashLink } from "react-router-hash-link";
 import {
@@ -21,6 +21,10 @@ import {
   Loader2,
   X,
   ArrowRight,
+  Briefcase,
+  Building2,
+  LayoutTemplate,
+  Store,
 } from "lucide-react";
 
 // --- Local Components ---
@@ -77,7 +81,10 @@ const useAuth = () => {
 const allMenuItems = [
   { icon: Home, label: "Home", to: "/", type: "link" },
   { icon: AudioLinesIcon, label: "Voice Over", to: "/voiceover", type: "link" },
- 
+  { icon: Briefcase, label: "Talent Overview", to: "/for-talents", type: "link" },
+  { icon: LayoutTemplate, label: "Portfolio Builder", to: "/features/portfolio-builder", type: "link" },
+  { icon: Store, label: "E-Commerce", to: "/features/ecommerce", type: "link" },
+  { icon: Building2, label: "For Clients", to: "/for-clients", type: "link" },
   
   {
     icon: GalleryHorizontalEnd,
@@ -93,8 +100,33 @@ const serviceDropdownItems = [
 ];
 
 const desktopNavLinks = [
+  { label: "For Clients", to: "/for-clients", type: "link" as const },
   { label: "Gallery", to: "/portfolio", type: "link" as const },
   { label: "Contact", to: "/contact", type: "link" as const },
+];
+
+// --- NEW: Talent Features Mega Menu Data ---
+const talentFeatures = [
+  {
+    title: "Portfolio Builder",
+    href: "/features/portfolio-builder",
+    description: "Drag-and-drop live canvas with AAA+ themes and custom domains.",
+  },
+  {
+    title: "E-Commerce Engine",
+    href: "/features/ecommerce",
+    description: "Sell digital products, physical goods, and services commission-free.",
+  },
+  {
+    title: "Theme Studio",
+    href: "/features/theme-studio",
+    description: "Code custom HTML/Tailwind themes and monetize them on the marketplace.",
+  },
+  {
+    title: "Wallet & Top-up",
+    href: "/features/wallet",
+    description: "Manage your UCP Coins, subscriptions, and instant payouts.",
+  },
 ];
 
 // --- Helper Component for Dropdown Links ---
@@ -127,6 +159,8 @@ ListItem.displayName = "ListItem";
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const lastScrollY = useRef(0);
   const navigate = useNavigate();
 
   // Bring in Auth State
@@ -138,7 +172,15 @@ const Navbar: React.FC = () => {
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
-          setIsScrolled(window.scrollY > 20);
+          const currentScrollY = window.scrollY;
+          setIsScrolled(currentScrollY > 20);
+          
+          if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
+            setIsHidden(true); // Hide when scrolling down past 80px
+          } else {
+            setIsHidden(false); // Show when scrolling up
+          }
+          lastScrollY.current = currentScrollY;
           ticking = false;
         });
         ticking = true;
@@ -161,7 +203,8 @@ const Navbar: React.FC = () => {
     <nav
       aria-label="Main Navigation"
       className={cn(
-        "dark fixed top-0 inset-x-0 z-50 transition-all duration-500 ease-in-out border-b",
+        "dark fixed top-0 inset-x-0 z-50 transition-all duration-300 ease-in-out border-b",
+        isHidden ? "-translate-y-full" : "translate-y-0",
         isScrolled
           ? "bg-zinc-950/80 backdrop-blur-xl border-white/10 shadow-sm py-2"
           : "bg-zinc-950 border-white/5 py-3"
@@ -207,6 +250,27 @@ const Navbar: React.FC = () => {
                         </ListItem>
                       ))}
                     </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* 🚀 NEW: FOR TALENTS MEGA MENU */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="bg-transparent hover:bg-white/10 text-zinc-300 hover:text-white font-medium transition-colors data-[state=open]:bg-white/10 data-[state=open]:text-white">
+                    For Talents
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent className="border-border/50 shadow-2xl rounded-2xl">
+                    <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                      <div className="col-span-2 pb-2 mb-2 border-b border-border/50 px-4 pt-2">
+                         <Link to="/for-talents" className="font-bold text-sm text-foreground hover:text-primary transition-colors flex items-center w-max">
+                            View All Talent Features <ArrowRight size={14} className="ml-1.5" />
+                         </Link>
+                      </div>
+                      {talentFeatures.map((item) => (
+                        <ListItem key={item.title} href={item.href} title={item.title}>
+                          {item.description}
+                        </ListItem>
+                      ))}
+                    </div>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
 

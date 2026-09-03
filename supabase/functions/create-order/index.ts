@@ -11,7 +11,7 @@ interface OrderData {
   client_email: string;
   script: string;
   status: string;
-  service_type: 'voice_over' | 'scriptwriting' | 'video_editing';
+  service_type: string;
   
   // Voice-over fields (optional)
   word_count?: number;

@@ -3,6 +3,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
   useLocation,
 } from "react-router-dom";
 import emailjs from "@emailjs/browser";
@@ -47,6 +48,7 @@ const AdminThemesPage = lazy(() => import("@/features/admin-core/pages/AdminThem
 const AdminPayoutsPage = lazy(() => import("@/features/admin-core/pages/AdminPayoutsPage"));
 const AdminDomainListPage = lazy(() => import("@/features/admin-core/pages/AdminDomainListPage"));
 const AdminDomainOrderDetailPage = lazy(() => import("@/features/admin-core/pages/AdminDomainOrderDetailPage"));
+const AdminMarketplaceSettingsPage = lazy(() => import("@/features/admin-core/pages/AdminMarketplaceSettingsPage"));
 
 // --- DASHBOARD IMPORTS ---
 const ActorProfilePage = lazy(() => import("@/features/talent-marketplace/pages/ActorProfilePage"));
@@ -62,6 +64,7 @@ const DashboardServices = lazy(() => import("@/features/talent-marketplace/pages
 const ClientDashboardPage = lazy(() => import("@/features/talent-marketplace/pages/ClientDashboardPage"));
 const ClientOrderPage = lazy(() => import("@/features/talent-marketplace/pages/ClientOrderPage"));
 const PortfolioPage = lazy(() => import("@/features/talent-marketplace/pages/PortfolioPage"));
+const ServiceDetailsPage = lazy(() => import("@/features/talent-marketplace/pages/ServiceDetailsPage"));
 const ActorLoginPage = lazy(() => import("@/features/auth/pages/ActorLoginPage"));
 const ActorSignUpPage = lazy(() => import("@/features/auth/pages/ActorSignUpPage"));
 const ClientAuthPage = lazy(() => import("@/features/auth/pages/ClientAuthPage"));
@@ -254,7 +257,9 @@ function App() {
                       path="/Voiceover"
                       element={<VoiceOverLandingPage />}
                     />
-                    <Route path="/portfolio" element={<PortfolioPage />} />
+                    <Route path="/market" element={<PortfolioPage />} />
+                    <Route path="/market/service/:actorSlug/:serviceId" element={<ServiceDetailsPage />} />
+                    <Route path="/portfolio" element={<Navigate to="/market" replace />} />
                     <Route
                       path="/privacy-policy"
                       element={<PrivacyPolicyPage />}
@@ -401,6 +406,10 @@ function App() {
                         />
 
                         <Route path="payouts" element={<AdminPayoutsPage />} />
+                        <Route
+                          path="marketplace-settings"
+                          element={<AdminMarketplaceSettingsPage />}
+                        />
                       </Route>
                     </Route>
 

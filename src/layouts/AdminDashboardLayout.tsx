@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   LayoutDashboard,
   Palette,
+  Layers3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +42,7 @@ const NAV_GROUPS = [
       { to: "/admin/actors", name: "Users & Vendors", icon: Users },
       { to: "/admin/clients", name: "Clients", icon: Briefcase },
       { to: "/admin/payouts", name: "Financial Payouts", icon: DollarSign },
+      { to: "/admin/marketplace-settings", name: "Marketplace Settings", icon: Layers3 },
       { to: "/admin/domains", name: "Custom Domains", icon: Globe },
       { to: "/admin/themes", name: "Themes", icon: Palette },
 

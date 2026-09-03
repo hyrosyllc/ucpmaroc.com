@@ -39,7 +39,7 @@ interface Order {
     ActorName: string;
     ActorEmail?: string;
   };
-  service_type: 'voice_over' | 'scriptwriting' | 'video_editing';
+  service_type: string;
   word_count?: number;
   usage?: string | null;
   quote_est_duration?: string | null;

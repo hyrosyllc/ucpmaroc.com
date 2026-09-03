@@ -81,6 +81,7 @@ export interface ActorDashboardContextType {
 interface Actor {
   id: string;
   ActorName: string;
+  slug?: string;
   HeadshotURL?: string;
   is_p2p_enabled?: boolean;
   wallet_balance?: number;
@@ -311,7 +312,7 @@ const ActorDashboardLayout = () => {
     const { data: actorProfile, error: actorError } = await supabase
       .from("actors")
       .select(
-        "id, ActorName, HeadshotURL, is_p2p_enabled, wallet_balance, country, marketplace_status"
+        "id, ActorName, slug, HeadshotURL, is_p2p_enabled, wallet_balance, country, marketplace_status"
       )
       .eq("user_id", user.id)
       .single();

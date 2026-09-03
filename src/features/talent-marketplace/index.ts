@@ -2,10 +2,21 @@
  * Talent Marketplace Feature - Barrel Export
  */
 
+export {
+  MARKETPLACE_SERVICE_CATALOG,
+  getMarketplaceAllowedServiceIds,
+  setMarketplaceAllowedServiceIds,
+  resetMarketplaceAllowedServiceIds,
+  getMarketplaceServiceDefinitions,
+  getServiceLabel,
+  getServiceIcon,
+} from './serviceCatalog';
+
 // Components
 export { default as ActorCard } from './components/ActorCard';
 export type { Actor } from './components/ActorCard';
 export { default as TalentCard } from './components/TalentCard';
+export { default as ServiceOfferCard } from './components/ServiceOfferCard';
 export { default as QuoteCalculatorModal } from './components/QuoteCalculatorModal';
 export { default as OrderDetailsModal } from './components/OrderDetailsModal';
 export { default as RecordingModal } from './components/RecordingModal';

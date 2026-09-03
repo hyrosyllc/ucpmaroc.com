@@ -88,8 +88,8 @@ const allMenuItems = [
   
   {
     icon: GalleryHorizontalEnd,
-    label: "Gallery Room",
-    to: "/portfolio",
+    label: "Marketplace",
+    to: "/market",
     type: "link",
   },
   { icon: Phone, label: "Contact Us", to: "/contact", type: "link" },
@@ -101,7 +101,7 @@ const serviceDropdownItems = [
 
 const desktopNavLinks = [
   { label: "For Clients", to: "/for-clients", type: "link" as const },
-  { label: "Gallery", to: "/portfolio", type: "link" as const },
+  { label: "Marketplace", to: "/market", type: "link" as const },
   { label: "Contact", to: "/contact", type: "link" as const },
 ];
 

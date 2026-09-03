@@ -72,7 +72,7 @@ interface Order {
     ActorEmail?: string;
   };
   deliveries: { id: string; created_at: string; file_url: string; version_number: number }[];
-  service_type: 'voice_over' | 'scriptwriting' | 'video_editing';
+  service_type: string;
 
 }
 

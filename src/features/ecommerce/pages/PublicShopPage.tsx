@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ const MAIN_DOMAINS = [
 
 export default function PublicShopPage() {
   const { slug } = useParams<{ slug?: string }>();
+  const { portfolio } = useOutletContext<{ portfolio?: any }>();
   const navigate = useNavigate();
 
   const [theme, setTheme] = useState<string>("modern");
@@ -40,49 +41,11 @@ export default function PublicShopPage() {
     const fetchShopData = async () => {
       setLoading(true);
 
-      const currentHostname = window.location.hostname;
-      const isCustomDomain = !MAIN_DOMAINS.some((domain) =>
-        currentHostname.includes(domain)
-      );
-
-      let currentActorId = null;
-      let currentPortfolioId = null; // <-- NEW: We need this to filter the products
-      let currentTheme = "modern";
-      let currentPublicSlug = slug || "";
-      let currentThemeConfig = {};
-
-      // 1. ENVIRONMENT-AWARE ACTOR LOOKUP (FIXED 406 CRASH)
-      if (isCustomDomain) {
-        // Fetch by custom domain from portfolios
-        const { data: portData } = await supabase
-          .from("portfolios")
-          .select("id, actor_id, theme_config, public_slug")
-          .eq("custom_domain", currentHostname)
-          .maybeSingle(); // <-- PREVENTS 406 ERROR
-
-        if (portData) {
-          currentPortfolioId = portData.id;
-          currentActorId = portData.actor_id;
-          currentTheme = portData.theme_config?.templateId || "modern";
-          if (portData.public_slug) currentPublicSlug = portData.public_slug;
-          currentThemeConfig = portData.theme_config || {};
-        }
-      } else if (slug) {
-        // ✅ CORRECT LOOKUP: Query PORTFOLIOS using public_slug!
-        const { data: portData } = await supabase
-          .from("portfolios")
-          .select("id, actor_id, theme_config, public_slug")
-          .eq("public_slug", slug)
-          .maybeSingle(); // <-- PREVENTS 406 ERROR
-
-        if (portData) {
-          currentPortfolioId = portData.id;
-          currentActorId = portData.actor_id;
-          currentTheme = portData.theme_config?.templateId || "modern";
-          currentPublicSlug = portData.public_slug;
-          currentThemeConfig = portData.theme_config || {};
-        }
-      }
+      const currentPortfolioId = portfolio?.id || null;
+      const currentActorId = portfolio?.actor_id || null;
+      const currentTheme = portfolio?.theme_config?.templateId || "modern";
+      const currentPublicSlug = portfolio?.public_slug || slug || "";
+      const currentThemeConfig = portfolio?.theme_config || {};
 
       if (!currentActorId) {
         setError("Store not found.");
@@ -140,7 +103,7 @@ export default function PublicShopPage() {
     };
 
     fetchShopData();
-  }, [slug]);
+  }, [portfolio, slug]);
 
   // Derived state: Filter products based on search query AND active collection
   const filteredProducts = useMemo(() => {

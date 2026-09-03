@@ -29,8 +29,8 @@ export const CustomLoader = ({ themeConfig, type = "page" }: { themeConfig?: any
   if (style === 'pulse') {
     return (
       <div className={cn("flex flex-col items-center justify-center gap-6 w-full", type === "page" ? "min-h-screen" : "py-24")}>
-        <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center animate-pulse ring-4 ring-primary/10">
-           <div className="w-6 h-6 bg-primary rounded-full animate-ping" />
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin">
+           <div className="w-full h-full rounded-full bg-primary/10 animate-pulse" />
         </div>
         {text && <p className="text-sm text-primary font-bold tracking-widest uppercase animate-pulse">{text}</p>}
       </div>

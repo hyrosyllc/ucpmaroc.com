@@ -119,6 +119,7 @@ const VideoSlider: React.FC<any> = ({ data, settings = {}, id, isPreview }) => {
               className={cn("w-full h-full opacity-70 group-hover:opacity-100 transition-opacity", fitClass)}
               muted
               playsInline
+              preload="metadata"
               onContextMenu={(e) => e.preventDefault()}
             />
           )}

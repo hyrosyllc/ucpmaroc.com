@@ -15,8 +15,8 @@ import ScrollToTop from "./components/ScrollToTop";
 import PlatformLoader from "./components/PlatformLoader";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 // --- LAYOUT IMPORTS ---
-import AdminDashboardLayout from "./layouts/AdminDashboardLayout";
-import ActorDashboardLayout from "./layouts/ActorDashboardLayout";
+const AdminDashboardLayout = lazy(() => import("./layouts/AdminDashboardLayout"));
+const ActorDashboardLayout = lazy(() => import("./layouts/ActorDashboardLayout"));
 // --- LAZY LOADED PORTFOLIO ARCHITECTURE ---
 import PortfolioLayout from "@/features/portfolio-builder/layouts/PortfolioLayout";
 import PortfolioHome from "@/features/portfolio-builder/pages/PortfolioHome";
@@ -34,57 +34,52 @@ const FeatureThemeStudio = lazy(() => import("./pages/features/FeatureThemeStudi
 const FeatureWallet = lazy(() => import("./pages/features/FeatureWallet"));
 
 // --- STANDARD IMPORTS ---
-import PrivacyPolicyPage from "./components/PrivacyPolicy.tsx";
-import ContactUsPage from "./pages/ContactUsPage";
-import TermsofService from "./components/TermsofService.tsx";
-import TermsandConditions from "./components/TermsandConditions.tsx";
-import VoiceOverLandingPage from "./pages/VoiceOverLandingPage";
-import {
-  AdminDashboardPage,
-  AdminOrderDetailPage,
-  AdminActorListPage,
-  AdminClientListPage,
-  AdminThemesPage,
-  AdminPayoutsPage,
-  AdminDomainListPage,
-  AdminDomainOrderDetailPage
-} from "@/features/admin-core";
+const PrivacyPolicyPage = lazy(() => import("./components/PrivacyPolicy.tsx"));
+const ContactUsPage = lazy(() => import("./pages/ContactUsPage"));
+const TermsofService = lazy(() => import("./components/TermsofService.tsx"));
+const TermsandConditions = lazy(() => import("./components/TermsandConditions.tsx"));
+const VoiceOverLandingPage = lazy(() => import("./pages/VoiceOverLandingPage"));
+const AdminDashboardPage = lazy(() => import("@/features/admin-core/pages/AdminDashboardPage"));
+const AdminOrderDetailPage = lazy(() => import("@/features/admin-core/pages/AdminOrderDetailPage"));
+const AdminActorListPage = lazy(() => import("@/features/admin-core/pages/AdminActorListPage"));
+const AdminClientListPage = lazy(() => import("@/features/admin-core/pages/AdminClientListPage"));
+const AdminThemesPage = lazy(() => import("@/features/admin-core/pages/AdminThemesPage"));
+const AdminPayoutsPage = lazy(() => import("@/features/admin-core/pages/AdminPayoutsPage"));
+const AdminDomainListPage = lazy(() => import("@/features/admin-core/pages/AdminDomainListPage"));
+const AdminDomainOrderDetailPage = lazy(() => import("@/features/admin-core/pages/AdminDomainOrderDetailPage"));
 
 // --- DASHBOARD IMPORTS ---
-import {
-  ActorDashboardPage,
-  ActorProfilePage,
-  FavoriteActorsPage,
-  DashboardLibrary,
-  DashboardDemos,
-  DashboardOrders,
-  ActorEarningsPage,
-  ActorPayoutSettingsPage,
-  MyShortlistPage,
-  DashboardProfile,
-  DashboardServices,
-  ClientDashboardPage,
-  ClientOrderPage,
-  PortfolioPage,
-} from "@/features/talent-marketplace";
-import { ActorLoginPage, ActorSignUpPage, ClientAuthPage, CreateProfilePromptPage } from "@/features/auth";
-import { MessagesPage, AdminChatSheet } from "@/features/messaging";
-import {
-  DomainMarketplace,
-  DomainCheckout,
-  DomainThankYouPage,
-  DomainOrderPage,
-} from "@/features/domain-marketplace";
-import {
-  AnalyticsPage,
-  OrdersPage,
-  LeadsPage,
-  FormsPage,
-  ProOrderDetailPage,
-  PaymentsPage,
-  StripeCallbackPage,
-} from "@/features/ecommerce";
-import { SettingsPage } from "@/features/portfolio-builder";
+const ActorProfilePage = lazy(() => import("@/features/talent-marketplace/pages/ActorProfilePage"));
+const FavoriteActorsPage = lazy(() => import("@/features/talent-marketplace/pages/FavoriteActorsPage"));
+const DashboardLibrary = lazy(() => import("@/features/talent-marketplace/pages/DashboardLibrary"));
+const DashboardDemos = lazy(() => import("@/features/talent-marketplace/pages/DashboardDemos"));
+const DashboardOrders = lazy(() => import("@/features/talent-marketplace/pages/DashboardOrders"));
+const ActorEarningsPage = lazy(() => import("@/features/talent-marketplace/payouts/pages/ActorEarningsPage"));
+const ActorPayoutSettingsPage = lazy(() => import("@/features/talent-marketplace/payouts/pages/ActorPayoutSettingsPage"));
+const MyShortlistPage = lazy(() => import("@/features/talent-marketplace/pages/MyShortlistPage"));
+const DashboardProfile = lazy(() => import("@/features/talent-marketplace/pages/DashboardProfile"));
+const DashboardServices = lazy(() => import("@/features/talent-marketplace/pages/DashboardServices"));
+const ClientDashboardPage = lazy(() => import("@/features/talent-marketplace/pages/ClientDashboardPage"));
+const ClientOrderPage = lazy(() => import("@/features/talent-marketplace/pages/ClientOrderPage"));
+const PortfolioPage = lazy(() => import("@/features/talent-marketplace/pages/PortfolioPage"));
+const ActorLoginPage = lazy(() => import("@/features/auth/pages/ActorLoginPage"));
+const ActorSignUpPage = lazy(() => import("@/features/auth/pages/ActorSignUpPage"));
+const ClientAuthPage = lazy(() => import("@/features/auth/pages/ClientAuthPage"));
+const CreateProfilePromptPage = lazy(() => import("@/features/auth/pages/CreateProfilePromptPage"));
+const MessagesPage = lazy(() => import("@/features/messaging/pages/MessagesPage"));
+const AdminChatSheet = lazy(() => import("@/features/messaging/components/AdminChatSheet").then((module) => ({ default: module.AdminChatSheet })));
+const DomainMarketplace = lazy(() => import("@/features/domain-marketplace/pages/DomainMarketplace"));
+const DomainCheckout = lazy(() => import("@/features/domain-marketplace/pages/DomainCheckout"));
+const DomainThankYouPage = lazy(() => import("@/features/domain-marketplace/pages/DomainThankYouPage"));
+const DomainOrderPage = lazy(() => import("@/features/domain-marketplace/pages/DomainOrderPage"));
+const AnalyticsPage = lazy(() => import("@/features/ecommerce/pages/AnalyticsPage"));
+const OrdersPage = lazy(() => import("@/features/ecommerce/pages/OrdersPage"));
+const LeadsPage = lazy(() => import("@/features/ecommerce/pages/LeadsPage"));
+const FormsPage = lazy(() => import("@/features/ecommerce/pages/FormsPage"));
+const ProOrderDetailPage = lazy(() => import("@/features/ecommerce/pages/ProOrderDetailPage"));
+const PaymentsPage = lazy(() => import("@/features/ecommerce/pages/PaymentsPage"));
+const StripeCallbackPage = lazy(() => import("@/features/ecommerce/pages/StripeCallbackPage"));
+const SettingsPage = lazy(() => import("@/features/portfolio-builder/pages/SettingsPage"));
 const CustomersPage = lazy(() => import("@/features/ecommerce/pages/CustomersPage"));
 const ReviewsPage = lazy(() => import("@/features/ecommerce/pages/ReviewsPage.tsx"));
 const CustomerLoginPage = lazy(() => import("@/features/ecommerce/pages/CustomerLoginPage"));
@@ -95,28 +90,22 @@ const CustomerOrderDetailPage = lazy(() => import("@/features/ecommerce/pages/Cu
 const CustomerMessagesPage = lazy(() => import("@/features/ecommerce/pages/CustomerMessagesPage"));
 
 // --- E-COMMERCE PUBLIC PAGES ---
-import {
-  ProductsPage,
-  CollectionsPage,
-  ShippingRatesPage,
-  CouponsPage,
-  MarketsPage,
-  PublicShopPage,
-  PublicProductPage,
-  PublicCheckoutPage,
-  PublicThankYouPage,
-} from "@/features/ecommerce";
-import CheckoutLayout from "./themes/modern/CheckoutLayout.tsx";
-import ThankYouLayout from "./themes/modern/ThankYouLayout.tsx";
-import {
-  BuilderPreview,
-  PortfolioBuilderPage
-} from "@/features/portfolio-builder";
-import {
-  ThemeStudioPage,
-  DeveloperHubPage,
-  StudioPreview
-} from "@/features/theme-studio";
+const ProductsPage = lazy(() => import("@/features/ecommerce/pages/ProductsPage"));
+const CollectionsPage = lazy(() => import("@/features/ecommerce/pages/CollectionsPage"));
+const ShippingRatesPage = lazy(() => import("@/features/ecommerce/pages/ShippingRatesPage"));
+const CouponsPage = lazy(() => import("@/features/ecommerce/pages/CouponsPage"));
+const MarketsPage = lazy(() => import("@/features/ecommerce/pages/MarketsPage"));
+const PublicShopPage = lazy(() => import("@/features/ecommerce/pages/PublicShopPage"));
+const PublicProductPage = lazy(() => import("@/features/ecommerce/pages/PublicProductPage"));
+const PublicCheckoutPage = lazy(() => import("@/features/ecommerce/checkout/PublicCheckoutPage"));
+const PublicThankYouPage = lazy(() => import("@/features/ecommerce/checkout/PublicThankYouPage"));
+const CheckoutLayout = lazy(() => import("./themes/modern/CheckoutLayout.tsx"));
+const ThankYouLayout = lazy(() => import("./themes/modern/ThankYouLayout.tsx"));
+const BuilderPreview = lazy(() => import("@/features/portfolio-builder/pages/BuilderPreview"));
+const PortfolioBuilderPage = lazy(() => import("@/features/portfolio-builder/pages/PortfolioBuilderPage"));
+const ThemeStudioPage = lazy(() => import("@/features/theme-studio/pages/ThemeStudioPage"));
+const DeveloperHubPage = lazy(() => import("@/features/theme-studio/pages/DeveloperHubPage"));
+const StudioPreview = lazy(() => import("@/features/theme-studio/pages/StudioPreview"));
 
 // Define main domains globally
 const MAIN_DOMAINS = [

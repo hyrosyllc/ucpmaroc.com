@@ -150,6 +150,7 @@ const Hero: React.FC<any> = ({ data, settings = {}, id, isPreview }) => {
                   loop
                   muted
                   playsInline
+                  preload="metadata"
                   className={cn(
                     "absolute w-full h-full",
                     activeVideoFit === "contain"
@@ -189,7 +190,7 @@ const Hero: React.FC<any> = ({ data, settings = {}, id, isPreview }) => {
                 className="absolute inset-0 w-full h-full object-cover animate-ken-burns opacity-90 will-change-transform"
                 style={{ animationDuration: "20s" }}
                 loading="eager"
-                decoding="sync"
+                decoding="async"
               />
             </div>
           ) : (

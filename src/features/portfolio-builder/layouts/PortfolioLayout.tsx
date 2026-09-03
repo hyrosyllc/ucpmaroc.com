@@ -125,6 +125,9 @@ const THEME_PALETTES: Record<string, any> = {
   }
 };
 
+const EMPTY_BUILDER_SECTIONS: never[] = [];
+const EMPTY_BUILDER_THEME: Record<string, never> = {};
+
 
 interface PortfolioLayoutProps {
   customDomain?: string;
@@ -146,28 +149,13 @@ export default function PortfolioLayout({
     customDomain: isBuilderPreview ? undefined : customDomain,
   });
 
-  const loadingThemeConfig = data?.portfolio?.theme_config || {
-    loaderStyle: "pulse",
-  };
-  const loadingThemeId = loadingThemeConfig.templateId || "modern";
-  const loadingPalette =
-    THEME_PALETTES[loadingThemeId] || THEME_PALETTES.modern;
-  const loadingColorMode = loadingThemeConfig.colorMode || "dark";
-  const loadingActivePalette =
-    loadingColorMode === "light" ? loadingPalette.light : loadingPalette.dark;
-  const loadingPrimary = loadingThemeConfig.primaryColor
-    ? hexToHSLString(loadingThemeConfig.primaryColor)
-    : "0 0% 70%";
-  const loadingStyle = {
-    "--primary": loadingPrimary,
-    "--ring": loadingPrimary,
-    "--background": loadingActivePalette.background,
-    "--foreground": loadingActivePalette.foreground,
-    "--muted-foreground": loadingActivePalette.mutedForeground,
-  } as CSSProperties;
-
   // 🚀 3. GET ZUSTAND STORE DATA (Only matters if we ARE in the builder)
-  const builderStore = useBuilderStore();
+  const builderSections = useBuilderStore((state) =>
+    isBuilderPreview ? state.sections : EMPTY_BUILDER_SECTIONS
+  );
+  const builderThemeConfig = useBuilderStore((state) =>
+    isBuilderPreview ? state.themeConfig : EMPTY_BUILDER_THEME
+  );
 
   // --- ANALYTICS TRACKING (Only run on live site) ---
   useEffect(() => {
@@ -189,8 +177,8 @@ export default function PortfolioLayout({
     if (isBuilderPreview) {
       return {
         portfolio: {
-          sections: builderStore.sections,
-          theme_config: builderStore.themeConfig,
+          sections: builderSections,
+          theme_config: builderThemeConfig,
           id: "preview-id",
           actor_id: "preview-actor-id",
           site_name: "Live Preview",
@@ -199,19 +187,21 @@ export default function PortfolioLayout({
       };
     }
     return data;
-  }, [isBuilderPreview, builderStore.sections, builderStore.themeConfig, data]);
+  }, [isBuilderPreview, builderSections, builderThemeConfig, data]);
 
   // --- LOADING & ERROR STATES (Only for live site) ---
   if (!isBuilderPreview && isLoading) {
     return (
       <div
-        className={cn(
-          "min-h-screen w-full bg-background text-foreground",
-          loadingColorMode === "dark" && "dark"
-        )}
-        style={loadingStyle}
+        className="min-h-screen w-full bg-neutral-950 text-white"
+        style={
+          {
+            "--primary": "0 0% 70%",
+            "--ring": "0 0% 70%",
+          } as CSSProperties
+        }
       >
-        <CustomLoader themeConfig={loadingThemeConfig} type="page" />
+        <CustomLoader themeConfig={{ loaderStyle: "spinner" }} type="page" />
       </div>
     );
   }

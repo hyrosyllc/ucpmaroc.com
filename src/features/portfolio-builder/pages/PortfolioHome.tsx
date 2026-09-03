@@ -14,7 +14,7 @@ import {
 
 // 🚀 THE NEW CUSTOM LOADER SYSTEM
 export const CustomLoader = ({ themeConfig, type = "page" }: { themeConfig?: any, type?: "page" | "block" }) => {
-  const style = themeConfig?.loaderStyle || 'skeleton';
+  const style = themeConfig?.loaderStyle || 'pulse';
   const text = themeConfig?.loaderText || '';
 
   if (style === 'spinner') {
@@ -200,13 +200,17 @@ const PortfolioHome: React.FC<PortfolioHomeProps> = ({
               key={section.id}
               className={cn("scroll-mt-20", zIndexClass)}
             >
-              <React.Suspense
-                fallback={
-                  <CustomLoader themeConfig={portfolio.theme_config} type="block" />
-                }
-              >
+              {isPreview ? (
+                <React.Suspense
+                  fallback={
+                    <CustomLoader themeConfig={portfolio.theme_config} type="block" />
+                  }
+                >
+                  <Component {...sectionProps} />
+                </React.Suspense>
+              ) : (
                 <Component {...sectionProps} />
-              </React.Suspense>
+              )}
             </div>
           );
         })}

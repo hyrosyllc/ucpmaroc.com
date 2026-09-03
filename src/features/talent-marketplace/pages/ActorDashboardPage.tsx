@@ -23,6 +23,7 @@ import {
   Mic, PencilLine, Video, Save
 } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import PlatformLoader from '@/components/PlatformLoader';
 
 // --- Interfaces (with new service fields) ---
 interface Demo {
@@ -598,7 +599,7 @@ const ActorDashboardPage = () => {
 
   // --- Loading State ---
   if (loading && !selectedOrder) {
-    return <div className="min-h-screen bg-background text-foreground text-center p-8">Loading Dashboard...</div>;
+    return <PlatformLoader message="Loading Dashboard..." />;
   }
 
   // --- Filtered Orders ---

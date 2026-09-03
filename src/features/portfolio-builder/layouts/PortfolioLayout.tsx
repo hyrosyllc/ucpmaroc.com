@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo, type CSSProperties } from "react";
 import { Outlet, useParams, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Loader2 } from "lucide-react";
+import { CustomLoader } from "@/features/portfolio-builder/pages/PortfolioHome";
 
 import { usePortfolio } from "@/features/portfolio-builder";
 import { trackEvent } from "@/lib/analytics";
@@ -146,6 +146,26 @@ export default function PortfolioLayout({
     customDomain: isBuilderPreview ? undefined : customDomain,
   });
 
+  const loadingThemeConfig = data?.portfolio?.theme_config || {
+    loaderStyle: "pulse",
+  };
+  const loadingThemeId = loadingThemeConfig.templateId || "modern";
+  const loadingPalette =
+    THEME_PALETTES[loadingThemeId] || THEME_PALETTES.modern;
+  const loadingColorMode = loadingThemeConfig.colorMode || "dark";
+  const loadingActivePalette =
+    loadingColorMode === "light" ? loadingPalette.light : loadingPalette.dark;
+  const loadingPrimary = loadingThemeConfig.primaryColor
+    ? hexToHSLString(loadingThemeConfig.primaryColor)
+    : "0 0% 70%";
+  const loadingStyle = {
+    "--primary": loadingPrimary,
+    "--ring": loadingPrimary,
+    "--background": loadingActivePalette.background,
+    "--foreground": loadingActivePalette.foreground,
+    "--muted-foreground": loadingActivePalette.mutedForeground,
+  } as CSSProperties;
+
   // 🚀 3. GET ZUSTAND STORE DATA (Only matters if we ARE in the builder)
   const builderStore = useBuilderStore();
 
@@ -184,8 +204,14 @@ export default function PortfolioLayout({
   // --- LOADING & ERROR STATES (Only for live site) ---
   if (!isBuilderPreview && isLoading) {
     return (
-      <div className="h-[100dvh] w-full flex items-center justify-center bg-background">
-        <Loader2 className="animate-spin text-primary w-10 h-10" />
+      <div
+        className={cn(
+          "min-h-screen w-full bg-background text-foreground",
+          loadingColorMode === "dark" && "dark"
+        )}
+        style={loadingStyle}
+      >
+        <CustomLoader themeConfig={loadingThemeConfig} type="page" />
       </div>
     );
   }
@@ -285,12 +311,13 @@ export default function PortfolioLayout({
       </style>
 
       {/* 🚀 MASTER WRAPPER (This div contains the injected styles) */}
-      <div
-        className={cn(
-          "portfolio-canvas-wrapper min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary",
-          colorMode === "dark" ? "dark" : ""
-        )}
-      >
+      <Suspense fallback={<CustomLoader themeConfig={themeConfig} type="page" />}>
+        <div
+          className={cn(
+            "portfolio-canvas-wrapper min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary",
+            colorMode === "dark" ? "dark" : ""
+          )}
+        >
         {HeaderComponent && headerSection?.isVisible && (
           <div className="relative z-50">
             <HeaderComponent
@@ -319,7 +346,8 @@ export default function PortfolioLayout({
             isPreview={false}
           />
         )}
-      </div>
+        </div>
+      </Suspense>
     </>
   );
 }

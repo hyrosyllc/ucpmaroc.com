@@ -27,6 +27,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import ThemeToggle from "../components/ThemeToggle";
+import PlatformLoader from "../components/PlatformLoader";
 
 // --- NAVIGATION STRUCTURE ---
 const NAV_GROUPS = [
@@ -76,7 +77,7 @@ const AdminDashboardLayout = () => {
     navigate("/actor-login");
   };
 
-  if (loading) return null;
+  if (loading) return <PlatformLoader message="Loading Admin Panel..." />;
 
   return (
     <div className="min-h-screen bg-zinc-50/50 dark:bg-zinc-950 text-foreground flex flex-col antialiased">

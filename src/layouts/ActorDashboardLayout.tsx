@@ -67,6 +67,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import ThemeToggle from "@/components/ThemeToggle";
+import PlatformLoader from "@/components/PlatformLoader";
 import TopUpModal from "@/features/portfolio-builder/components/TopUpModal"; // 🚀 IMPORT TOPUP MODAL
 
 export interface ActorDashboardContextType {
@@ -362,16 +363,7 @@ const ActorDashboardLayout = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin mb-4" />
-          <p className="text-muted-foreground text-sm font-medium">
-            Loading Workspace...
-          </p>
-        </div>
-      </div>
-    );
+    return <PlatformLoader message="Loading Workspace..." />;
   }
 
   const isMoroccan = actorData.country === "Morocco";

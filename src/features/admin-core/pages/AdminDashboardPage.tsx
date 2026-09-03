@@ -4,6 +4,7 @@ import { supabase } from '@/supabaseClient';
 import { CheckCircle, Clock, ListOrdered, Hourglass, Banknote, ArrowUpDown, Filter, X as XIcon, Globe, Search, Users, AlertTriangle } from 'lucide-react'; // <-- Add Search here
 import emailjs from '@emailjs/browser';
 import { Link } from 'react-router-dom';
+import PlatformLoader from '@/components/PlatformLoader';
 // --- shadcn/ui Imports ---
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -269,7 +270,7 @@ const AdminDashboardPage = () => {
     // --- End row click handler ---
 
     if (loading) {
-        return <div className="min-h-screen bg-background flex items-center justify-center text-foreground">Loading Admin Panel...</div>;
+      return <PlatformLoader message="Loading Admin Panel..." />;
     }
 
     return (

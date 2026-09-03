@@ -7,21 +7,20 @@ import {
 } from "react-router-dom";
 import emailjs from "@emailjs/browser";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { supabase } from "./supabaseClient";
 import { Toaster } from "sonner";
 // --- LAYOUTS & COMPONENTS ---
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import PlatformLoader from "./components/PlatformLoader";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 // --- LAYOUT IMPORTS ---
 import AdminDashboardLayout from "./layouts/AdminDashboardLayout";
 import ActorDashboardLayout from "./layouts/ActorDashboardLayout";
 // --- LAZY LOADED PORTFOLIO ARCHITECTURE ---
-const PortfolioLayout = lazy(() => import("@/features/portfolio-builder/layouts/PortfolioLayout"));
-const PortfolioHome = lazy(() => import("@/features/portfolio-builder/pages/PortfolioHome"));
-const DynamicPage = lazy(() => import("@/features/portfolio-builder/pages/DynamicPage"));
+import PortfolioLayout from "@/features/portfolio-builder/layouts/PortfolioLayout";
+import PortfolioHome from "@/features/portfolio-builder/pages/PortfolioHome";
+import DynamicPage from "@/features/portfolio-builder/pages/DynamicPage";
 
 // --- LAZY LOADED MAIN PAGES ---
 const HomePage = lazy(() => import("./pages/HomePage"));
@@ -215,11 +214,7 @@ function App() {
         <main className="flex-grow">
           <Layout isCustomDomain={isCustomDomain}>
             <Suspense
-              fallback={
-                <div className="h-screen flex items-center justify-center bg-background">
-                  <Loader2 className="animate-spin w-10 h-10 text-primary" />
-                </div>
-              }
+              fallback={<PlatformLoader />}
             >
               <Routes>
                 {/* 🚀 ROUTE SPLIT A: CUSTOM DOMAIN VISITORS */}

@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo } from "react";
+import { Suspense, useEffect, useMemo, type CSSProperties } from "react";
 import { Outlet, useParams, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { Loader2 } from "lucide-react";
+import { CustomLoader } from "@/features/portfolio-builder/pages/PortfolioHome";
 
 import { usePortfolio } from "@/features/portfolio-builder";
 import { trackEvent } from "@/lib/analytics";
@@ -125,6 +125,9 @@ const THEME_PALETTES: Record<string, any> = {
   }
 };
 
+const EMPTY_BUILDER_SECTIONS: never[] = [];
+const EMPTY_BUILDER_THEME: Record<string, never> = {};
+
 
 interface PortfolioLayoutProps {
   customDomain?: string;
@@ -147,7 +150,12 @@ export default function PortfolioLayout({
   });
 
   // 🚀 3. GET ZUSTAND STORE DATA (Only matters if we ARE in the builder)
-  const builderStore = useBuilderStore();
+  const builderSections = useBuilderStore((state) =>
+    isBuilderPreview ? state.sections : EMPTY_BUILDER_SECTIONS
+  );
+  const builderThemeConfig = useBuilderStore((state) =>
+    isBuilderPreview ? state.themeConfig : EMPTY_BUILDER_THEME
+  );
 
   // --- ANALYTICS TRACKING (Only run on live site) ---
   useEffect(() => {
@@ -169,8 +177,8 @@ export default function PortfolioLayout({
     if (isBuilderPreview) {
       return {
         portfolio: {
-          sections: builderStore.sections,
-          theme_config: builderStore.themeConfig,
+          sections: builderSections,
+          theme_config: builderThemeConfig,
           id: "preview-id",
           actor_id: "preview-actor-id",
           site_name: "Live Preview",
@@ -179,13 +187,21 @@ export default function PortfolioLayout({
       };
     }
     return data;
-  }, [isBuilderPreview, builderStore.sections, builderStore.themeConfig, data]);
+  }, [isBuilderPreview, builderSections, builderThemeConfig, data]);
 
   // --- LOADING & ERROR STATES (Only for live site) ---
   if (!isBuilderPreview && isLoading) {
     return (
-      <div className="h-[100dvh] w-full flex items-center justify-center bg-background">
-        <Loader2 className="animate-spin text-primary w-10 h-10" />
+      <div
+        className="min-h-screen w-full bg-neutral-950 text-white"
+        style={
+          {
+            "--primary": "0 0% 70%",
+            "--ring": "0 0% 70%",
+          } as CSSProperties
+        }
+      >
+        <CustomLoader themeConfig={{ loaderStyle: "spinner" }} type="page" />
       </div>
     );
   }
@@ -285,12 +301,13 @@ export default function PortfolioLayout({
       </style>
 
       {/* 🚀 MASTER WRAPPER (This div contains the injected styles) */}
-      <div
-        className={cn(
-          "portfolio-canvas-wrapper min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary",
-          colorMode === "dark" ? "dark" : ""
-        )}
-      >
+      <Suspense fallback={<CustomLoader themeConfig={themeConfig} type="page" />}>
+        <div
+          className={cn(
+            "portfolio-canvas-wrapper min-h-screen flex flex-col selection:bg-primary/30 selection:text-primary",
+            colorMode === "dark" ? "dark" : ""
+          )}
+        >
         {HeaderComponent && headerSection?.isVisible && (
           <div className="relative z-50">
             <HeaderComponent
@@ -319,7 +336,8 @@ export default function PortfolioLayout({
             isPreview={false}
           />
         )}
-      </div>
+        </div>
+      </Suspense>
     </>
   );
 }

@@ -13,10 +13,12 @@ import {
   XIcon,
   Check,
   Briefcase,
+  Trash2,
 } from "lucide-react";
 
 interface ActorProfile {
   id: string;
+  user_id: string;
   ActorName: string;
   ActorEmail?: string;
   IsActive?: boolean;
@@ -62,7 +64,7 @@ const AdminActorListPage: React.FC = () => {
     const { data, error: fetchError } = await supabase
       .from("actors")
       .select(
-        'id, ActorName, ActorEmail, "IsActive", role, created_at, direct_payment_enabled, direct_payment_requested, country, marketplace_status, is_p2p_enabled'
+        'id, user_id, ActorName, ActorEmail, "IsActive", role, created_at, direct_payment_enabled, direct_payment_requested, country, marketplace_status, is_p2p_enabled'
       )
       .order("created_at", { ascending: false });
 
@@ -77,6 +79,24 @@ const AdminActorListPage: React.FC = () => {
   useEffect(() => {
     fetchActors();
   }, [fetchActors]);
+
+  const handleDeleteActor = async (actor: ActorProfile) => {
+    if (actor.role === "admin") return;
+    if (!window.confirm(`Permanently delete ${actor.ActorName}? This removes the account and its platform data.`)) return;
+
+    setError("");
+    try {
+      const { data, error: functionError } = await supabase.functions.invoke("admin-delete-account", {
+        body: { accountId: actor.id, accountType: "actor" },
+      });
+      if (functionError) throw functionError;
+      if (!data?.success) throw new Error(data?.error || "Account deletion failed.");
+      setActors((current) => current.filter((item) => item.id !== actor.id));
+      setMessage(`Actor ${actor.ActorName} was permanently deleted.`);
+    } catch (deleteError) {
+      setError(`Failed to delete actor: ${(deleteError as Error).message}`);
+    }
+  };
 
   // --- The Nuclear Button (Unchanged) ---
   const handleToggleActiveStatus = async (
@@ -402,6 +422,13 @@ const AdminActorListPage: React.FC = () => {
                               <ToggleRight size={12} />
                             )}
                             {actor.IsActive ? "Deactivate" : "Activate"}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteActor(actor)}
+                            className="text-xs font-semibold px-2 py-1 rounded inline-flex items-center gap-1 bg-red-600/20 text-red-300 hover:bg-red-600/40 border border-red-500/30"
+                            title="Permanently delete actor and account data"
+                          >
+                            <Trash2 size={12} /> Delete
                           </button>
                         </>
                       )}

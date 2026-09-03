@@ -144,9 +144,8 @@ const Gallery: React.FC<any> = ({ data, settings = {}, id, isPreview }) => {
                 imageClass
               )}
               muted
-              autoPlay
-              loop
               playsInline
+              preload="none"
             />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="bg-black/40 backdrop-blur-md p-3 rounded-full border border-white/20 group-hover:scale-110 transition-transform duration-500">

@@ -14,7 +14,7 @@ interface ServiceDeliveryUploaderProps {
     from_chat_offer: any;
     id: string;
     actor_id: string;
-    service_type: 'voice_over' | 'scriptwriting' | 'video_editing';
+    service_type: string;
     order_id_string: string;
     client_name: string;
     client_email: string;

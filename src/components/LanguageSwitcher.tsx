@@ -31,12 +31,12 @@ const LanguageSwitcher: React.FC = () => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button 
-          variant="outline" // Use the standard outline variant
-          size="sm" // Use small size for a compact look
-          className="flex items-center gap-1.5 rounded-full" // Keep the rounded-full style
+          variant="ghost"
+          size="sm"
+          className="flex items-center gap-1.5 rounded-full bg-transparent text-zinc-300 hover:bg-white/10 hover:text-white transition-all duration-300 px-3 h-10 lg:h-9"
         >
-          <Globe size={16} />
-          <span>{currentLanguage.shortName}</span>
+          <Globe size={14} />
+          <span className="font-semibold text-xs tracking-wider">{currentLanguage.shortName}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">

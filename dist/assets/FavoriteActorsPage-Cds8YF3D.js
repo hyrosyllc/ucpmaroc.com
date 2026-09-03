@@ -1,0 +1,16 @@
+import{r as a,u as E,j as t,E as w,L as P,s as x}from"./index-DOocgpZq.js";import{A as R}from"./ActorCard-Rw2dC-lE.js";import{G as S}from"./GlobalAudioPlayer-DEdK-iMQ.js";import"./pause-Ci1ee9Td.js";import"./heart-Bbqy19Wn.js";import"./dollar-sign-DB_6_J9Z.js";import"./repeat-CdPB76oV.js";const B=()=>{const[g,d]=a.useState(!0),[u,h]=a.useState([]),m=E(),[s,p]=a.useState(null),[o,c]=a.useState(!1),[v,j]=a.useState(0),[y,L]=a.useState(0),n=a.useRef(null);a.useEffect(()=>{(async()=>{d(!0);const{data:{user:r}}=await x.auth.getUser();if(!r){m("/client-auth");return}const{data:l,error:i}=await x.from("actor_followers").select(`
+                    actors (
+                        id,
+                        slug,
+                        ActorName,
+                        Gender,
+                        Language,
+                        HeadshotURL,
+                        MainDemoURL,
+                        revisions_allowed,
+                        BaseRate_per_Word,
+                        IsActive,
+                        actor_followers(count),
+                        demo_likes(count)
+                    )
+                `).eq("user_id",r.id);if(i)console.error("Error fetching favorite actors:",i);else{const N=l.map(A=>A.actors).filter(Boolean);h(N)}d(!1)})()},[m]),a.useEffect(()=>{const e=n.current;if(!e)return;const r=()=>j(e.currentTime),l=()=>L(e.duration),i=()=>c(!1);return e.addEventListener("timeupdate",r),e.addEventListener("loadedmetadata",l),e.addEventListener("ended",i),()=>{e.removeEventListener("timeupdate",r),e.removeEventListener("loadedmetadata",l),e.removeEventListener("ended",i)}},[s]),a.useEffect(()=>{var e,r;o?(e=n.current)==null||e.play().catch(console.error):(r=n.current)==null||r.pause()},[o,s]);const f=()=>{s&&c(!o)},b=e=>{const r=e.MainDemoURL;r&&((s==null?void 0:s.url)===r?f():(p({url:r,actor:{ActorName:e.ActorName,HeadshotURL:e.HeadshotURL}}),c(!0)))};return g?t.jsx("div",{className:"min-h-screen bg-background flex items-center justify-center text-foreground",children:"Loading Your Favorite Actors..."}):t.jsxs("div",{className:"min-h-screen bg-background text-foreground pt-20",children:[t.jsxs("div",{className:"max-w-7xl mx-auto py-20 px-4",children:[t.jsxs("div",{className:"text-center mb-12",children:[t.jsx("div",{className:"inline-block bg-card/50 rounded-full p-5 border border mb-6",children:t.jsx(w,{size:40,className:"text-yellow-400"})}),t.jsx("h1",{className:"text-4xl lg:text-5xl font-black tracking-tighter text-foreground mb-4",children:"My Favorite Actors"}),t.jsx("p",{className:"text-lg text-muted-foreground",children:"All the talent you follow, saved in one place."})]}),u.length>0?t.jsx("div",{className:"grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6",children:u.map(e=>t.jsx(R,{actor:e,onPlayClick:b,isCurrentlyPlaying:o&&(s==null?void 0:s.url)===e.MainDemoURL},e.id))}):t.jsxs("div",{className:"text-center py-8",children:[t.jsx("p",{className:"text-slate-500 mb-4",children:"You haven't followed any actors yet."}),t.jsx(P,{to:"/",className:"text-purple-400 font-semibold hover:underline",children:"Browse Talent"})]})]}),t.jsx(S,{audioRef:n,currentTrack:s,isPlaying:o,onPlayPause:f,duration:y,currentTime:v}),t.jsx("audio",{ref:n,src:(s==null?void 0:s.url)||""})]})};export{B as default};

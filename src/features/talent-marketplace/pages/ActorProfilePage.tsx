@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/supabaseClient';
 import { QuoteCalculatorModal } from '@/features/talent-marketplace';
-import { Play, Pause, Mic, Phone, CheckCircle, Share2, Heart, UserPlus, Star, PencilLine, Video, FileText } from 'lucide-react';
+import { getMarketplaceServiceDefinitions, getServiceIcon, getServiceLabel, loadMarketplaceAllowedServiceIds } from '@/features/talent-marketplace/serviceCatalog';
+import { Play, Pause, Mic, Phone, CheckCircle, Share2, Heart, UserPlus, Star, PencilLine, Video, FileText, ArrowUpRight, MapPin } from 'lucide-react';
 import GlobalAudioPlayer from '@/components/GlobalAudioPlayer';
 import { MessageSquare } from 'lucide-react'; // <-- Import an icon
 import { useNavigate } from 'react-router-dom'; // <-- Make sure this is imported
@@ -126,7 +127,8 @@ const ActorProfilePage = () => {
               .select(`
                 *, 
                 actor_followers(count), 
-                demo_likes(count)
+                demo_likes(count),
+                actor_services(service_id, enabled, description, rate)
               `)
               .eq('slug', actorSlug)
               .single();
@@ -140,41 +142,31 @@ const ActorProfilePage = () => {
           setActor(actorData as Actor);
           setFollowerCount(actorData.actor_followers[0]?.count || 0);
           setTotalLikes(actorData.demo_likes[0]?.count || 0);
+          await loadMarketplaceAllowedServiceIds();
 
-          // --- NEW: Consolidate available services ---
-          const services = [];
-          
-          // Only add Voice Over if enabled
-          if (actorData.service_voiceover) { // <-- 2. Check the flag
-            services.push({
-                id: 'voice_over',
-                title: 'Voice Over',
-                icon: Mic,
-                description: 'Professional voice overs.',
-                rate: `From ${actorData.BaseRate_per_Word} MAD/word`
-            });
-          }
+          const services = getMarketplaceServiceDefinitions(actorData)
+            .filter((service) => service.enabled)
+            .map((service) => ({
+              id: service.id,
+              title: service.label,
+              icon: getServiceIcon(service.id),
+              description: service.id === 'voice_over'
+                ? 'Professional voice overs.'
+                : service.id === 'scriptwriting'
+                  ? actorData.service_script_description || 'Professional script writing.'
+                  : service.id === 'video_editing'
+                    ? actorData.service_video_description || 'Professional video editing.'
+                    : actorData.actor_services?.find((item: any) => item.service_id === service.id)?.description || service.description,
+              rate: service.id === 'voice_over'
+                ? `From ${actorData.BaseRate_per_Word} MAD/word`
+                : service.id === 'scriptwriting'
+                  ? actorData.service_script_rate > 0 ? `From ${actorData.service_script_rate} MAD/word` : 'Quote-based'
+                  : service.id === 'video_editing'
+                    ? actorData.service_video_rate > 0 ? `From ${actorData.service_video_rate} MAD/min` : 'Quote-based'
+                    : actorData.actor_services?.find((item: any) => item.service_id === service.id)?.rate ? `From ${actorData.actor_services.find((item: any) => item.service_id === service.id).rate} MAD` : service.pricingHint || 'Request a quote',
+            }));
 
-          if (actorData.service_scriptwriting) {
-            services.push({
-              id: 'scriptwriting',
-              title: 'Script Writing',
-              icon: PencilLine,
-              description: actorData.service_script_description || 'Professional script writing.',
-              rate: actorData.service_script_rate > 0 ? `From ${actorData.service_script_rate} MAD/word` : 'Quote-based'
-            });
-          }
-          if (actorData.service_videoediting) {
-            services.push({
-              id: 'video_editing',
-              title: 'Video Editing',
-              icon: Video,
-              description: actorData.service_video_description || 'Professional video editing.',
-              rate: actorData.service_video_rate > 0 ? `From ${actorData.service_video_rate} MAD/min` : 'Quote-based'
-            });
-          }
-          setAvailableServices(services);
-          // ---
+          setAvailableServices(services);
 
           // 2. Fetch Reviews
           setIsLoadingReviews(true);
@@ -508,18 +500,18 @@ const handleMessageActor = async () => {
         <div className="min-h-screen bg-background text-foreground ">
             <audio ref={audioRef} src={currentTrack?.url || ''} />
             
-            <header className="h-auto md:h-96 relative flex items-end bg-gradient-to-t from-background via-purple-900/50 to-purple-800 pt-20">
+            <header className="relative flex items-end border-b border-border bg-muted/30 pt-28">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-8" >
                     <div className="flex flex-row items-center gap-4 md:gap-8 z-10 w-full">
                         <img 
                             src={actor.HeadshotURL} 
                             alt={actor.ActorName} 
-                            className="w-28 h-28 md:w-52 md:h-52 rounded-full object-cover flex-shrink-0 shadow-2xl shadow-black/50"
+                            className="w-28 h-28 md:w-52 md:h-52 rounded-2xl object-cover flex-shrink-0 shadow-xl shadow-black/10"
                         />
                         <div className="text-left flex-grow">
-                            <h1 className="text-4xl sm:text-5xl md:text-8xl font-black tracking-tighter text-white break-words">{actor.ActorName}</h1>
+                            <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight text-foreground break-words">{actor.ActorName}</h1>
                             <div className="flex flex-wrap items-center justify-start gap-x-3 gap-y-1 text-foreground text-sm md:text-base mt-1 md:mt-2">                                
-                                <span>{actor.Language} | {actor.Gender}</span>
+                                <span className='flex items-center gap-1'><MapPin className='h-4 w-4' />{actor.Language} | {actor.Gender}</span>
                                 <span className="mx-1">&middot;</span>
                                 <span>{followerCount} Followers</span>
                                 <span className="mx-1">&middot;</span>
@@ -583,6 +575,36 @@ const handleMessageActor = async () => {
                       </p>
                   </div>
               )}
+
+                            <section className='mb-14'>
+                                <div className='mb-5 flex items-end justify-between gap-4'>
+                                    <div>
+                                        <p className='text-sm font-semibold uppercase tracking-[0.18em] text-primary'>Services</p>
+                                        <h2 className='text-3xl font-bold'>What I can help with</h2>
+                                    </div>
+                                    <span className='text-sm text-muted-foreground'>{availableServices.length} active offers</span>
+                                </div>
+                                <div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'>
+                                    {availableServices.map((service) => {
+                                        const Icon = service.icon;
+                                        return (
+                                            <Card key={service.id} className='group border-border transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg'>
+                                                <CardHeader>
+                                                    <div className='flex items-start justify-between gap-3'>
+                                                        <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary'><Icon className='h-5 w-5' /></div>
+                                                        <span className='text-sm font-semibold text-primary'>{service.rate}</span>
+                                                    </div>
+                                                    <CardTitle className='pt-2'>{service.title}</CardTitle>
+                                                    <CardDescription>{service.description}</CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <Button onClick={() => setIsQuoteModalOpen(true)} variant='outline' className='w-full justify-between'>Request this service <ArrowUpRight className='h-4 w-4' /></Button>
+                                                </CardContent>
+                                            </Card>
+                                        );
+                                    })}
+                                </div>
+                            </section>
 
               {/* --- 6. NEW: Dynamic Portfolio Section --- */}
               <div className="mb-12">

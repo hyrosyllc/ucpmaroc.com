@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/supabaseClient';
 import { 
   Demo as DemoInterface, 
   VideoDemoCard, 
   ScriptDemoCard 
 } from '@/components/DemoCards';
-import { TalentCard } from '@/features/talent-marketplace';
+import { ServiceOfferCard, TalentCard } from '@/features/talent-marketplace';
+import { getMarketplaceAllowedServiceIds, getMarketplaceServiceDefinitions, loadMarketplaceAllowedServiceIds } from '@/features/talent-marketplace/serviceCatalog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import DemoPlayerRow from '@/components/DemoPlayerRow'; 
 import GlobalAudioPlayer from '@/components/GlobalAudioPlayer';
-import { Mic, Video, FileText, Users, SearchX } from 'lucide-react';
+import { Mic, Video, FileText, Users, SearchX, Search, SlidersHorizontal } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 interface Actor {
   slug: string;
@@ -21,6 +23,7 @@ interface Actor {
   service_scriptwriting: boolean;
   service_videoediting: boolean;
   service_voiceover: boolean;
+  [key: string]: any;
 }
 
 interface CurrentTrack {
@@ -47,6 +50,8 @@ const PortfolioPage: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const [userLikes, setUserLikes] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState('all');
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -61,7 +66,7 @@ const PortfolioPage: React.FC = () => {
       const { data: actorData, error: actorError } = await supabase
         .from('actors')
         .select(`
-          slug, HeadshotURL, ActorName, bio, service_scriptwriting, service_videoediting, service_voiceover, IsActive
+          slug, HeadshotURL, ActorName, bio, service_scriptwriting, service_videoediting, service_voiceover, IsActive, actor_services(service_id, enabled)
         `)
         .eq('IsActive', true);
 
@@ -69,14 +74,16 @@ const PortfolioPage: React.FC = () => {
         console.error("Error fetching data:", demoError, actorError);
         setError("Could not load content. Please try again later.");
       } else {
+        await loadMarketplaceAllowedServiceIds();
+        const allowedServiceIds = getMarketplaceAllowedServiceIds();
         // 1. Process Actors
         const actors = actorData.map((actor: any) => ({
           ...actor,
           service_voiceover: actor.service_voiceover ?? true 
         })) as Actor[];
         
-        const activeActors = actors.filter(actor => 
-            actor.service_voiceover || actor.service_scriptwriting || actor.service_videoediting
+        const activeActors = actors.filter((actor) =>
+          getMarketplaceServiceDefinitions(actor).some((service) => service.enabled)
         );
         setAllActors(activeActors);
 
@@ -85,9 +92,9 @@ const PortfolioPage: React.FC = () => {
             const actor = actors.find(a => a.slug === demo.actor_slug); 
             if (!actor) return false; 
 
-            if (demo.demo_type === 'audio' && !actor.service_voiceover) return false;
-            if (demo.demo_type === 'video' && !actor.service_videoediting) return false;
-            if (demo.demo_type === 'script' && !actor.service_scriptwriting) return false;
+            if (demo.demo_type === 'audio' && (!allowedServiceIds.includes('voice_over') || !actor.service_voiceover)) return false;
+            if (demo.demo_type === 'video' && (!allowedServiceIds.includes('video_editing') || !actor.service_videoediting)) return false;
+            if (demo.demo_type === 'script' && (!allowedServiceIds.includes('scriptwriting') || !actor.service_scriptwriting)) return false;
             return true;
         });
 
@@ -152,6 +159,27 @@ const PortfolioPage: React.FC = () => {
       setFilteredDemos(allDemos.filter(demo => demo.demo_type === currentFilter));
     }
   }, [currentFilter, allDemos]);
+
+  const serviceCategories = useMemo(() => {
+    const services = allActors.flatMap((actor) => getMarketplaceServiceDefinitions(actor).filter((service) => service.enabled));
+    return Array.from(new Map(services.map((service) => [service.id, service])).values());
+  }, [allActors]);
+
+  const visibleActors = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return allActors.filter((actor) => {
+      const services = getMarketplaceServiceDefinitions(actor).filter((service) => service.enabled);
+      const matchesCategory = selectedServiceId === 'all' || services.some((service) => service.id === selectedServiceId);
+      const matchesSearch = !term || actor.ActorName.toLowerCase().includes(term) || actor.bio?.toLowerCase().includes(term) || services.some((service) => `${service.label} ${service.description}`.toLowerCase().includes(term));
+      return matchesCategory && matchesSearch;
+    });
+  }, [allActors, searchTerm, selectedServiceId]);
+
+  const serviceOffers = useMemo(() => visibleActors.flatMap((actor) =>
+    getMarketplaceServiceDefinitions(actor)
+      .filter((service) => service.enabled && (selectedServiceId === 'all' || service.id === selectedServiceId))
+      .map((service) => ({ actor, service }))
+  ), [visibleActors, selectedServiceId]);
 
 
   // --- Audio Player Handlers ---
@@ -245,22 +273,37 @@ const PortfolioPage: React.FC = () => {
       
       <audio ref={audioRef} src={currentTrack?.url || ''} />
 
-      {/* --- HERO SECTION with Gradient --- */}
-      <div className="relative pt-28 pb-12 overflow-hidden">
-        <div className="absolute inset-0 bg-primary/5 -z-10" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-4xl bg-primary/10 blur-[100px] rounded-full -z-10 opacity-50" />
-        
-        <div className="container max-w-7xl mx-auto px-4 text-center space-y-4">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-foreground">
-            Our Talent & <span className="text-primary">Demos</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Browse our marketplace by talent, or listen to the latest demos for audio, video, and scripts.
-          </p>
+      <div className='border-b border-border bg-muted/30 pt-28'>
+        <div className='container mx-auto max-w-7xl px-4 pb-10'>
+          <div className='max-w-3xl space-y-3'>
+            <p className='text-sm font-semibold uppercase tracking-[0.2em] text-primary'>UCP Marketplace</p>
+            <h1 className='text-4xl font-black tracking-tight text-foreground md:text-6xl'>Find the right service for the job.</h1>
+            <p className='text-lg text-muted-foreground'>Compare trusted local and digital professionals, then open an offer to request a quote.</p>
+          </div>
+          <div className='mt-8 flex max-w-3xl items-center gap-3 rounded-2xl border border-border bg-background p-2 shadow-sm'>
+            <Search className='ml-3 h-5 w-5 text-muted-foreground' />
+            <Input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder='Search services, skills, or talent' className='border-0 shadow-none focus-visible:ring-0' />
+          </div>
         </div>
       </div>
 
       <div className="container max-w-7xl mx-auto px-4 mt-8">
+        <div className='mb-8 flex items-start gap-3'>
+          <SlidersHorizontal className='mt-2 h-5 w-5 shrink-0 text-muted-foreground' />
+          <div className='flex flex-wrap gap-2'>
+            <button onClick={() => setSelectedServiceId('all')} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${selectedServiceId === 'all' ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:border-primary'}`}>All services</button>
+            {serviceCategories.map((service) => <button key={service.id} onClick={() => setSelectedServiceId(service.id)} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${selectedServiceId === service.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:border-primary'}`}>{service.label}</button>)}
+          </div>
+        </div>
+        {!isLoading && !error && currentFilter === 'all' && (
+          <section className='mb-14'>
+            <div className='mb-5 flex items-end justify-between gap-4'>
+              <div><p className='text-sm text-muted-foreground'>Showing {serviceOffers.length} offers</p><h2 className='text-2xl font-bold'>Services for you</h2></div>
+              <span className='text-sm text-muted-foreground'>{visibleActors.length} professionals</span>
+            </div>
+            {serviceOffers.length > 0 ? <div className='grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3'>{serviceOffers.map(({ actor, service }) => <ServiceOfferCard key={`${actor.slug}-${service.id}`} actor={actor} service={service} />)}</div> : <EmptyState type='service offers' />}
+          </section>
+        )}
         <Tabs 
           value={currentFilter} 
           onValueChange={(value) => setCurrentFilter(value as any)} 
@@ -306,7 +349,7 @@ const PortfolioPage: React.FC = () => {
               <TabsContent value="all" className="mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500">
                 {allActors.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {allActors.map(actor => (
+                    {visibleActors.map(actor => (
                       <TalentCard key={actor.slug} actor={actor} />
                     ))}
                   </div>

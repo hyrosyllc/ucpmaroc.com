@@ -19,7 +19,7 @@ export const usePortfolio = ({ slug, customDomain, enabled = true }: UsePortfoli
 
       let query = supabase
         .from('portfolios')
-        .select('*')
+        .select('id, actor_id, site_name, public_slug, custom_domain, theme_config, sections, is_published')
         .eq('is_published', true);
 
       if (customDomain) {

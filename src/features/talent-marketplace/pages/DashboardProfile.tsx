@@ -33,6 +33,8 @@ import {
   Briefcase,
   CheckCircle2,
   Clock,
+  MapPin,
+  ExternalLink,
 } from "lucide-react";
 
 // --- Interfaces ---
@@ -290,27 +292,62 @@ const DashboardProfile: React.FC = () => {
   const isApprovedMarketplace = profile.marketplace_status === "approved";
 
   return (
-    <div className="max-w-4xl mx-auto w-full pt-20 px-4 md:px-0">
-      <h1 className="text-3xl font-bold mb-6">Profile Settings</h1>
+    <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-8 md:px-8">
+      <div className="mb-8 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+        <div>
+          <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-primary">Talent workspace</p>
+          <h1 className="text-4xl font-black tracking-tight">Your public profile</h1>
+          <p className="mt-2 max-w-2xl text-muted-foreground">Shape how clients discover you, understand your expertise, and decide to start a project.</p>
+        </div>
+        {profile.slug && (
+          <Button type="button" variant="outline" asChild className="gap-2">
+            <a href={`/actor/${profile.slug}`} target="_blank" rel="noreferrer">View public profile <ExternalLink className="h-4 w-4" /></a>
+          </Button>
+        )}
+      </div>
       {message && (
-        <div className="mb-4 p-3 bg-card border rounded-lg text-center text-sm font-medium">
+        <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-3 text-center text-sm font-medium">
           {message}
         </div>
       )}
 
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="border-border/60 bg-card/80">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="rounded-xl bg-primary/10 p-3 text-primary"><Briefcase className="h-5 w-5" /></div>
+            <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Marketplace</p><p className="font-bold">{isApprovedMarketplace ? "Active" : profile.marketplace_status === "pending" ? "Under review" : "Not active"}</p></div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 bg-card/80">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="rounded-xl bg-amber-500/10 p-3 text-amber-600"><Star className="h-5 w-5" /></div>
+            <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rating</p><p className="font-bold">{averageRating?.toFixed(1) ?? "New profile"}</p></div>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 bg-card/80">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-600"><CheckCircle2 className="h-5 w-5" /></div>
+            <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Completed work</p><p className="font-bold">{completedOrderCount} orders</p></div>
+          </CardContent>
+        </Card>
+      </div>
+
       <form onSubmit={handleSaveAll}>
-        <Card className="rounded-2xl border-border/60 shadow-sm overflow-hidden">
+        <Card className="overflow-hidden rounded-2xl border-border/60 shadow-sm">
           <CardContent className="p-0">
             {/* Header / Avatar Area */}
-            <div className="flex flex-col items-center gap-4 py-8 bg-muted/30 border-b">
-              <Avatar className="w-32 h-32 border-4 border-background shadow-md">
+            <div className="flex flex-col gap-5 border-b bg-muted/30 px-6 py-8 sm:flex-row sm:items-center md:px-10">
+              <Avatar className="h-28 w-28 border-4 border-background shadow-md sm:h-32 sm:w-32">
                 <AvatarImage
                   src={profile.HeadshotURL || "https://via.placeholder.com/150"}
                   alt={profile.ActorName}
                 />
                 <AvatarFallback>{profile.ActorName?.charAt(0)}</AvatarFallback>
               </Avatar>
-              <Label htmlFor="avatar-upload" className="cursor-pointer">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{profile.country || "Add your country"} {profile.Language ? `· ${profile.Language}` : ""}</div>
+                <h2 className="text-2xl font-bold">{profile.ActorName || "Your name"}</h2>
+                <Label htmlFor="avatar-upload" className="cursor-pointer">
                 <Button
                   type="button"
                   variant="outline"
@@ -325,7 +362,8 @@ const DashboardProfile: React.FC = () => {
                     )}
                   </span>
                 </Button>
-              </Label>
+                </Label>
+              </div>
               <Input
                 type="file"
                 id="avatar-upload"

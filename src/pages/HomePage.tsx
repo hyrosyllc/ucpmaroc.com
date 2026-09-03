@@ -373,7 +373,7 @@ const EcosystemSection = () => {
                             Showcase your portfolio, get booked directly by clients, and keep 100% of your earnings. No hidden fees.
                         </p>
                         <Button variant="link" className="text-blue-400 p-0 text-lg group-hover:translate-x-2 transition-transform" asChild>
-                            <Link to="/portfolio">
+                            <Link to="/market">
                                 Find Work / Talent <ArrowRight className="ml-2 w-5 h-5" />
                             </Link>
                         </Button>
@@ -483,7 +483,7 @@ const HomePage = () => {
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                <Button size="lg" className="h-16 px-10 text-xl rounded-full shadow-2xl shadow-primary/30 hover:scale-105 transition-transform" asChild>
-                  <Link to="/portfolio">Browse Talent</Link>
+                  <Link to="/market">Browse Talent</Link>
                </Button>
                <Button size="lg" variant="outline" className="h-16 px-10 text-xl rounded-full bg-transparent border-2 hover:bg-white/5 hover:text-white" asChild>
                   <Link to="/actor-signup">Join as Talent</Link>
@@ -510,7 +510,7 @@ const HomePage = () => {
                Find the perfect voice, script, or edit for your next big idea today.
             </p>
                <Button size="lg" className="h-16 px-10 text-xl rounded-full shadow-2xl shadow-primary/30 hover:scale-105 transition-transform" asChild>
-                <Link to="/portfolio">Explore the Marketplace <ArrowRight className="ml-3 w-8 h-8" /></Link>
+                  <Link to="/market">Explore the Marketplace <ArrowRight className="ml-3 w-8 h-8" /></Link>
             </Button>
          </div>
       </section>

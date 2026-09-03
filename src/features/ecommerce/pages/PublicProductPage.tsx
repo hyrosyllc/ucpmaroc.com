@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { useCartStore } from "../store/useCartStore";
 import { Loader2 } from "lucide-react";
@@ -25,9 +25,9 @@ export default function PublicProductPage() {
     slug?: string;
     productSlug: string;
   }>();
+  const { portfolio } = useOutletContext<{ portfolio?: any }>();
 
   const navigate = useNavigate();
-  const location = useLocation();
   const addItem = useCartStore((state) => state.addItem);
 
   const [product, setProduct] = useState<any>(null);
@@ -74,48 +74,11 @@ export default function PublicProductPage() {
       if (!productSlug) return;
       setLoading(true);
 
-      const currentHostname = window.location.hostname;
-      const isCustomDomain = !MAIN_DOMAINS.some((domain) =>
-        currentHostname.includes(domain)
-      );
-
-      let currentActorId = null;
-      let currentPortfolioId = null; // <-- NEW: Track this for store separation
-      let currentTheme = "modern";
-      let currentPublicSlug = slug || "";
-      let currentThemeConfig = {};
-
-      // 1. ENVIRONMENT-AWARE ACTOR LOOKUP (FIXED 406 CRASH)
-      if (isCustomDomain) {
-        const { data: portData } = await supabase
-          .from("portfolios")
-          .select("id, actor_id, theme_config, public_slug")
-          .eq("custom_domain", currentHostname)
-          .maybeSingle(); // <-- PREVENTS 406 ERROR
-
-        if (portData) {
-          currentPortfolioId = portData.id;
-          currentActorId = portData.actor_id;
-          currentTheme = portData.theme_config?.templateId || "modern";
-          if (portData.public_slug) currentPublicSlug = portData.public_slug;
-          currentThemeConfig = portData.theme_config || {};
-        }
-      } else if (slug) {
-        // ✅ CORRECT LOOKUP: Query PORTFOLIOS using public_slug!
-        const { data: portData } = await supabase
-          .from("portfolios")
-          .select("id, actor_id, theme_config, public_slug")
-          .eq("public_slug", slug)
-          .maybeSingle(); // <-- PREVENTS 406 ERROR
-
-        if (portData) {
-          currentPortfolioId = portData.id;
-          currentActorId = portData.actor_id;
-          currentTheme = portData.theme_config?.templateId || "modern";
-          currentPublicSlug = portData.public_slug;
-          currentThemeConfig = portData.theme_config || {};
-        }
-      }
+      const currentPortfolioId = portfolio?.id || null;
+      const currentActorId = portfolio?.actor_id || null;
+      const currentTheme = portfolio?.theme_config?.templateId || "modern";
+      const currentPublicSlug = portfolio?.public_slug || slug || "";
+      const currentThemeConfig = portfolio?.theme_config || {};
 
       if (!currentActorId) {
         setError("Store not found.");
@@ -217,7 +180,7 @@ export default function PublicProductPage() {
     };
 
     fetchProductAndTheme();
-  }, [slug, productSlug]);
+  }, [portfolio, slug, productSlug]);
 
   // 🚀 DYNAMIC SEO & METADATA INJECTION
   useEffect(() => {
@@ -300,6 +263,9 @@ export default function PublicProductPage() {
 
     setIsSubmitting(true);
     const actionType = product.action_type;
+    const variantText = Object.entries(selectedVariants)
+      .map(([name, value]) => `${name}: ${value}`)
+      .join(", ");
 
     if (actionType === "whatsapp") {
       const message = `*NEW ORDER REQUEST* 🛍️\n------------------\n*Product:* ${

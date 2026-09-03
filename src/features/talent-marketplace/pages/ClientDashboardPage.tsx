@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import PlatformLoader from '@/components/PlatformLoader';
 // ---
 
 interface Order {
@@ -106,7 +107,7 @@ const ClientDashboardPage = () => {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center text-foreground">Loading Your Dashboard...</div>;
+    return <PlatformLoader message="Loading Your Dashboard..." />;
   }
 
   return (

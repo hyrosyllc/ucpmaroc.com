@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
-import { Loader2 } from "lucide-react";
+import PlatformLoader from "@/components/PlatformLoader";
 
 interface ProtectedRouteProps {
   allowedRoles: ("actor" | "admin" | "client")[];
@@ -55,11 +55,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
   }, [allowedRoles]);
 
   if (isAuthorized === null) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    return <PlatformLoader />;
   }
 
   // If authorized, render the child routes. Otherwise, kick them to home/login.

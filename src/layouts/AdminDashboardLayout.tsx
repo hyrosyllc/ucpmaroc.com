@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   LayoutDashboard,
   Palette,
+  Layers3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +28,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 import ThemeToggle from "../components/ThemeToggle";
+import PlatformLoader from "../components/PlatformLoader";
 
 // --- NAVIGATION STRUCTURE ---
 const NAV_GROUPS = [
@@ -40,6 +42,7 @@ const NAV_GROUPS = [
       { to: "/admin/actors", name: "Users & Vendors", icon: Users },
       { to: "/admin/clients", name: "Clients", icon: Briefcase },
       { to: "/admin/payouts", name: "Financial Payouts", icon: DollarSign },
+      { to: "/admin/marketplace-settings", name: "Marketplace Settings", icon: Layers3 },
       { to: "/admin/domains", name: "Custom Domains", icon: Globe },
       { to: "/admin/themes", name: "Themes", icon: Palette },
 
@@ -76,7 +79,7 @@ const AdminDashboardLayout = () => {
     navigate("/actor-login");
   };
 
-  if (loading) return null;
+  if (loading) return <PlatformLoader message="Loading Admin Panel..." />;
 
   return (
     <div className="min-h-screen bg-zinc-50/50 dark:bg-zinc-950 text-foreground flex flex-col antialiased">

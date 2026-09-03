@@ -91,7 +91,7 @@ interface Order {
   revisions_used: number; // Added this
 
   // Service & Quote Fields
-  service_type: "voice_over" | "scriptwriting" | "video_editing";
+  service_type: string;
   total_price: number | null; // This is the key field
   word_count?: number;
   usage?: string | null;

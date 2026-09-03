@@ -33,3 +33,8 @@ entrypoint = "./functions/crypto-webhook/index.ts"
 # static_files = [ "./functions/crypto-webhook/*.html" ]
 [functions.compile-theme]
 verify_jwt = false
+
+[functions.admin-delete-account]
+verify_jwt = true
+import_map = "./functions/admin-delete-account/deno.json"
+entrypoint = "./functions/admin-delete-account/index.ts"

@@ -28,7 +28,7 @@ interface Order {
     ActorName: string;
     ActorEmail?: string;
   };
-  service_type: "voice_over" | "scriptwriting" | "video_editing";
+  service_type: string;
   total_price: number | null;
   deliveries: {
     id: string;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, Wallet, FileText, CreditCard, Mic, PencilLine, Video, AlertTriangle } from 'lucide-react';
+import { X, CheckCircle, Wallet, CreditCard, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
 import { supabase } from '@/supabaseClient';
 import { StripeCheckoutForm } from '@/features/ecommerce';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe, Appearance } from '@stripe/stripe-js';
+import { getMarketplaceServiceDefinitions, getServiceIcon, getServiceLabel, loadMarketplaceAllowedServiceIds } from '@/features/talent-marketplace/serviceCatalog';
 
 // --- shadcn/ui Imports ---
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ interface ModalProps {
   onClose: () => void;
 }
 
-type ServiceType = 'voice_over' | 'scriptwriting' | 'video_editing';
+type ServiceType = string;
 
 const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
   const { theme } = useTheme();
@@ -68,25 +69,36 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
   const [videoType, setVideoType] = useState('creative');
   const [footageChoice, setFootageChoice] = useState('has_footage');
   const [clientInfo, setClientInfo] = useState({ name: '', email: '', phone: '', company: '' });
-  const [availableServices, setAvailableServices] = useState<{ id: ServiceType; name: string; icon: React.ElementType }[]>([]);
+  const [availableServices, setAvailableServices] = useState<{ id: ServiceType; name: string; icon: React.ElementType; description?: string }[]>([]);
   const orderId = `VO-${Date.now()}`;
 
   useEffect(() => {
-    const services = [
-      ...(actor.service_voiceover !== false ? [{ id: 'voice_over' as ServiceType, name: 'Voice Over', icon: Mic }] : []),
-      ...(actor.service_scriptwriting ? [{ id: 'scriptwriting' as ServiceType, name: 'Script Writing', icon: PencilLine }] : []),
-      ...(actor.service_videoediting ? [{ id: 'video_editing' as ServiceType, name: 'Video Editing', icon: Video }] : []),
-    ];
-    setAvailableServices(services);
-    
-    if (services.length === 1) {
-      setServiceType(services[0].id); 
-      setStep(1);
-    } else if (services.length > 1) {
-      setStep(0);
-    } else {
-      setStep(0);
-    }
+    let mounted = true;
+    loadMarketplaceAllowedServiceIds().then(() => {
+      if (!mounted) return;
+
+      const services = getMarketplaceServiceDefinitions(actor)
+        .filter((service) => service.enabled)
+        .map((service) => ({
+          id: service.id as ServiceType,
+          name: service.label,
+          icon: getServiceIcon(service.id),
+          description: service.description,
+        }));
+
+      setAvailableServices(services);
+
+      if (services.length === 1) {
+        setServiceType(services[0].id);
+        setStep(1);
+      } else {
+        setStep(0);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, [actor]);
 
   useEffect(() => {
@@ -200,7 +212,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
     }
     setStatus('Processing Bank Transfer Order...');
     try {
-        const newOrder = await createOrderInSupabase('voice_over', 'Awaiting Payment', totalPrice, 'bank');
+        const newOrder = await createOrderInSupabase(serviceType, 'Awaiting Payment', totalPrice, 'bank');
         await sendEmails(newOrder, false);
         setStatus('Order Confirmed!'); setStep(3); // Jump to final step (now 3)
     } catch (err) {
@@ -212,7 +224,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
   const onSuccessfulStripePayment = async (intentId: string) => {
     setStatus('Processing Payment...');
     try {
-        const newOrder = await createOrderInSupabase('voice_over', 'In Progress', totalPrice, 'stripe', intentId);
+        const newOrder = await createOrderInSupabase(serviceType, 'In Progress', totalPrice, 'stripe', intentId);
         await sendEmails(newOrder, false);
         setStatus('Payment Successful! Your order is now In Progress.');
     } catch (err) {
@@ -274,7 +286,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
 
   const ProgressBar = ({ currentStep }: { currentStep: number }) => {
     // Simplified steps for all services
-    const steps = serviceType === 'voice_over' 
+    const steps = serviceType === 'voice_over'
       ? ["Scope", "Details & Payment", "Confirm"]
       : ["Service", "Details", "Submit"];
     
@@ -371,102 +383,55 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
             </div>
           );
         }
-        if (serviceType === 'scriptwriting') {
-          return (
-            <div>
-              <ProgressBar currentStep={2} />
-              <h2 className="text-3xl font-bold text-center mb-6 text-foreground">Script Writing Details</h2>
-              <div className="space-y-6">
+
+        const selectedService = availableServices.find((item) => item.id === serviceType);
+        const serviceLabel = getServiceLabel(serviceType || 'service');
+
+        return (
+          <div>
+            <ProgressBar currentStep={2} />
+            <h2 className="text-3xl font-bold text-center mb-6 text-foreground">{selectedService?.name || serviceLabel} Details</h2>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="projectDescription">Project Description *</Label>
+                <Textarea id="projectDescription" rows={5} value={projectDescription} onChange={e => setProjectDescription(e.target.value)} placeholder={`Tell us about the ${serviceLabel.toLowerCase()} request, timeline, scope, and goals...`} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="projectDescription">Project Description *</Label>
-                  <Textarea id="projectDescription" rows={5} value={projectDescription} onChange={e => setProjectDescription(e.target.value)} placeholder="Tell us about your project, tone, style, and goals..."/>
+                  <Label htmlFor="estimatedDuration">Estimated Timeline</Label>
+                  <Input id="estimatedDuration" type="text" value={estimatedDuration} onChange={e => setEstimatedDuration(e.target.value)} placeholder="e.g., 3 days or 1 week" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="estimatedDuration">Video Duration (min)</Label>
-                    <Input id="estimatedDuration" type="text" value={estimatedDuration} onChange={e => setEstimatedDuration(e.target.value)} placeholder="e.g., '2-3'" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="estimatedWordCount">Est. Word Count</Label>
-                    <Input id="estimatedWordCount" type="number" value={estimatedWordCount} onChange={e => setEstimatedWordCount(Number(e.target.value))} />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedWordCount">Estimated Volume</Label>
+                  <Input id="estimatedWordCount" type="number" value={estimatedWordCount} onChange={e => setEstimatedWordCount(Number(e.target.value))} placeholder="Optional" />
                 </div>
-                {actor.service_script_rate && actor.service_script_rate > 0 && (
-                  <Card className="bg-muted/50">
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Est. Price: <span className="font-bold text-foreground">{ (actor.service_script_rate * estimatedWordCount).toFixed(2) } MAD</span> (at {actor.service_script_rate} MAD/word)</p>
-                      <p className="text-xs text-muted-foreground">Final price will be provided in a quote from the actor.</p>
-                    </CardContent>
-                  </Card>
-                )}
               </div>
-              <div className="flex gap-4 mt-8">
-                <Button onClick={() => setStep(0)} variant="outline" className="w-full">Back</Button>
-                <Button onClick={() => setStep(2)} className="w-full">Next</Button>
-              </div>
+
+              {selectedService?.description && (
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">{selectedService.description}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          );
-        }
-        if (serviceType === 'video_editing') {
-          return (
-            <div>
-              <ProgressBar currentStep={2} />
-              <h2 className="text-3xl font-bold text-center mb-6 text-foreground">Video Editing Details</h2>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="projectDescription_video">Project Description *</Label>
-                  <Textarea id="projectDescription_video" rows={5} value={projectDescription} onChange={e => setProjectDescription(e.target.value)} placeholder="Describe the video you need, style, length, etc..."/>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="videoType">Video Type</Label>
-                  <Select value={videoType} onValueChange={(value) => setVideoType(value)}>
-                    <SelectTrigger id="videoType"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="creative">Creative / Podcast</SelectItem>
-                      <SelectItem value="commercial">Commercial / Ad</SelectItem>
-                      <SelectItem value="corporate">Corporate / Explainer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Footage Choice</Label>
-                  <RadioGroup value={footageChoice} onValueChange={(value) => setFootageChoice(value)} className="bg-muted/50 p-4 rounded-lg border">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="has_footage" id="has_footage" />
-                      <Label htmlFor="has_footage" className="cursor-pointer">I have my own footage</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="needs_footage" id="needs_footage" />
-                      <Label htmlFor="needs_footage" className="cursor-pointer">I need royalty-free stock footage</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                {actor.service_video_rate && actor.service_video_rate > 0 && (
-                  <Card className="bg-muted/50">
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Starts from: <span className="font-bold text-foreground">{actor.service_video_rate} MAD / minute</span></p>
-                      <p className="text-xs text-muted-foreground">Final price will be provided in a quote from the actor.</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-              <div className="flex gap-4 mt-8">
-                <Button onClick={() => setStep(0)} variant="outline" className="w-full">Back</Button>
-                <Button onClick={() => setStep(2)} className="w-full">Next</Button>
-              </div>
+            <div className="flex gap-4 mt-8">
+              <Button onClick={() => setStep(0)} variant="outline" className="w-full">Back</Button>
+              <Button onClick={() => setStep(2)} className="w-full">Next</Button>
             </div>
-          );
-        }
-        return null;
+          </div>
+        );
 
       case 2: // Details & Payment (Dynamic)
         const canConfirmBank = paymentMethod === 'bank' && clientInfo.name && clientInfo.email && clientInfo.phone;
         const isQuoteFlow = serviceType !== 'voice_over';
+        const selectedServiceLabel = getServiceLabel(serviceType || 'service');
         return (
           <div>
             <ProgressBar currentStep={isQuoteFlow ? 3 : 2} />
             <h2 className="text-3xl font-bold text-center mb-6 text-foreground">
-              {isQuoteFlow ? "Your Details" : "Your Details & Payment"}
+              {isQuoteFlow ? `${selectedServiceLabel} Details` : "Your Details & Payment"}
             </h2>
             <Card>
               <CardContent className="p-4 space-y-4">

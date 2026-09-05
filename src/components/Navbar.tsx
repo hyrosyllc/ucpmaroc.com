@@ -177,7 +177,7 @@ const Navbar: React.FC = () => {
           
           if (currentScrollY > lastScrollY.current && currentScrollY > 80) {
             setIsHidden(true); // Hide when scrolling down past 80px
-          } else {
+          } else if (currentScrollY < lastScrollY.current) {
             setIsHidden(false); // Show when scrolling up
           }
           lastScrollY.current = currentScrollY;

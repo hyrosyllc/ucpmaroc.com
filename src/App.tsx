@@ -133,10 +133,11 @@ const Layout = ({
   isCustomDomain: boolean;
 }) => {
   const location = useLocation();
-  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 1024 : false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    handleResize(); // Safely initialize after mount
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);

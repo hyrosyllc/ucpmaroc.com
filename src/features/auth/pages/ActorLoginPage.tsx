@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Loader2, ArrowRightLeft } from "lucide-react";
 
 // --- shadcn/ui Imports ---
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -199,8 +200,8 @@ const ActorLoginPage = () => {
             </div>
 
             {message && (
-              <Alert variant="destructive" className="border-red-500/50 bg-red-500/10 text-red-500 rounded-xl">
-                <AlertDescription className="text-sm font-medium">{message}</AlertDescription>
+              <Alert variant={message.includes("Error") ? "destructive" : "default"} className={cn("rounded-xl", message.includes("Error") ? "bg-red-500/10 text-red-500 border-red-500/50" : "")}>
+                <AlertDescription className="font-medium text-sm">{message}</AlertDescription>
               </Alert>
             )}
 

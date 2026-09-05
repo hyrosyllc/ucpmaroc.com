@@ -82,8 +82,73 @@ const DashboardServices: React.FC = () => {
       {selectedListing && <Card><CardHeader><div className='flex flex-col justify-between gap-4 sm:flex-row sm:items-start'><div><CardTitle>{selectedListing.title || 'Untitled service'}</CardTitle><CardDescription>{MARKETPLACE_SERVICE_CATALOG.find((service) => service.id === selectedListing.service_id)?.description}</CardDescription></div><div className='flex flex-wrap gap-2'>{selectedListing.status === 'approved' && actorData.slug && <Button variant='outline' asChild><Link to={`/market/service/${actorData.slug}/${selectedListing.service_id}`} target='_blank' rel='noreferrer'><ExternalLink className='mr-2 h-4 w-4' /> Preview service</Link></Button>}{selectedListing.status === 'draft' && <Button variant='outline' onClick={deleteDraft}><Trash2 className='mr-2 h-4 w-4' /> Delete draft</Button>}<Button onClick={() => saveListing(false)} disabled={saving || uploading}><Save className='mr-2 h-4 w-4' /> Save</Button>{selectedListing.status === 'approved' && <Button variant='outline' onClick={togglePublished} disabled={saving}>{selectedListing.enabled ? <><EyeOff className='mr-2 h-4 w-4' /> Unpublish</> : <><Eye className='mr-2 h-4 w-4' /> Publish</>}</Button>}</div></div></CardHeader><CardContent className='space-y-6'>
         <div className='flex items-center justify-between rounded-xl border bg-muted/30 p-4'><div><p className='font-semibold'>Listing status</p><p className='text-sm text-muted-foreground'>{selectedListing.review_note || 'Complete the listing, then submit it for marketplace review.'}</p></div><span className='rounded-full bg-background px-3 py-1 text-sm font-semibold'>{statusLabels[selectedListing.status]}</span></div>
         <div className='grid gap-5 md:grid-cols-2'><div className='space-y-2 md:col-span-2'><Label htmlFor='service-title'>Service title</Label><Input id='service-title' value={selectedListing.title || ''} onChange={(event) => updateSelected({ title: event.target.value })} /></div><div className='space-y-2 md:col-span-2'><Label htmlFor='service-description'>Description</Label><Textarea id='service-description' rows={6} value={selectedListing.description || ''} onChange={(event) => updateSelected({ description: event.target.value })} /></div><div className='space-y-2'><Label htmlFor='service-rate'>Starting price (MAD)</Label><Input id='service-rate' type='number' min='0' value={selectedListing.rate || ''} onChange={(event) => updateSelected({ rate: Number(event.target.value) || null })} /></div><div className='space-y-2'><Label htmlFor='service-discount'>Discount (%)</Label><Input id='service-discount' type='number' min='0' max='100' value={selectedListing.discount_percent || ''} onChange={(event) => updateSelected({ discount_percent: Number(event.target.value) || null })} /></div><div className='space-y-2'><Label htmlFor='service-time'>Delivery time</Label><Input id='service-time' value={selectedListing.delivery_time || ''} onChange={(event) => updateSelected({ delivery_time: event.target.value })} /></div><div className='space-y-2'><Label htmlFor='service-location'>Location or coverage</Label><Input id='service-location' value={selectedListing.location || ''} onChange={(event) => updateSelected({ location: event.target.value })} /></div></div>
-        <div className='grid gap-4 md:grid-cols-2'><div className='space-y-3 rounded-xl border p-4'><div className='flex items-center gap-2 font-semibold'><ImagePlus className='h-5 w-5 text-primary' /> Gallery images</div><Input type='file' accept='image/*' multiple disabled={uploading} onChange={(event) => uploadFiles(event, 'image')} /><div className='grid grid-cols-3 gap-2'>{selectedListing.media_assets.map((asset) => <div key={asset.url} className='relative'><img src={asset.url} alt='Service gallery' className='aspect-square w-full rounded-lg object-cover' /><span className='absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white'>{asset.status}</span></div>)}</div><p className='text-xs text-muted-foreground'>New images stay hidden from clients until admin approval.</p></div><div className='space-y-3 rounded-xl border p-4'><div className='flex items-center gap-2 font-semibold'><Upload className='h-5 w-5 text-primary' /> Audio previews</div><Input type='file' accept='audio/*' multiple disabled={uploading} onChange={(event) => uploadFiles(event, 'audio')} />{selectedListing.audio_urls.map((url) => <audio key={url} controls src={url} className='w-full' />)}</div></div>
-        <div className='space-y-4'><div className='flex items-center justify-between'><div><h3 className='font-bold'>Offer packages</h3><p className='text-sm text-muted-foreground'>Give clients clear options.</p></div><Button type='button' variant='outline' onClick={() => updateSelected({ offers: [...selectedListing.offers, { title: 'New offer', description: '', price: selectedListing.rate || 0, delivery_time: selectedListing.delivery_time || '', revisions: 1 }] })}><Plus className='mr-2 h-4 w-4' /> Add offer</Button></div>{selectedListing.offers.map((offer, index) => <div key={index} className='grid gap-3 rounded-xl border p-4 md:grid-cols-2'><Input value={offer.title || ''} onChange={(event) => updateOffer(index, { title: event.target.value })} placeholder='Offer name' /><Input type='number' value={offer.price || ''} onChange={(event) => updateOffer(index, { price: Number(event.target.value) || 0 })} placeholder='Price' /><Textarea className='md:col-span-2' value={offer.description || ''} onChange={(event) => updateOffer(index, { description: event.target.value })} placeholder='What this package includes' /><Input value={offer.delivery_time || ''} onChange={(event) => updateOffer(index, { delivery_time: event.target.value })} placeholder='Delivery time' /><Input type='number' value={offer.revisions || ''} onChange={(event) => updateOffer(index, { revisions: Number(event.target.value) || 0 })} placeholder='Revisions' /></div>)}</div>
+        <div className='grid gap-4 md:grid-cols-2'>
+          <div className='space-y-3 rounded-xl border p-4'>
+            <div className='flex items-center gap-2 font-semibold'><ImagePlus className='h-5 w-5 text-primary' /> Gallery images</div>
+            <Input type='file' accept='image/*' multiple disabled={uploading} onChange={(event) => uploadFiles(event, 'image')} />
+            <div className='grid grid-cols-3 gap-2'>
+              {selectedListing.media_assets.map((asset, index) => (
+                <div key={asset.url} className='relative group'>
+                  <img src={asset.url} alt='Service gallery' className='aspect-square w-full rounded-lg object-cover' />
+                  <span className='absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white'>{asset.status}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      const newAssets = [...selectedListing.media_assets];
+                      newAssets.splice(index, 1);
+                      updateSelected({ media_assets: newAssets });
+                    }}
+                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className='text-xs text-muted-foreground'>New images stay hidden from clients until admin approval.</p>
+          </div>
+          <div className='space-y-3 rounded-xl border p-4'>
+            <div className='flex items-center gap-2 font-semibold'><Upload className='h-5 w-5 text-primary' /> Audio previews</div>
+            <Input type='file' accept='audio/*' multiple disabled={uploading} onChange={(event) => uploadFiles(event, 'audio')} />
+            {selectedListing.audio_urls.map((url, index) => (
+              <div key={url} className="flex items-center gap-2">
+                <audio controls src={url} className='w-full' />
+                <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 shrink-0" onClick={() => {
+                  const newUrls = [...selectedListing.audio_urls];
+                  newUrls.splice(index, 1);
+                  updateSelected({ audio_urls: newUrls });
+                }}>
+                  <Trash2 size={16} />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className='space-y-4'>
+          <div className='flex items-center justify-between'>
+            <div><h3 className='font-bold'>Offer packages</h3><p className='text-sm text-muted-foreground'>Give clients clear options.</p></div>
+            <Button type='button' variant='outline' onClick={() => updateSelected({ offers: [...selectedListing.offers, { title: 'New offer', description: '', price: selectedListing.rate || 0, delivery_time: selectedListing.delivery_time || '', revisions: 1 }] })}><Plus className='mr-2 h-4 w-4' /> Add offer</Button>
+          </div>
+          {selectedListing.offers.map((offer, index) => (
+            <div key={index} className='grid gap-3 rounded-xl border p-4 md:grid-cols-2 relative group'>
+              <Button variant="ghost" size="icon" className="absolute top-2 right-2 text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                const newOffers = [...selectedListing.offers];
+                newOffers.splice(index, 1);
+                updateSelected({ offers: newOffers });
+              }}>
+                <Trash2 size={16} />
+              </Button>
+              <div className="md:col-span-2 pr-8 space-y-1">
+                <Label>Offer Name</Label>
+                <Input value={offer.title || ''} onChange={(event) => updateOffer(index, { title: event.target.value })} placeholder='Offer name' />
+              </div>
+              <div className="space-y-1"><Label>Price</Label><Input type='number' value={offer.price || ''} onChange={(event) => updateOffer(index, { price: Number(event.target.value) || 0 })} placeholder='Price' /></div>
+              <div className="space-y-1"><Label>Revisions</Label><Input type='number' value={offer.revisions || ''} onChange={(event) => updateOffer(index, { revisions: Number(event.target.value) || 0 })} placeholder='Revisions' /></div>
+              <div className="md:col-span-2 space-y-1"><Label>Delivery Time</Label><Input value={offer.delivery_time || ''} onChange={(event) => updateOffer(index, { delivery_time: event.target.value })} placeholder='Delivery time (e.g. 2 Days)' /></div>
+              <div className="md:col-span-2 space-y-1"><Label>What's included</Label><Textarea value={offer.description || ''} onChange={(event) => updateOffer(index, { description: event.target.value })} placeholder='What this package includes' /></div>
+            </div>
+          ))}
+        </div>
         {selectedListing.status === 'approved' && <div className='flex items-center justify-between border-t pt-5'><div><Label htmlFor='service-enabled'>Public visibility</Label><p className='text-sm text-muted-foreground'>{selectedListing.enabled ? 'Clients can see this service.' : 'This service is hidden from clients.'}</p></div><Switch id='service-enabled' checked={selectedListing.enabled} disabled={saving} onCheckedChange={togglePublished} /></div>}{selectedListing.status !== 'approved' && <Button onClick={() => saveListing(true)} disabled={saving || uploading || selectedListing.status === 'pending_review'} className='w-full gap-2'>{saving ? <Loader2 className='h-4 w-4 animate-spin' /> : <Send className='h-4 w-4' />} Submit for review</Button>}
       </CardContent></Card>}
     </div>}

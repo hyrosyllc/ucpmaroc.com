@@ -43,11 +43,13 @@ interface Actor {
 interface ModalProps {
   actor: Actor;
   onClose: () => void;
+    initialService?: string | null;
+
 }
 
 type ServiceType = string;
 
-const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
+const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialService }) => {
   const { theme } = useTheme();
   
   const [step, setStep] = useState(0); 
@@ -88,7 +90,10 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
 
       setAvailableServices(services);
 
-      if (services.length === 1) {
+      if (initialService) {
+        setServiceType(initialService);
+        setStep(1);
+      } else if (services.length === 1) {
         setServiceType(services[0].id);
         setStep(1);
       } else {
@@ -99,7 +104,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose }) => {
     return () => {
       mounted = false;
     };
-  }, [actor]);
+  }, [actor, initialService]);
 
   useEffect(() => {
     const words = scriptText.trim().split(/\s+/).filter(Boolean);

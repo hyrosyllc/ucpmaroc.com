@@ -20,9 +20,6 @@ interface Actor {
   HeadshotURL: string | null;
   ActorName: string;
   bio: string | null;
-  service_scriptwriting: boolean;
-  service_videoediting: boolean;
-  service_voiceover: boolean;
   [key: string]: any;
 }
 
@@ -78,8 +75,7 @@ const PortfolioPage: React.FC = () => {
         const allowedServiceIds = getMarketplaceAllowedServiceIds();
         // 1. Process Actors
         const actors = actorData.map((actor: any) => ({
-          ...actor,
-          service_voiceover: actor.service_voiceover ?? true 
+          ...actor
         })) as Actor[];
         
         const activeActors = actors.filter((actor) =>
@@ -92,9 +88,13 @@ const PortfolioPage: React.FC = () => {
             const actor = actors.find(a => a.slug === demo.actor_slug); 
             if (!actor) return false; 
 
-            if (demo.demo_type === 'audio' && (!allowedServiceIds.includes('voice_over') || !actor.service_voiceover)) return false;
-            if (demo.demo_type === 'video' && (!allowedServiceIds.includes('video_editing') || !actor.service_videoediting)) return false;
-            if (demo.demo_type === 'script' && (!allowedServiceIds.includes('scriptwriting') || !actor.service_scriptwriting)) return false;
+            const hasService = (serviceId: string) => {
+                return actor.actor_services?.some((s: any) => s.service_id === serviceId && s.enabled) ?? false;
+            };
+
+            if (demo.demo_type === 'audio' && (!allowedServiceIds.includes('voice_over') || !hasService('voice_over'))) return false;
+            if (demo.demo_type === 'video' && (!allowedServiceIds.includes('video_editing') || !hasService('video_editing'))) return false;
+            if (demo.demo_type === 'script' && (!allowedServiceIds.includes('scriptwriting') || !hasService('scriptwriting'))) return false;
             return true;
         });
 

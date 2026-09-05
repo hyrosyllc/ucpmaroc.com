@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DEG2RAD } from 'three/src/math/MathUtils.js';
 // --- NOTE: Removed ScrollArea, as we'll scroll the tab content directly ---
 
 // --- Interfaces (Unchanged) ---

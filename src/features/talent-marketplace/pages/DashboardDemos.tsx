@@ -512,7 +512,6 @@ const DashboardDemos: React.FC = () => {
                     onValueChange={(v) =>
                       setNewDemo((p) => ({ ...p, language: v }))
                     }
-                    required
                   >
                                        {" "}
                     <SelectTrigger>
@@ -537,7 +536,6 @@ const DashboardDemos: React.FC = () => {
                     onValueChange={(v) =>
                       setNewDemo((p) => ({ ...p, style_tag: v }))
                     }
-                    required
                   >
                                        {" "}
                     <SelectTrigger>
@@ -623,7 +621,6 @@ const DashboardDemos: React.FC = () => {
                   {uploadSource === "library" && (
                     <Select
                       onValueChange={(url) => setSelectedRecordingUrl(url)}
-                      required
                     >
                                            {" "}
                       <SelectTrigger>

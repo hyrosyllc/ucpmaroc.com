@@ -51,14 +51,11 @@ interface Actor {
   BaseRate_per_Word: string;
   WebMultiplier: string;
   BroadcastMultiplier: string;
-  service_voiceover: boolean; // <-- 1. Add new field
   ActorEmail: string;
   slug: string;
   actor_followers: { count: number }[];
   demo_likes: { count: number }[];
   // Service Toggles & Rates
-  service_scriptwriting: boolean;
-  service_videoediting: boolean;
   service_script_description: string | null;
   service_script_rate: number;
   service_video_description: string | null;
@@ -112,6 +109,7 @@ const ActorProfilePage = () => {
     const [availableServices, setAvailableServices] = useState<any[]>([]); // To store enabled services
     // ---
     const [isStartingChat, setIsStartingChat] = useState(false);
+    const [quoteServiceId, setQuoteServiceId] = useState<string | null>(null);
 
 
     // Data fetching (already optimized)
@@ -547,7 +545,7 @@ const handleMessageActor = async () => {
                     )}
                 </div>    
                    
-                    <Button onClick={() => setIsQuoteModalOpen(true)} size="lg" variant="outline" className="rounded-full">
+                  <Button onClick={() => { setQuoteServiceId(null); setIsQuoteModalOpen(true); }} size="lg" variant="outline" className="rounded-full">
                       Get a Quote
                   </Button>
                   <Button onClick={handleShare} size="lg" variant="outline" className="rounded-full">
@@ -598,7 +596,7 @@ const handleMessageActor = async () => {
                                                     <CardDescription>{service.description}</CardDescription>
                                                 </CardHeader>
                                                 <CardContent>
-                                                    <Button onClick={() => setIsQuoteModalOpen(true)} variant='outline' className='w-full justify-between'>Request this service <ArrowUpRight className='h-4 w-4' /></Button>
+                                                    <Button onClick={() => { setQuoteServiceId(service.id); setIsQuoteModalOpen(true); }} variant='outline' className='w-full justify-between'>Request this service <ArrowUpRight className='h-4 w-4' /></Button>
                                                 </CardContent>
                                             </Card>
                                         );
@@ -622,11 +620,15 @@ const handleMessageActor = async () => {
                       ))}
                     </TabsList>
                     
-                    {actor.service_voiceover && (
+                    {availableServices.some(s => s.id === 'voice_over') && (
                         <TabsContent value="voice_over"><AudioDemoList /></TabsContent>
                     )}
-                    <TabsContent value="scriptwriting"><ScriptDemoList /></TabsContent>
-                    <TabsContent value="video_editing"><VideoDemoList /></TabsContent>
+                    {availableServices.some(s => s.id === 'scriptwriting') && (
+                      <TabsContent value="scriptwriting"><ScriptDemoList /></TabsContent>
+                    )}
+                    {availableServices.some(s => s.id === 'video_editing') && (
+                      <TabsContent value="video_editing"><VideoDemoList /></TabsContent>
+                    )}
                   </Tabs>
                 ) : (
                   // If only ONE service is available, show it directly
@@ -692,7 +694,7 @@ const handleMessageActor = async () => {
                 currentTime={currentTime}
             />
             )}
-            {isQuoteModalOpen && actor && ( <QuoteCalculatorModal actor={actor} onClose={() => setIsQuoteModalOpen(false)} /> )}
+            {isQuoteModalOpen && actor && ( <QuoteCalculatorModal actor={actor} initialService={quoteServiceId} onClose={() => setIsQuoteModalOpen(false)} /> )}
         </div>
     );
 };

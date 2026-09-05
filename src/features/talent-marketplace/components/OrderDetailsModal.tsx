@@ -325,7 +325,7 @@ const displayPrice = latestOfferPrice ?? order.total_price;
         <>
             <Dialog open={true} onOpenChange={onClose}>
                 <DialogContent className="
-                  w-screen h-full max-w-none rounded-none border-none p-0 flex flex-col 
+                  w-full h-[100dvh] max-w-none rounded-none border-none p-0 flex flex-col 
                   sm:w-full sm:max-w-4xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg sm:border
                 ">
                     <DialogHeader className="p-4 sm:p-6 pb-4 border-b flex-shrink-0">

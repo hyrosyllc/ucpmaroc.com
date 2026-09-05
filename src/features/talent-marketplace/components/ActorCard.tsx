@@ -51,9 +51,9 @@ const ActorCard: React.FC<ActorCardProps> = ({ actor, onPlayClick, isCurrentlyPl
       </Avatar>
         <button
           onClick={handlePlayButtonClick}
-          className={`absolute bottom-2 right-2 w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center
-                      shadow-lg opacity-0 group-hover:opacity-100 group-hover:bottom-4 transition-all duration-300
-                      ${isCurrentlyPlaying ? 'opacity-100 bottom-4' : ''}`}
+          className={`absolute w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center
+                      shadow-lg opacity-100 bottom-4 md:opacity-0 md:bottom-2 group-hover:opacity-100 group-hover:bottom-4 transition-all duration-300 right-2
+                      ${isCurrentlyPlaying ? 'md:opacity-100 md:bottom-4' : ''}`}
         >
           {isCurrentlyPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
         </button>

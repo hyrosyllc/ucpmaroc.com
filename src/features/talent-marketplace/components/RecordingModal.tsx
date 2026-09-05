@@ -124,7 +124,7 @@ const RecordingModal: React.FC<RecordingModalProps> = ({ onClose, onSave, isSavi
       {/* --- THIS IS THE FIX ---
         This div is now full-screen on mobile and a modal on 'sm' screens.
       */}
-      <div className="bg-card w-full h-full flex flex-col justify-center
+      <div className="bg-card w-full h-[100dvh] flex flex-col justify-center
                       sm:rounded-2xl sm:border sm:w-full sm:max-w-lg sm:h-auto">
         
         <div className="p-6 sm:p-8 relative">

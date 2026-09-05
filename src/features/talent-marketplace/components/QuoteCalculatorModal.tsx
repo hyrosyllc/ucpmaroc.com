@@ -570,7 +570,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
 
   // --- NEW RENDER: Full-screen split layout ---
   return (
-    <div className="fixed inset-0 z-50 grid h-full w-full grid-cols-1 md:grid-cols-2">
+    <div className="fixed inset-0 z-50 grid h-[100dvh] w-full grid-cols-1 md:grid-cols-2">
       
       {/* --- Left (Visual) Pane - Desktop Only --- */}
       <div className="hidden md:flex flex-col bg-card p-8 text-card-foreground">

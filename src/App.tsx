@@ -449,7 +449,9 @@ function App() {
             </Suspense>
           </Layout>
         </main>
-        <AdminChatSheet />
+        <Suspense fallback={null}>
+          <AdminChatSheet />
+        </Suspense>
         <Toaster theme="dark" position="bottom-right" />
       </Router>
     </QueryClientProvider>

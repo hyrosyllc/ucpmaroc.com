@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/supabaseClient";
 import {
   Outlet,
-  Link,
   NavLink,
   useNavigate,
   useLocation,
@@ -30,7 +29,6 @@ import {
   Truck,
   Tag,
   FileText,
-  ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
   Bell,
@@ -41,11 +39,14 @@ import {
   Sparkles,
   Palette,
   LayoutDashboard,
-  ShoppingCart,
   Globe,
   Store,
   Users,
   Star,
+  Mic,
+  PencilLine,
+  Video,
+  PackageCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -69,6 +70,7 @@ import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import ThemeToggle from "@/components/ThemeToggle";
 import PlatformLoader from "@/components/PlatformLoader";
 import TopUpModal from "@/features/portfolio-builder/components/TopUpModal"; // 🚀 IMPORT TOPUP MODAL
+import FloatingCommunicationDock from "@/features/messaging/components/FloatingCommunicationDock";
 
 export interface ActorDashboardContextType {
   actorData: Partial<Actor>;
@@ -240,6 +242,12 @@ const NAV_GROUPS = [
         name: "Services",
         icon: Settings,
         description: "Manage rates",
+        children: [
+          { to: "/dashboard/services/voice-over", name: "Voice Over", icon: Mic },
+          { to: "/dashboard/services/scriptwriting", name: "Scriptwriting", icon: PencilLine },
+          { to: "/dashboard/services/video-editing", name: "Video Editing", icon: Video },
+          { to: "/dashboard/services/delivery", name: "Delivery", icon: PackageCheck },
+        ],
       },
       {
         to: "/dashboard/demos",
@@ -269,13 +277,28 @@ const mobilePrimaryItems = [
   { to: "/dashboard/messages", name: "Inbox", icon: MessageSquare },
 ];
 
+const serviceSubmenuItems = [
+  { to: "/dashboard/services/voice-over", name: "Voice Over", icon: Mic },
+  { to: "/dashboard/services/scriptwriting", name: "Scriptwriting", icon: PencilLine },
+  { to: "/dashboard/services/video-editing", name: "Video Editing", icon: Video },
+  { to: "/dashboard/services/delivery", name: "Delivery", icon: PackageCheck },
+];
+
+const DASHBOARD_APP_MODE_STORAGE_KEY = "ucp_dashboard_app_mode";
+
 const ActorDashboardLayout = () => {
   const [actorData, setActorData] = useState<Partial<Actor>>({});
   const [loading, setLoading] = useState(true);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isPinnedCollapsed, setIsPinnedCollapsed] = useState(false);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false); // 🚀 TOPUP MODAL STATE
   const [selectedSiteId, setSelectedSiteId] = useState<string>("all");
-  const [appMode, setAppMode] = useState<"builder" | "marketplace">("builder");
+  const [appMode, setAppMode] = useState<"builder" | "marketplace">(() => {
+    if (typeof window === "undefined") return "builder";
+    return window.localStorage.getItem(DASHBOARD_APP_MODE_STORAGE_KEY) === "marketplace"
+      ? "marketplace"
+      : "builder";
+  });
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -283,21 +306,40 @@ const ActorDashboardLayout = () => {
   const isShopActive =
     location.pathname.includes("/products") ||
     location.pathname.includes("/collections");
+  const isMarketplaceRoute = [
+    "/dashboard/services",
+    "/dashboard/job-orders",
+    "/dashboard/demos",
+    "/dashboard/library",
+    "/dashboard/earnings",
+    "/dashboard/payout-settings",
+  ].some((path) => location.pathname.startsWith(path));
+  const isCollapsed = isPinnedCollapsed && !isSidebarHovered;
 
   const [tourStep, setTourStep] = useState(0);
   useEffect(() => {
-    const handleTour = (e: any) => setTourStep(e.detail);
+    const handleTour = (event: Event) => setTourStep((event as CustomEvent<number>).detail);
     window.addEventListener("TOUR_STEP_CHANGED", handleTour);
     return () => window.removeEventListener("TOUR_STEP_CHANGED", handleTour);
   }, []);
 
   useEffect(() => {
     if (location.pathname.includes("/dashboard/portfolio") || location.pathname.includes("/dashboard/studio")) {
-      setIsCollapsed(true);
+      setIsPinnedCollapsed(true);
     } else {
-      setIsCollapsed(false);
+      setIsPinnedCollapsed(false);
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(DASHBOARD_APP_MODE_STORAGE_KEY, appMode);
+    }
+  }, [appMode]);
+
+  useEffect(() => {
+    if (isMarketplaceRoute) setAppMode("marketplace");
+  }, [isMarketplaceRoute]);
 
   const fetchActorData = useCallback(async () => {
     setLoading(true);
@@ -324,17 +366,24 @@ const ActorDashboardLayout = () => {
 
     setActorData({ ...actorProfile, email: user.email });
     setLoading(false);
+  }, [navigate]);
 
-    // 🚀 REALTIME LISTENER FOR TOPBAR WALLET BALANCE
+  useEffect(() => {
+    fetchActorData();
+  }, [fetchActorData]);
+
+  useEffect(() => {
+    if (!actorData.id) return;
+
     const channel = supabase
-      .channel("topbar_wallet")
+      .channel(`topbar_wallet_${actorData.id}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "actors",
-          filter: `id=eq.${actorProfile.id}`,
+          filter: `id=eq.${actorData.id}`,
         },
         (payload) => {
           setActorData((prev) => ({
@@ -348,11 +397,7 @@ const ActorDashboardLayout = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [navigate]);
-
-  useEffect(() => {
-    fetchActorData();
-  }, [fetchActorData]);
+  }, [actorData.id]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -389,7 +434,10 @@ const ActorDashboardLayout = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
+            onClick={() => {
+              setIsPinnedCollapsed((collapsed) => !collapsed);
+              setIsSidebarHovered(false);
+            }}
             className="hidden md:flex text-muted-foreground hover:text-foreground"
           >
             {isCollapsed ? (
@@ -508,6 +556,10 @@ const ActorDashboardLayout = () => {
         {/* ========================================== */}
         <div className="flex flex-1 pt-14">
           <aside
+            onMouseEnter={() => {
+              if (isPinnedCollapsed) setIsSidebarHovered(true);
+            }}
+            onMouseLeave={() => setIsSidebarHovered(false)}
             className={cn(
               "hidden md:flex flex-col fixed left-0 h-[calc(100vh-3.5rem)] border-r border-border/40 bg-background/80 backdrop-blur-xl z-40 transition-all duration-300 ease-in-out",
               isCollapsed ? "w-[72px]" : "w-[260px]"
@@ -572,6 +624,8 @@ const ActorDashboardLayout = () => {
                       {group.items.map((item) => {
                         const isProductTab = item.to === "/dashboard/products";
                         const isActiveOverride = isProductTab && isShopActive;
+                        const isServicesTab = item.to === "/dashboard/services";
+                        const isServicesActive = isServicesTab && location.pathname.startsWith("/dashboard/services");
 
                         return (
                           <div key={item.name}>
@@ -589,7 +643,7 @@ const ActorDashboardLayout = () => {
                                   isCollapsed
                                     ? "justify-center h-10 w-10 mx-auto"
                                     : "gap-3 px-3 py-2 w-full",
-                                  isActive || isActiveOverride
+                                  isActive || isActiveOverride || isServicesActive
                                     ? "bg-primary/10 text-primary"
                                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )
@@ -611,6 +665,7 @@ const ActorDashboardLayout = () => {
                                     className={cn(
                                       "ml-auto transition-all",
                                       isActiveOverride ||
+                                        isServicesActive ||
                                         location.pathname === item.to
                                         ? "opacity-100"
                                         : "opacity-0",
@@ -653,6 +708,27 @@ const ActorDashboardLayout = () => {
                                   <Layers className="w-3.5 h-3.5 mr-2 opacity-70" />{" "}
                                   Collections
                                 </NavLink>
+                              </div>
+                            )}
+                            {!isCollapsed && isServicesTab && isServicesActive && (
+                              <div className="ml-9 mt-1 mb-2 flex flex-col space-y-1 border-l-2 border-primary/20 pl-3 animate-in slide-in-from-top-2 duration-200">
+                                {serviceSubmenuItems.map((service) => (
+                                  <NavLink
+                                    key={service.to}
+                                    to={service.to}
+                                    className={({ isActive }) =>
+                                      cn(
+                                        "flex items-center gap-2 text-sm py-1.5 px-2 rounded-md transition-colors",
+                                        isActive
+                                          ? "text-foreground font-semibold bg-muted/50"
+                                          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                                      )
+                                    }
+                                  >
+                                    <service.icon className="h-3.5 w-3.5 opacity-70" />
+                                    {service.name}
+                                  </NavLink>
+                                ))}
                               </div>
                             )}
                           </div>
@@ -706,6 +782,8 @@ const ActorDashboardLayout = () => {
         <Outlet context={{ actorData, role: "actor", selectedSiteId, setSelectedSiteId }} />
           </main>
         </div>
+
+        <FloatingCommunicationDock actorData={actorData} />
 
         {/* --- MOBILE BOTTOM NAV --- */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50">
@@ -811,12 +889,17 @@ const ActorDashboardLayout = () => {
                             {group.label}
                           </h4>
                           <div className="grid gap-1">
-                            {group.items.map((item) => (
-                              <SheetClose
-                                key={item.name}
-                                onClick={() => navigate(item.to)}
-                                className="flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/50 active:bg-muted transition-all w-full text-left"
-                              >
+                            {group.items.map((item) => {
+                              const isServicesTab = item.to === "/dashboard/services";
+                              const isServicesActive = isServicesTab && location.pathname.startsWith("/dashboard/services");
+                              return <div key={item.name}>
+                                <SheetClose
+                                  onClick={() => navigate(item.to)}
+                                  className={cn(
+                                    "flex items-center gap-4 p-3 rounded-2xl hover:bg-muted/50 active:bg-muted transition-all w-full text-left",
+                                    isServicesActive && "bg-primary/10 text-primary"
+                                  )}
+                                >
                                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
                                     <item.icon className="h-5 w-5" />
                                   </div>
@@ -832,8 +915,12 @@ const ActorDashboardLayout = () => {
                                     size={16}
                                     className="text-muted-foreground/50 shrink-0"
                                   />
-                              </SheetClose>
-                            ))}
+                                </SheetClose>
+                                {isServicesTab && isServicesActive && <div className="ml-14 mt-1 mb-2 space-y-1 border-l-2 border-primary/20 pl-3">
+                                  {serviceSubmenuItems.map((service) => <SheetClose key={service.to} onClick={() => navigate(service.to)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground w-full text-left"><service.icon className="h-4 w-4" />{service.name}</SheetClose>)}
+                                </div>}
+                              </div>;
+                            })}
                           </div>
                         </div>
                       );

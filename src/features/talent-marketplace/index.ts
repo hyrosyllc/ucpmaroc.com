@@ -18,6 +18,9 @@ export type { Actor } from './components/ActorCard';
 export { default as TalentCard } from './components/TalentCard';
 export { default as ServiceOfferCard } from './components/ServiceOfferCard';
 export { default as QuoteCalculatorModal } from './components/QuoteCalculatorModal';
+export { default as ServiceRequirementsForm } from './components/quote/ServiceRequirementsForm';
+export { QUOTE_SERVICE_REGISTRY, getQuoteServiceDefinition } from './components/quote/quoteRegistry';
+export type { QuoteRequirements, QuoteServiceDefinition, QuotePricingMode } from './components/quote/quoteTypes';
 export { default as OrderDetailsModal } from './components/OrderDetailsModal';
 export { default as RecordingModal } from './components/RecordingModal';
 
@@ -30,6 +33,9 @@ export { default as DashboardDemos } from './pages/DashboardDemos';
 export { default as MyShortlistPage } from './pages/MyShortlistPage';
 export { default as DashboardProfile } from './pages/DashboardProfile';
 export { default as DashboardServices } from './pages/DashboardServices';
+export { default as ServicesHubPage } from './pages/services/ServicesHubPage';
+export { default as ServiceWorkspacePage } from './pages/services/ServiceWorkspacePage';
+export { SERVICE_WORKSPACES, getServiceWorkspace, getServiceWorkspacePath } from './pages/services/serviceRegistry';
 export { default as ClientDashboardPage } from './pages/ClientDashboardPage';
 export { default as PortfolioPage } from './pages/PortfolioPage';
 

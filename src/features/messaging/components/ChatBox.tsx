@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
-import { Send, Mic } from 'lucide-react';
+import { Send, Mic, MessageCircle, RefreshCw } from 'lucide-react';
 import VoiceNoteRecorder from '@/components/VoiceNoteRecorder';
 
 // --- shadcn/ui Imports ---
@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 // ---
-import emailjs from '@emailjs/browser'; // --- ADD THIS IMPORT ---
 
 
 interface Message {
@@ -42,6 +41,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
     const [newMessage, setNewMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
+    const [isFetching, setIsFetching] = useState(true);
+    const [error, setError] = useState('');
 
     // --- THIS IS THE FIX ---
     // We use a ref for an empty div at the end of the message list
@@ -56,14 +57,19 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
     // Fetch initial messages
     useEffect(() => {
         const fetchMessages = async () => {
+            setIsFetching(true);
+            setError('');
             const { data, error } = await supabase
                 .from('order_messages')
                 .select('*')
                 .eq('order_id', orderId)
                 .order('created_at', { ascending: true });
             
-            if (error) console.error("Error fetching messages:", error);
-            else setMessages(data || []);
+            if (error) {
+                console.error("Error fetching messages:", error);
+                setError('Messages could not be loaded.');
+            } else setMessages(data || []);
+            setIsFetching(false);
         };
         fetchMessages();
     }, [orderId]);
@@ -73,7 +79,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
         const channel = supabase.channel(`order-messages-for-${orderId}`)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_messages', filter: `order_id=eq.${orderId}` },
                 (payload) => {
-                    setMessages(currentMessages => [...currentMessages, payload.new as Message]);
+                    setMessages(currentMessages => currentMessages.some((message) => message.id === payload.new.id)
+                        ? currentMessages
+                        : [...currentMessages, payload.new as Message]);
                 }
             )
             .subscribe();
@@ -191,18 +199,22 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
     // --- END REPLACE ---
 
     return (
-        <div className="flex flex-col h-[450px]">
-            {/* ScrollArea wraps the message list */}
-            <ScrollArea className="flex-grow p-4">
-                <div className="space-y-4">
+        <div className="flex h-[min(62vh,560px)] min-h-[420px] flex-col bg-background">
+            <div className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
+              <div className="flex items-center gap-2"><div className="rounded-lg bg-primary/10 p-2 text-primary"><MessageCircle className="h-4 w-4" /></div><div><p className="text-sm font-semibold">Project communication</p><p className="text-xs text-muted-foreground">{userRole === 'actor' ? `Chat with ${orderData.client_name}` : `Chat with ${orderData.actor_name}`}</p></div></div>
+              <span className="text-xs text-muted-foreground">{messages.length} {messages.length === 1 ? 'message' : 'messages'}</span>
+            </div>
+            <ScrollArea className="flex-grow p-4 sm:p-6">
+                {isFetching ? <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground"><RefreshCw className="h-4 w-4 animate-spin" />Loading conversation...</div> : error ? <div className="flex h-full flex-col items-center justify-center gap-3 text-center"><p className="text-sm text-destructive">{error}</p><Button type="button" variant="outline" size="sm" onClick={() => window.location.reload()}>Reload</Button></div> : messages.length === 0 ? <div className="flex h-full flex-col items-center justify-center text-center"><MessageCircle className="mb-3 h-8 w-8 text-muted-foreground/50" /><p className="text-sm font-medium">No messages yet</p><p className="mt-1 max-w-xs text-xs text-muted-foreground">Start the conversation with the project scope, questions, or next steps.</p></div> : <div className="space-y-4">
                     {messages.map(msg => (
                         <div key={msg.id} className={`flex ${msg.sender_role === userRole ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`rounded-lg px-4 py-2 max-w-[80%]
+                            <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 shadow-sm sm:max-w-[75%]
                                 ${msg.sender_role === userRole 
                                     ? 'bg-primary text-primary-foreground'
                                     : 'bg-muted text-muted-foreground'
                                 }`}
                             >
+                                <p className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${msg.sender_role === userRole ? 'text-primary-foreground/70' : 'text-muted-foreground/70'}`}>{msg.sender_role === userRole ? 'You' : (userRole === 'actor' ? orderData.client_name : orderData.actor_name)}</p>
                                 {msg.content.startsWith('[VOICE_NOTE]:') ? (
                                 <audio
                                     controls
@@ -218,9 +230,8 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
                             </div>
                         </div>
                     ))}
-                    {/* This empty div is our scroll target */}
                     <div ref={messagesEndRef} />
-                </div>
+                </div>}
             </ScrollArea>
             
             {/* Conditional Input Area (no changes needed) */}
@@ -230,7 +241,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
                     onCancel={() => setIsRecording(false)} 
                 />
             ) : (
-                <div className="flex-shrink-0 p-4 border-t">
+                <div className="flex-shrink-0 border-t bg-muted/20 p-4 sm:px-6">
                     <form onSubmit={handleSendMessage} className="flex gap-2">
                         <Input
                             type="text"
@@ -245,6 +256,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
                             size="icon"
                             onClick={() => setIsRecording(true)}
                             disabled={isLoading}
+                            title="Send a voice note"
                         >
                             <Mic className="h-4 w-4" />
                         </Button>
@@ -252,6 +264,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ orderId, userRole, orderData }) => {
                             type="submit"
                             size="icon"
                             disabled={isLoading || !newMessage.trim()}
+                            title="Send message"
                         >
                             <Send className="h-4 w-4" />
                         </Button>

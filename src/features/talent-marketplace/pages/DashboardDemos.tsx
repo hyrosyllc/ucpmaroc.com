@@ -124,49 +124,33 @@ const DashboardDemos: React.FC = () => {
     if (!layoutActorData.id) return;
     setLoading(true);
     setMessage("");
-    try {
-      //  1.  Fetch  MainDemoURL
-      const { data: actor } = await supabase
-        .from("actors")
-        .select("MainDemoURL")
-        .eq("id", layoutActorData.id)
-        .single();
-      if (actor) setMainDemoUrl(actor.MainDemoURL); //  2.  Fetch  all  other  demos
+    const errors: string[] = [];
 
-      const { data: demosData, error: demosError } = await supabase
-        .from("demos")
-        .select("*")
-        .eq("actor_id", layoutActorData.id)
-        .order("created_at", { ascending: false });
-      if (demosError) throw demosError;
-      setDemos(demosData); //  3.  Fetch  script  demos
+    const { data: actor, error: actorError } = await supabase
+      .from("actors")
+      .select("MainDemoURL")
+      .eq("id", layoutActorData.id)
+      .single();
+    if (actorError) errors.push(`profile: ${actorError.message}`);
+    else setMainDemoUrl(actor?.MainDemoURL);
 
-      const { data: scriptsData, error: scriptsError } = await supabase
-        .from("script_demos")
-        .select("*")
-        .eq("actor_id", layoutActorData.id)
-        .order("created_at", { ascending: false });
-      if (scriptsError) throw scriptsError;
-      setScriptDemos(scriptsData); //  4.  Fetch  video  demos
+    const [audioResult, scriptsResult, videosResult, recordingsResult] = await Promise.all([
+      supabase.from("demos").select("*").eq("actor_id", layoutActorData.id).order("created_at", { ascending: false }),
+      supabase.from("script_demos").select("*").eq("actor_id", layoutActorData.id).order("created_at", { ascending: false }),
+      supabase.from("video_demos").select("*").eq("actor_id", layoutActorData.id).order("created_at", { ascending: false }),
+      supabase.from("actor_recordings").select("*").eq("actor_id", layoutActorData.id).order("created_at", { ascending: false }),
+    ]);
 
-      const { data: videosData, error: videosError } = await supabase
-        .from("video_demos")
-        .select("*")
-        .eq("actor_id", layoutActorData.id)
-        .order("created_at", { ascending: false });
-      if (videosError) throw videosError;
-      setVideoDemos(videosData); //  ---  NEW:  5.  Fetch  actor  recordings  (library)  ---
+    if (audioResult.error) errors.push(`audio demos: ${audioResult.error.message}`);
+    else setDemos((audioResult.data || []) as Demo[]);
+    if (scriptsResult.error) errors.push(`script demos: ${scriptsResult.error.message}`);
+    else setScriptDemos((scriptsResult.data || []) as ScriptDemo[]);
+    if (videosResult.error) errors.push(`video demos: ${videosResult.error.message}`);
+    else setVideoDemos((videosResult.data || []) as VideoDemo[]);
+    if (recordingsResult.error) errors.push(`recording library: ${recordingsResult.error.message}`);
+    else setRecordings((recordingsResult.data || []) as ActorRecording[]);
 
-      const { data: recordingsData, error: recError } = await supabase
-        .from("actor_recordings")
-        .select("*")
-        .eq("actor_id", layoutActorData.id)
-        .order("created_at", { ascending: false });
-      if (recError) throw recError;
-      setRecordings(recordingsData as ActorRecording[]); //  ---  END  NEW  ---
-    } catch (error) {
-      setMessage(`Error  fetching  demos:  ${(error as Error).message}`);
-    }
+    if (errors.length > 0) setMessage(`Some demo features could not load: ${errors.join("; ")}`);
     setLoading(false);
   }, [layoutActorData.id]);
 
@@ -450,21 +434,13 @@ const DashboardDemos: React.FC = () => {
                 )}
                                {" "}
                 <Label htmlFor="main-demo-upload" className="w-full">
-                                   {" "}
                   <Button
                     variant="outline"
-                    asChild
+                    type="button"
                     className="w-full  cursor-pointer"
                   >
-                                       {" "}
-                    <span>
-                      {uploadingMainDemo
-                        ? "Uploading..."
-                        : "Upload  &  Replace"}
-                    </span>
-                                     {" "}
+                    {uploadingMainDemo ? "Uploading..." : "Upload  &  Replace"}
                   </Button>
-                                 {" "}
                 </Label>
                                {" "}
                 <Input

@@ -222,11 +222,13 @@ export const getMarketplaceServiceDefinitions = (
 ) => {
   return MARKETPLACE_SERVICE_CATALOG.filter((service) => allowedIds.includes(service.id)).map((service) => {
     const toggleField = service.toggleField || `service_${service.id}`;
-    const normalizedService = actor?.actor_services?.find((item: { service_id: string }) => item.service_id === service.id);
-    const enabled =
-      service.id === 'voice_over'
+    const normalizedService = actor?.actor_services?.find((item: { service_id: string; enabled?: boolean; status?: string }) => item.service_id === service.id);
+    const usesCanonicalListings = Array.isArray(actor?.actor_services);
+    const enabled = usesCanonicalListings
+      ? Boolean(normalizedService?.enabled && normalizedService.status === 'approved')
+      : service.id === 'voice_over'
         ? actor?.service_voiceover ?? service.defaultEnabled
-        : Boolean(normalizedService?.enabled ?? actor?.[toggleField] ?? service.defaultEnabled);
+        : Boolean(actor?.[toggleField] ?? service.defaultEnabled);
 
     return {
       ...service,

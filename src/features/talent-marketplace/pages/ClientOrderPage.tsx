@@ -456,17 +456,11 @@ const ClientOrderPage = () => {
 
     setStatusMessage("Processing Payment...");
     try {
-      const { error } = await supabase
-        .from("orders")
-        .update({
-          status: "In Progress",
-          payment_method: "stripe",
-          stripe_payment_intent_id: intentId,
-          total_price: finalPrice, // --- Ensure price is saved ---
-        })
-        .eq("id", order.id);
-
+      const { data, error } = await supabase.functions.invoke("confirm-order-payment", {
+        body: { orderId: order.id, paymentIntentId: intentId },
+      });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       // Send notification email to Actor
       try {
@@ -703,15 +697,15 @@ const ClientOrderPage = () => {
       const { data, error: invokeError } = await supabase.functions.invoke(
         "create-payment-intent",
         {
-          body: { amount },
+          body: { orderId: order.id },
         }
       );
       if (invokeError) throw invokeError;
       if (data.error) throw new Error(data.error);
-      if (!data.client_secret)
+      if (!data.clientSecret)
         throw new Error("Payment client secret is missing.");
 
-      setClientSecret(data.client_secret);
+      setClientSecret(data.clientSecret);
       setIsPaymentModalOpen(true);
       setStatusMessage("");
     } catch (error) {

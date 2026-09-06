@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, Wallet, CreditCard, AlertTriangle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import emailjs from '@emailjs/browser';
 import { supabase } from '@/supabaseClient';
 import { StripeCheckoutForm } from '@/features/ecommerce';
@@ -19,6 +19,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useTheme } from "next-themes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import ServiceRequirementsForm from './quote/ServiceRequirementsForm';
+import { getQuoteServiceDefinition } from './quote/quoteRegistry';
+import type { QuoteRequirements } from './quote/quoteTypes';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -51,6 +54,7 @@ type ServiceType = string;
 
 const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialService }) => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   
   const [step, setStep] = useState(0); 
   const [serviceType, setServiceType] = useState<ServiceType | null>(null); 
@@ -65,11 +69,15 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'bank' | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isSettingUpStripe, setIsSettingUpStripe] = useState(false);
-  const [projectDescription, setProjectDescription] = useState('');
-  const [estimatedDuration, setEstimatedDuration] = useState('');
-  const [estimatedWordCount, setEstimatedWordCount] = useState(0);
-  const [videoType, setVideoType] = useState('creative');
-  const [footageChoice, setFootageChoice] = useState('has_footage');
+  const [requirements, setRequirements] = useState<QuoteRequirements>({
+    projectDescription: '',
+    estimatedDuration: '',
+    estimatedWordCount: 0,
+    scriptFormat: '',
+    targetAudience: '',
+    videoType: 'creative',
+    footageChoice: 'has_footage',
+  });
   const [clientInfo, setClientInfo] = useState({ name: '', email: '', phone: '', company: '' });
   const [availableServices, setAvailableServices] = useState<{ id: ServiceType; name: string; icon: React.ElementType; description?: string }[]>([]);
   const orderId = `VO-${Date.now()}`;
@@ -141,12 +149,20 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
     method: 'stripe' | 'bank' | null,
     paymentIntentId: string | null = null
   ) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      navigate('/client-auth', { state: { email: clientInfo.email } });
+      throw new Error('Please sign in as a client before placing an order.');
+    }
+
+    const quoteDefinition = getQuoteServiceDefinition(currentServiceType);
+    const quoteSummary = quoteDefinition?.getSummary(requirements).filter(Boolean).join('\n') || requirements.projectDescription;
     const orderDataToInsert: any = {
       order_id_string: orderId,
       actor_id: actor?.id,
       client_name: clientInfo.name,
       client_email: clientInfo.email.toLowerCase(),
-      script: projectDescription || scriptText,
+      script: currentServiceType === 'voice_over' ? scriptText : quoteSummary,
       status: orderStatus,
       service_type: currentServiceType,
       payment_method: method,
@@ -158,11 +174,13 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
       orderDataToInsert.word_count = wordCount;
       orderDataToInsert.usage = usage;
     } else if (currentServiceType === 'scriptwriting') {
-      orderDataToInsert.word_count = estimatedWordCount;
-      orderDataToInsert.quote_est_duration = estimatedDuration;
+      orderDataToInsert.word_count = requirements.estimatedWordCount;
+      orderDataToInsert.quote_est_duration = requirements.estimatedDuration;
+      orderDataToInsert.script = quoteSummary;
     } else if (currentServiceType === 'video_editing') {
-      orderDataToInsert.quote_video_type = videoType;
-      orderDataToInsert.quote_footage_choice = footageChoice;
+      orderDataToInsert.quote_video_type = requirements.videoType;
+      orderDataToInsert.quote_footage_choice = requirements.footageChoice;
+      orderDataToInsert.script = quoteSummary;
     }
     
     const { data: newOrder, error: invokeError } = await supabase.functions.invoke(
@@ -250,8 +268,8 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
             });
             if (invokeError) throw invokeError;
             if (data.error) throw new Error(data.error);
-            if (!data.client_secret) throw new Error("Payment client secret is missing.");
-            setClientSecret(data.client_secret);
+            if (!data.clientSecret) throw new Error("Payment client secret is missing.");
+            setClientSecret(data.clientSecret);
             setStatus('');
         } catch (error) {
             setStatus(`Error initializing payment: ${(error as Error).message}.`);
@@ -268,8 +286,16 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
     if (!clientInfo.name || !clientInfo.email || !clientInfo.phone) {
         setStatus("Please fill in all required (*) details."); return;
     }
-    if (!projectDescription) {
+    if (!requirements.projectDescription) {
         setStatus("Please provide a project description."); return;
+    }
+    const quoteDefinition = getQuoteServiceDefinition(serviceType);
+    const missingRequirement = quoteDefinition?.requiredFields.some((field) => {
+      const value = requirements[field];
+      return typeof value === 'number' ? value <= 0 : !value;
+    });
+    if (missingRequirement) {
+      setStatus('Please complete the service-specific requirements.'); return;
     }
     setStatus('Submitting Quote Request...');
     setIsSettingUpStripe(true);
@@ -288,6 +314,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
     theme: theme === 'dark' ? 'night' : 'stripe',
     labels: 'floating'
   };
+  const activeQuoteDefinition = getQuoteServiceDefinition(serviceType);
 
   const ProgressBar = ({ currentStep }: { currentStep: number }) => {
     // Simplified steps for all services
@@ -358,7 +385,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
           </div>
         );
       
-      case 1: // Dynamic Scope/Details
+      case 1: { // Dynamic Scope/Details
         if (serviceType === 'voice_over') {
           return (
             <div>
@@ -390,6 +417,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
         }
 
         const selectedService = availableServices.find((item) => item.id === serviceType);
+        const quoteDefinition = getQuoteServiceDefinition(serviceType);
         const serviceLabel = getServiceLabel(serviceType || 'service');
 
         return (
@@ -397,29 +425,14 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
             <ProgressBar currentStep={2} />
             <h2 className="text-3xl font-bold text-center mb-6 text-foreground">{selectedService?.name || serviceLabel} Details</h2>
             <div className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="projectDescription">Project Description *</Label>
-                <Textarea id="projectDescription" rows={5} value={projectDescription} onChange={e => setProjectDescription(e.target.value)} placeholder={`Tell us about the ${serviceLabel.toLowerCase()} request, timeline, scope, and goals...`} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="estimatedDuration">Estimated Timeline</Label>
-                  <Input id="estimatedDuration" type="text" value={estimatedDuration} onChange={e => setEstimatedDuration(e.target.value)} placeholder="e.g., 3 days or 1 week" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="estimatedWordCount">Estimated Volume</Label>
-                  <Input id="estimatedWordCount" type="number" value={estimatedWordCount} onChange={e => setEstimatedWordCount(Number(e.target.value))} placeholder="Optional" />
-                </div>
-              </div>
-
-              {selectedService?.description && (
+              {quoteDefinition?.description && (
                 <Card className="bg-muted/50">
                   <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">{selectedService.description}</p>
+                    <p className="text-sm text-muted-foreground">{quoteDefinition.description}</p>
                   </CardContent>
                 </Card>
               )}
+              <ServiceRequirementsForm serviceId={serviceType || ''} requirements={requirements} onChange={(patch) => setRequirements((previous) => ({ ...previous, ...patch }))} />
             </div>
             <div className="flex gap-4 mt-8">
               <Button onClick={() => setStep(0)} variant="outline" className="w-full">Back</Button>
@@ -427,8 +440,9 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
             </div>
           </div>
         );
+      }
 
-      case 2: // Details & Payment (Dynamic)
+      case 2: { // Details & Payment (Dynamic)
         const canConfirmBank = paymentMethod === 'bank' && clientInfo.name && clientInfo.email && clientInfo.phone;
         const isQuoteFlow = serviceType !== 'voice_over';
         const selectedServiceLabel = getServiceLabel(serviceType || 'service');
@@ -523,8 +537,9 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
             </div>
           </div>
         );
+      }
 
-      case 3: // Final Confirmation
+      case 3: { // Final Confirmation
         const isQuote = status.includes('Quote Request Submitted');
         return (
           <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -563,6 +578,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
             </div>
           </div>
         );
+      }
       default:
         return null;
     }
@@ -592,10 +608,10 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
           <div className="mt-12">
             <p className="text-lg text-muted-foreground">Service</p>
             <p className="text-4xl font-bold text-primary">
-              {serviceType === 'scriptwriting' ? 'Script Writing' : 'Video Editing'}
+              {activeQuoteDefinition?.title || getServiceLabel(serviceType || 'service')}
             </p>
             <p className="text-lg text-muted-foreground mt-4">
-              You will receive a custom quote from {actor.ActorName} after submitting your project details.
+              {activeQuoteDefinition?.description || `You will receive a custom quote from ${actor.ActorName} after submitting your project details.`}
             </p>
           </div>
         )}
@@ -616,7 +632,7 @@ const QuoteCalculatorModal: React.FC<ModalProps> = ({ actor, onClose, initialSer
           )}
           {serviceType !== 'voice_over' && step > 0 && (
             <p className="text-center text-xl font-bold text-foreground mt-1">
-              Quote Request
+              {activeQuoteDefinition?.title || 'Quote Request'}
             </p>
           )}
         </div>

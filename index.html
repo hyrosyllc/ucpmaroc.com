@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" style="background-color:#ffffff;color:#0f172a;color-scheme:light">
     <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
@@ -15,9 +15,29 @@
     <title>UCPMAROC Agency | AI-Powered Digital Marketing Agency</title>
     
 
+    <style>
+      html, body, #root { min-height: 100%; margin: 0; }
+      html { background: #ffffff; color: #0f172a; }
+      body { background: #ffffff; }
+      html.dark { background: #1e293b; color: #f8fafc; color-scheme: dark; }
+      html.dark body { background: #1e293b; }
+    </style>
+
+    <script>
+      (() => {
+        const storageKey = "vite-ui-theme";
+        const storedTheme = window.localStorage.getItem(storageKey);
+        const theme = storedTheme === "dark" || storedTheme === "light" ? storedTheme : "light";
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        document.documentElement.style.colorScheme = theme;
+        document.documentElement.style.backgroundColor = theme === "dark" ? "#1e293b" : "#ffffff";
+        document.documentElement.style.color = theme === "dark" ? "#f8fafc" : "#0f172a";
+        document.body?.style.setProperty("background-color", theme === "dark" ? "#1e293b" : "#ffffff");
+      })();
+    </script>
+
     <script type="text/javascript">
       function googleTranslateElementInit() {
--       new google.translate.TranslateElement({pageLanguage: 'en'}, 'google_translate_element');
        new google.translate.TranslateElement({
          pageLanguage: 'en',
          // This tells the widget which languages to offer

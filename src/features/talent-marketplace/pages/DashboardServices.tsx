@@ -18,7 +18,7 @@ type ServiceMediaAsset = { url: string; status: 'pending' | 'approved' | 'reject
 type ServiceListing = { id: string; actor_id: string; service_id: MarketplaceServiceId; title: string | null; description: string | null; rate: number | null; discount_percent: number | null; delivery_time: string | null; location: string | null; media_urls: string[]; media_assets: ServiceMediaAsset[]; audio_urls: string[]; offers: ServiceOffer[]; enabled: boolean; status: ListingStatus; review_note?: string | null };
 const statusLabels: Record<ListingStatus, string> = { draft: 'Draft', pending_review: 'In review', approved: 'Published', rejected: 'Changes requested', archived: 'Archived' };
 
-const DashboardServices: React.FC = () => {
+const DashboardServices: React.FC<{ initialServiceId?: MarketplaceServiceId }> = ({ initialServiceId }) => {
   const { actorData } = useOutletContext<ActorDashboardContextType>();
   const [listings, setListings] = useState<ServiceListing[]>([]);
   const [allowedIds, setAllowedIds] = useState<MarketplaceServiceId[]>(getMarketplaceAllowedServiceIds());
@@ -32,9 +32,9 @@ const DashboardServices: React.FC = () => {
     if (!actorData.id) return;
     setLoading(true); setAllowedIds(await loadMarketplaceAllowedServiceIds());
     const { data, error } = await supabase.from('actor_services').select('*').eq('actor_id', actorData.id).neq('status', 'archived').order('created_at', { ascending: true });
-    if (error) setMessage(`Error loading services: ${error.message}`); else { const loaded = (data || []).map((listing: ServiceListing) => ({ ...listing, offers: Array.isArray(listing.offers) ? listing.offers : [], media_urls: listing.media_urls || [], media_assets: Array.isArray(listing.media_assets) ? listing.media_assets : (listing.media_urls || []).map((url) => ({ url, status: 'approved' as const })), audio_urls: listing.audio_urls || [] })); setListings(loaded); setSelectedId((current) => current && loaded.some((listing) => listing.id === current) ? current : loaded[0]?.id || null); }
+    if (error) setMessage(`Error loading services: ${error.message}`); else { const loaded = (data || []).map((listing: ServiceListing) => ({ ...listing, offers: Array.isArray(listing.offers) ? listing.offers : [], media_urls: listing.media_urls || [], media_assets: Array.isArray(listing.media_assets) ? listing.media_assets : (listing.media_urls || []).map((url) => ({ url, status: 'approved' as const })), audio_urls: listing.audio_urls || [] })); setListings(loaded); setSelectedId((current) => current && loaded.some((listing) => listing.id === current) ? current : loaded.find((listing) => listing.service_id === initialServiceId)?.id || loaded[0]?.id || null); }
     setLoading(false);
-  }, [actorData.id]);
+  }, [actorData.id, initialServiceId]);
   useEffect(() => { fetchListings(); }, [fetchListings]);
 
   const updateSelected = (patch: Partial<ServiceListing>) => setListings((previous) => previous.map((listing) => listing.id === selectedId ? { ...listing, ...patch } : listing));

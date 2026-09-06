@@ -7,8 +7,10 @@ const MAIN_DOMAINS = [
   "localhost",
   "127.0.0.1",
   "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
-    "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
+  "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
+  "laughing-succotash-wrxrgrqvpj75hv99q-5173.app.github.dev",
 ];
+
 
 const CheckoutLayout = () => {
   // Grab the portfolio context passed down from the root PublicPortfolioLayout

@@ -18,14 +18,59 @@ serve(async (req) => {
 
   try {
     // 1. Accept metadata alongside the existing fields
-    const { amount, email, name, setup_future_usage, currency, metadata } =
+    const { amount, email, name, setup_future_usage, currency, metadata, orderId } =
       await req.json();
 
+    let trustedAmount = amount;
+    let trustedEmail = email;
+    let trustedName = name;
+
+    if (orderId) {
+      const authorization = req.headers.get("Authorization");
+      if (!authorization) throw new Error("Authentication is required.");
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const supabaseUser = createClient(
+        supabaseUrl,
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authorization } } },
+      );
+      const supabaseAdmin = createClient(
+        supabaseUrl,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      );
+
+      const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+      if (userError || !user) throw new Error("Authentication is required.");
+
+      const { data: client, error: clientError } = await supabaseAdmin
+        .from("clients")
+        .select("id, email, full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (clientError) throw clientError;
+      if (!client) throw new Error("A client profile is required to pay for this order.");
+
+      const { data: order, error: orderError } = await supabaseAdmin
+        .from("orders")
+        .select("id, client_id, client_email, client_name, total_price, status")
+        .eq("id", orderId)
+        .maybeSingle();
+      if (orderError) throw orderError;
+      if (!order || order.client_id !== client.id) throw new Error("Order not found.");
+      if (!order.total_price || order.total_price <= 0) throw new Error("Order has no payable amount.");
+      if (["Completed", "Cancelled"].includes(order.status)) throw new Error("This order cannot be paid.");
+
+      trustedAmount = Number(order.total_price);
+      trustedEmail = order.client_email || client.email;
+      trustedName = order.client_name || client.full_name;
+    }
+
     if (
-      amount === undefined ||
-      amount === null ||
-      typeof amount !== "number" ||
-      amount <= 0
+      trustedAmount === undefined ||
+      trustedAmount === null ||
+      typeof trustedAmount !== "number" ||
+      trustedAmount <= 0
     ) {
       throw new Error("Invalid or missing 'amount' in request body.");
     }
@@ -37,8 +82,8 @@ serve(async (req) => {
     // --- 2. LOGIC: Find or Create Customer ---
     let customerId = null;
 
-    if (email) {
-      const searchParams = new URLSearchParams({ email: email, limit: "1" });
+    if (trustedEmail) {
+      const searchParams = new URLSearchParams({ email: trustedEmail, limit: "1" });
       const searchRes = await fetch(
         `https://api.stripe.com/v1/customers?${searchParams.toString()}`,
         {
@@ -52,8 +97,8 @@ serve(async (req) => {
         customerId = searchData.data[0].id;
       } else {
         const createBody = new URLSearchParams();
-        createBody.append("email", email);
-        if (name) createBody.append("name", name);
+        createBody.append("email", trustedEmail);
+        if (trustedName) createBody.append("name", trustedName);
 
         const createRes = await fetch("https://api.stripe.com/v1/customers", {
           method: "POST",
@@ -75,7 +120,7 @@ serve(async (req) => {
     const stripeApiUrl = "https://api.stripe.com/v1/payment_intents";
 
     // SAFE: We keep the original * 100 logic so marketplace orders still work.
-    const amountInCents = Math.round(amount * 100);
+    const amountInCents = Math.round(trustedAmount * 100);
 
     const body = new URLSearchParams({
       amount: amountInCents.toString(),
@@ -98,6 +143,8 @@ serve(async (req) => {
       }
     }
 
+    if (orderId) body.append("metadata[order_id]", String(orderId));
+
     const response = await fetch(stripeApiUrl, {
       method: "POST",
       headers: {
@@ -119,6 +166,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         clientSecret: responseData.client_secret,
+        client_secret: responseData.client_secret,
         customerId: customerId,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -1,7 +1,7 @@
 // In src/components/OrderDetailsModal.tsx
 
 import { supabase } from '@/supabaseClient';
-import { X, LinkIcon, Paperclip, CheckCircle, Archive, FileText, Package, Info, MessageSquare, Banknote, RefreshCw, Send, Download, History, Mic, PencilLine, Video } from 'lucide-react';
+import { LinkIcon, CheckCircle, FileText, Package, Info, MessageSquare, Banknote, RefreshCw, Send, Download, History, Mic, PencilLine, Video, CalendarDays, Clock3 } from 'lucide-react';
 import { ChatBox } from '@/features/messaging';
 import React, { useState, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
@@ -18,7 +18,6 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogFooter
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,10 +25,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // --- Interfaces (Unchanged) ---
 interface Order {
-  client_email: any;
-  actor_id: any;
+  client_email: string;
+  actor_id: string;
   id: string;
   order_id_string: string;
+  created_at?: string;
   client_name: string;
   status: string;
   script: string;
@@ -81,6 +81,23 @@ const statusColors = {
   awaiting_offer: 'bg-yellow-500/20 text-yellow-300',
   offer_made: 'bg-blue-500/20 text-blue-300',
   default: 'bg-yellow-500/20 text-yellow-400'
+};
+
+const serviceLabels: Record<string, string> = {
+  voice_over: 'Voice Over',
+  scriptwriting: 'Scriptwriting',
+  video_editing: 'Video Editing',
+  delivery: 'Delivery',
+};
+
+const statusLabels: Record<string, string> = {
+  awaiting_offer: 'Awaiting Offer',
+  offer_made: 'Offer Sent',
+  'Awaiting Actor Confirmation': 'Payment Needs Confirmation',
+  'Awaiting Payment': 'Awaiting Payment',
+  'In Progress': 'In Progress',
+  Completed: 'Completed',
+  Cancelled: 'Cancelled',
 };
 
 // --- 1. Rename this component and update its props/logic ---
@@ -324,23 +341,30 @@ const displayPrice = latestOfferPrice ?? order.total_price;
     return (
         <>
             <Dialog open={true} onOpenChange={onClose}>
-                <DialogContent className="
-                  w-full h-[100dvh] max-w-none rounded-none border-none p-0 flex flex-col 
-                  sm:w-full sm:max-w-4xl sm:h-auto sm:max-h-[90vh] sm:rounded-lg sm:border
-                ">
-                    <DialogHeader className="p-4 sm:p-6 pb-4 border-b flex-shrink-0">
-                        <DialogTitle className="text-2xl sm:text-3xl font-bold">
-                            {order.service_type === 'voice_over' ? `Order #${order.order_id_string}` : `Quote #${order.order_id_string}`}
-                        </DialogTitle>
-                        <DialogDescription className="text-base">
-                            Client: {order.client_name}
-                        </DialogDescription>
+                <DialogContent className="w-full h-[100dvh] max-w-none rounded-none border-none p-0 flex flex-col sm:w-full sm:max-w-5xl sm:h-auto sm:max-h-[92vh] sm:rounded-xl sm:border">
+                    <DialogHeader className="flex-shrink-0 border-b bg-muted/20 p-4 sm:p-6">
+                        <div className="flex items-start justify-between gap-4 pr-8">
+                          <div className="flex items-start gap-3">
+                            <div className="rounded-xl bg-primary/10 p-3 text-primary">{serviceIcons[order.service_type] || <Package className="h-5 w-5" />}</div>
+                            <div>
+                              <DialogTitle className="text-xl font-bold sm:text-2xl">{order.service_type === 'voice_over' ? `Order #${order.order_id_string}` : `Quote #${order.order_id_string}`}</DialogTitle>
+                              <DialogDescription className="mt-1">{serviceLabels[order.service_type] || order.service_type.replace('_', ' ')} for {order.client_name}</DialogDescription>
+                            </div>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${statusColorClass}`}>{statusLabels[order.status] || currentStatus}</span>
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Date unavailable'}</span>
+                          <span className="flex items-center gap-1.5"><MessageSquare className="h-3.5 w-3.5" />{order.client_email}</span>
+                          <span className="flex items-center gap-1.5 font-semibold text-foreground"><Banknote className="h-3.5 w-3.5 text-primary" />{displayPrice ? `${displayPrice.toFixed(2)} MAD` : 'Not quoted'}</span>
+                          {order.last_message_timestamp && <span className="flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" />Last activity {new Date(order.last_message_timestamp).toLocaleDateString()}</span>}
+                        </div>
                     </DialogHeader>
                     
                     <Tabs defaultValue="details" className="flex-grow flex flex-col overflow-hidden">
                         <TabsList className="grid w-full grid-cols-2 flex-shrink-0 px-4 sm:px-6 pt-4 sm:pt-6">
                             <TabsTrigger value="details"><Info className="mr-2 h-4 w-4"/> Order Details</TabsTrigger>
-                            <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4"/> Communication</TabsTrigger>
+                            <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4"/> Communication {order.actor_has_unread_messages && <span className="ml-2 h-2 w-2 rounded-full bg-primary" />}</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="details" className="flex-grow overflow-y-auto custom-scrollbar">

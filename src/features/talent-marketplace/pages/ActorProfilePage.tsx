@@ -60,6 +60,13 @@ interface Actor {
   service_script_rate: number;
   service_video_description: string | null;
   service_video_rate: number;
+    actor_services?: Array<{
+        service_id: string;
+        enabled: boolean;
+        status?: string;
+        description?: string | null;
+        rate?: number | null;
+    }>;
 }
 
 interface ActorReview {
@@ -126,7 +133,7 @@ const ActorProfilePage = () => {
                 *, 
                 actor_followers(count), 
                 demo_likes(count),
-                actor_services(service_id, enabled, description, rate)
+                actor_services(service_id, enabled, status, description, rate)
               `)
               .eq('slug', actorSlug)
               .single();
@@ -142,7 +149,12 @@ const ActorProfilePage = () => {
           setTotalLikes(actorData.demo_likes[0]?.count || 0);
           await loadMarketplaceAllowedServiceIds();
 
-          const services = getMarketplaceServiceDefinitions(actorData)
+                    const approvedServices = (actorData.actor_services || []).filter(
+                        (service: { enabled: boolean; status?: string }) => service.enabled && service.status === 'approved'
+                    );
+                    const publicActorData = { ...actorData, actor_services: approvedServices };
+
+                    const services = getMarketplaceServiceDefinitions(publicActorData)
             .filter((service) => service.enabled)
             .map((service) => ({
               id: service.id,
@@ -684,7 +696,7 @@ const handleMessageActor = async () => {
                    )}
                </div>
             </main>
-            {actor.service_voiceover && (        
+            {actor.actor_services?.some((service) => service.service_id === 'voice_over' && service.enabled && service.status === 'approved') && (
             <GlobalAudioPlayer
                 audioRef={audioRef}
                 currentTrack={currentTrack}

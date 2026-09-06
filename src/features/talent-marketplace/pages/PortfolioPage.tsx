@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import DemoPlayerRow from '@/components/DemoPlayerRow'; 
 import GlobalAudioPlayer from '@/components/GlobalAudioPlayer';
-import { Mic, Video, FileText, Users, SearchX, Search, SlidersHorizontal } from 'lucide-react';
+import { Mic, Video, FileText, SearchX, Search, SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 interface Actor {
@@ -36,6 +36,7 @@ const PortfolioPage: React.FC = () => {
   const [filteredDemos, setFilteredDemos] = useState<DemoInterface[]>([]);
   const [allActors, setAllActors] = useState<Actor[]>([]);
   
+  const [browseMode, setBrowseMode] = useState<'services' | 'talent' | 'demos'>('services');
   const [currentFilter, setCurrentFilter] = useState<'all' | 'audio' | 'video' | 'script'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,9 +64,12 @@ const PortfolioPage: React.FC = () => {
       const { data: actorData, error: actorError } = await supabase
         .from('actors')
         .select(`
-          slug, HeadshotURL, ActorName, bio, service_scriptwriting, service_videoediting, service_voiceover, IsActive, actor_services(service_id, enabled)
+          slug, HeadshotURL, ActorName, bio, service_scriptwriting, service_videoediting, service_voiceover, IsActive,
+          actor_services!inner(service_id, enabled, status)
         `)
-        .eq('IsActive', true);
+        .eq('IsActive', true)
+        .eq('actor_services.enabled', true)
+        .eq('actor_services.status', 'approved');
 
       if (demoError || actorError) {
         console.error("Error fetching data:", demoError, actorError);
@@ -89,7 +93,7 @@ const PortfolioPage: React.FC = () => {
             if (!actor) return false; 
 
             const hasService = (serviceId: string) => {
-                return actor.actor_services?.some((s: any) => s.service_id === serviceId && s.enabled) ?? false;
+                return actor.actor_services?.some((s: any) => s.service_id === serviceId && s.enabled && s.status === 'approved') ?? false;
             };
 
             if (demo.demo_type === 'audio' && (!allowedServiceIds.includes('voice_over') || !hasService('voice_over'))) return false;
@@ -295,7 +299,16 @@ const PortfolioPage: React.FC = () => {
             {serviceCategories.map((service) => <button key={service.id} onClick={() => setSelectedServiceId(service.id)} className={`rounded-full border px-4 py-2 text-sm font-medium transition ${selectedServiceId === service.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background hover:border-primary'}`}>{service.label}</button>)}
           </div>
         </div>
-        {!isLoading && !error && currentFilter === 'all' && (
+        <div className='mb-8 flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-center md:justify-between'>
+          <div><p className='text-sm font-semibold text-muted-foreground'>Browse by intent</p><div className='mt-2 flex flex-wrap gap-2'>
+            <button onClick={() => { setBrowseMode('services'); setCurrentFilter('all'); }} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${browseMode === 'services' ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-background hover:border-primary'}`}>Services</button>
+            <button onClick={() => { setBrowseMode('talent'); setCurrentFilter('all'); }} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${browseMode === 'talent' ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-background hover:border-primary'}`}>Talent</button>
+            <button onClick={() => { setBrowseMode('demos'); setCurrentFilter('audio'); }} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${browseMode === 'demos' ? 'bg-primary text-primary-foreground shadow-sm' : 'border border-border bg-background hover:border-primary'}`}>Demos & proof</button>
+          </div></div>
+          <p className='max-w-md text-sm text-muted-foreground md:text-right'>{browseMode === 'services' ? 'Compare ready-to-request services, pricing, and providers.' : browseMode === 'talent' ? 'Explore professionals first, then choose the service that fits.' : 'Listen, watch, and read examples before contacting a provider.'}</p>
+        </div>
+
+        {!isLoading && !error && browseMode === 'services' && (
           <section className='mb-14'>
             <div className='mb-5 flex items-end justify-between gap-4'>
               <div><p className='text-sm text-muted-foreground'>Showing {serviceOffers.length} offers</p><h2 className='text-2xl font-bold'>Services for you</h2></div>
@@ -311,20 +324,11 @@ const PortfolioPage: React.FC = () => {
         >
           {/* --- TABS LIST: Grid on mobile (2x2), Flex on Desktop --- */}
           <div className="flex justify-center mb-10">
-            <TabsList className="grid grid-cols-2 w-full max-w-[600px] h-auto p-1 gap-1 sm:grid-cols-4 sm:h-12 bg-muted/50 rounded-xl">
-              <TabsTrigger value="all" className="flex items-center gap-2 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg">
-                <Users size={16} /> All Talent
-              </TabsTrigger>
-              <TabsTrigger value="audio" className="flex items-center gap-2 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg">
-                <Mic size={16} /> Audio
-              </TabsTrigger>
-              <TabsTrigger value="video" className="flex items-center gap-2 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg">
-                <Video size={16} /> Video
-              </TabsTrigger>
-              <TabsTrigger value="script" className="flex items-center gap-2 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg">
-                <FileText size={16} /> Scripts
-              </TabsTrigger>
-            </TabsList>
+              {browseMode === 'demos' && <TabsList className="grid grid-cols-3 w-full max-w-[600px] h-auto p-1 gap-1 sm:grid-cols-3 sm:h-12 bg-muted/50 rounded-xl">
+                <TabsTrigger value="audio" className="flex items-center gap-2 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg"><Mic size={16} /> Audio</TabsTrigger>
+                <TabsTrigger value="video" className="flex items-center gap-2 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg"><Video size={16} /> Video</TabsTrigger>
+                <TabsTrigger value="script" className="flex items-center gap-2 py-2 data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg"><FileText size={16} /> Scripts</TabsTrigger>
+              </TabsList>}
           </div>
 
           {isLoading ? (
@@ -346,7 +350,7 @@ const PortfolioPage: React.FC = () => {
           ) : (
             <>
               {/* --- ALL TALENT TAB --- */}
-              <TabsContent value="all" className="mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500">
+              <TabsContent value="all" className={`mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500 ${browseMode !== 'talent' ? 'hidden' : ''}`}>
                 {allActors.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     {visibleActors.map(actor => (
@@ -359,7 +363,7 @@ const PortfolioPage: React.FC = () => {
               </TabsContent>
 
               {/* --- AUDIO TAB --- */}
-              <TabsContent value="audio" className="mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500">
+              <TabsContent value="audio" className={`mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500 ${browseMode !== 'demos' ? 'hidden' : ''}`}>
                 <div className="max-w-4xl mx-auto space-y-4"> 
                   {filteredDemos.length > 0 ? (
                     filteredDemos.map(demo => {
@@ -394,7 +398,7 @@ const PortfolioPage: React.FC = () => {
               </TabsContent>
 
               {/* --- VIDEO TAB --- */}
-              <TabsContent value="video" className="mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500">
+              <TabsContent value="video" className={`mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500 ${browseMode !== 'demos' ? 'hidden' : ''}`}>
                 {filteredDemos.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredDemos.map(renderOtherDemoCard)}
@@ -405,7 +409,7 @@ const PortfolioPage: React.FC = () => {
               </TabsContent>
 
               {/* --- SCRIPT TAB --- */}
-              <TabsContent value="script" className="mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500">
+              <TabsContent value="script" className={`mt-0 focus-visible:outline-none animate-in slide-in-from-bottom-2 duration-500 ${browseMode !== 'demos' ? 'hidden' : ''}`}>
                 {filteredDemos.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {filteredDemos.map(renderOtherDemoCard)}

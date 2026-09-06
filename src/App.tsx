@@ -60,7 +60,12 @@ const ActorEarningsPage = lazy(() => import("@/features/talent-marketplace/payou
 const ActorPayoutSettingsPage = lazy(() => import("@/features/talent-marketplace/payouts/pages/ActorPayoutSettingsPage"));
 const MyShortlistPage = lazy(() => import("@/features/talent-marketplace/pages/MyShortlistPage"));
 const DashboardProfile = lazy(() => import("@/features/talent-marketplace/pages/DashboardProfile"));
-const DashboardServices = lazy(() => import("@/features/talent-marketplace/pages/DashboardServices"));
+const ServicesHubPage = lazy(() => import("@/features/talent-marketplace/pages/services/ServicesHubPage"));
+const ServiceWorkspacePage = lazy(() => import("@/features/talent-marketplace/pages/services/ServiceWorkspacePage"));
+const VoiceOverServicePage = lazy(() => import("@/features/talent-marketplace/pages/services/VoiceOverServicePage"));
+const ScriptwritingServicePage = lazy(() => import("@/features/talent-marketplace/pages/services/ScriptwritingServicePage"));
+const VideoEditingServicePage = lazy(() => import("@/features/talent-marketplace/pages/services/VideoEditingServicePage"));
+const DeliveryServicePage = lazy(() => import("@/features/talent-marketplace/pages/services/DeliveryServicePage"));
 const ClientDashboardPage = lazy(() => import("@/features/talent-marketplace/pages/ClientDashboardPage"));
 const ClientOrderPage = lazy(() => import("@/features/talent-marketplace/pages/ClientOrderPage"));
 const PortfolioPage = lazy(() => import("@/features/talent-marketplace/pages/PortfolioPage"));
@@ -117,7 +122,8 @@ const MAIN_DOMAINS = [
   "localhost",
   "127.0.0.1",
   "symmetrical-acorn-697wxxq4r74j3jpj-5173.app.github.dev",
-    "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
+  "psychic-cod-r74vrp5xx9gq2ppr7-5173.app.github.dev",
+  "laughing-succotash-wrxrgrqvpj75hv99q-5173.app.github.dev",
 ];
 
 const queryClient = new QueryClient({
@@ -344,7 +350,12 @@ function App() {
                         path="messages/:conversationId"
                         element={<MessagesPage />}
                       />
-                      <Route path="services" element={<DashboardServices />} />
+                      <Route path="services" element={<ServicesHubPage />} />
+                      <Route path="services/voice-over" element={<VoiceOverServicePage />} />
+                      <Route path="services/scriptwriting" element={<ScriptwritingServicePage />} />
+                      <Route path="services/video-editing" element={<VideoEditingServicePage />} />
+                      <Route path="services/delivery" element={<DeliveryServicePage />} />
+                      <Route path="services/:serviceId" element={<ServiceWorkspacePage />} />
 
                       <Route path="demos" element={<DashboardDemos />} />
                       <Route path="library" element={<DashboardLibrary />} />

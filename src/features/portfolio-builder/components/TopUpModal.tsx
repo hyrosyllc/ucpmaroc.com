@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Loader2,
   ArrowLeft,
+  ArrowRight,
   Lock,
   CheckCircle2,
   ShieldCheck,
@@ -26,6 +27,7 @@ import {
   Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CREDIT_PACKS, CREDIT_UNIT_USD, MIN_CUSTOM_CREDIT_AMOUNT } from "@/config/plans";
 
 // --- STRIPE IMPORTS ---
 import { loadStripe } from "@stripe/stripe-js";
@@ -39,61 +41,6 @@ import {
 const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
 );
-
-const COIN_PACKS = [
-  {
-    id: "handful",
-    name: "Handful of Coins",
-    coins: 250,
-    cost: 5,
-    bonus: "",
-    rarity: 3,
-  },
-  {
-    id: "bag",
-    name: "Bag of Coins",
-    coins: 550,
-    cost: 10,
-    bonus: "+50 Free!",
-    popular: true,
-    rarity: 4,
-  },
-  {
-    id: "chest",
-    name: "Chest of Coins",
-    coins: 1200,
-    cost: 20,
-    bonus: "+200 Free!",
-    rarity: 5,
-  },
-  {
-    id: "handful_lg",
-    name: "Sack of Coins",
-    coins: 1500,
-    cost: 26,
-    bonus: "+200 Free!",
-    rarity: 4,
-  },
-  {
-    id: "bag_lg",
-    name: "Treasury",
-    coins: 3000,
-    cost: 54,
-    bonus: "+300 Free!",
-    popular: true,
-    rarity: 5,
-  },
-  {
-    id: "chest_lg",
-    name: "Vault of Coins",
-    coins: 8000,
-    cost: 153,
-    bonus: "+350 Free!",
-    rarity: 5,
-  },
-];
-
-const COIN_PRICE_USD = 0.02;
 
 interface TopUpModalProps {
   isOpen: boolean;
@@ -139,8 +86,8 @@ const EmbeddedStripeForm = ({ pack, onComplete, notify }: any) => {
     if (paymentIntent && paymentIntent.status === "succeeded") {
       notify(
         "success",
-        "Payment Successful!",
-        `Added ${pack.coins} Coins to your wallet.`
+        "Payment received",
+        `${pack.credits} credits will appear as soon as the signed payment notification is processed.`
       );
       onComplete();
     }
@@ -164,7 +111,7 @@ const EmbeddedStripeForm = ({ pack, onComplete, notify }: any) => {
         ) : (
           <Lock size={18} className="mr-2" />
         )}
-        Securely Pay ${pack.cost.toFixed(2)}
+        Securely Pay ${pack.costUsd.toFixed(2)}
       </Button>
     </form>
   );
@@ -191,12 +138,12 @@ export default function TopUpModal({
     return () => window.removeEventListener("TOUR_STEP_CHANGED", handleTour);
   }, []);
 
-  // Custom Coin State
-  const [customCoins, setCustomCoins] = useState<string>("");
+  // Custom credit amount state
+  const [customCredits, setCustomCredits] = useState<string>("");
 
   // Embedded Checkout State
   const [selectedPack, setSelectedPack] = useState<
-    (typeof COIN_PACKS)[0] | null
+    (typeof CREDIT_PACKS)[0] | null
   >(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -206,6 +153,7 @@ export default function TopUpModal({
     "card" | "crypto" | "bank"
   >("card");
   const [isGeneratingCrypto, setIsGeneratingCrypto] = useState(false);
+  const [isGeneratingBankRequest, setIsGeneratingBankRequest] = useState(false);
   const [cryptoInvoiceUrl, setCryptoInvoiceUrl] = useState<string | null>(null); // 🚀 ADD THIS LINE
   // Detect Dark Mode for Stripe Elements
   useEffect(() => {
@@ -221,7 +169,7 @@ export default function TopUpModal({
     return () => observer.disconnect();
   }, []);
 
-  const handleSelectPack = async (pack: (typeof COIN_PACKS)[0]) => {
+  const handleSelectPack = async (pack: (typeof CREDIT_PACKS)[0]) => {
     setSelectedPack(pack);
     setPaymentMethod("card");
     setIsInitializing(true);
@@ -233,12 +181,10 @@ export default function TopUpModal({
         "create-payment-intent",
         {
           body: {
-            amount: pack.cost,
-            currency: "usd",
-            metadata: {
-              type: "top_up",
-              actor_id: actorData.id,
-              coins_amount: pack.coins,
+            topUp: {
+              actorId: actorData.id,
+              packId: pack.id,
+              credits: pack.credits,
             },
           },
         }
@@ -260,36 +206,57 @@ export default function TopUpModal({
   };
 
   const handleCustomPackSubmit = () => {
-    const coins = parseInt(customCoins);
-    if (isNaN(coins) || coins < 50) {
-      notify("error", "Invalid Amount", "Minimum purchase is 50 coins.");
+    const credits = parseInt(customCredits);
+    if (isNaN(credits) || credits < MIN_CUSTOM_CREDIT_AMOUNT) {
+      notify("error", "Invalid Amount", `Minimum purchase is ${MIN_CUSTOM_CREDIT_AMOUNT} credits.`);
       return;
     }
     const customPack = {
       id: "custom",
-      name: "Custom Coin Allocation",
-      coins: coins,
-      cost: coins * COIN_PRICE_USD,
+      name: "Custom amount",
+      credits: credits,
+      costUsd: credits * CREDIT_UNIT_USD,
       bonus: "",
-      rarity: 3,
     };
     handleSelectPack(customPack);
   };
 
-  const handleBankTransfer = () => {
+  const handleBankTransfer = async () => {
     if (!actorData?.ActorName || !selectedPack) return;
-    const userEmail = profile?.email || actorData.email || "No Email";
-    const message = `Hello, I would like to purchase the "${
-      selectedPack.name
-    }" (${selectedPack.coins} Coins) for $${selectedPack.cost.toFixed(
-      2
-    )} via Wise / Local Bank Transfer.\n\nMy Details:\nName: ${
-      actorData.ActorName
-    }\nEmail: ${userEmail}\nWorkspace ID: ${
-      actorData.id
-    }\n\nPlease provide the transfer details so I can complete my top-up.`;
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/212695121176?text=${encodedMessage}`, "_blank");
+    const popup = window.open("", "_blank");
+    setIsGeneratingBankRequest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "create-bank-transfer-request",
+        {
+          body: {
+            actorId: actorData.id,
+            packId: selectedPack.id,
+            credits: selectedPack.credits,
+          },
+        }
+      );
+      if (error || !data?.reference) {
+        throw error || new Error("Could not create transfer reference.");
+      }
+
+      const userEmail = profile?.email || actorData.email || "No Email";
+      const message = `Hello, I would like to purchase ${data.credits} Platform Credits for $${Number(
+        data.amountUsd
+      ).toFixed(2)} via Wise / Local Bank Transfer.\n\nBilling reference: ${
+        data.reference
+      }\nName: ${actorData.ActorName}\nEmail: ${userEmail}\nWorkspace ID: ${
+        actorData.id
+      }\n\nPlease provide the transfer details so I can complete my top-up.`;
+      const url = `https://wa.me/212695121176?text=${encodeURIComponent(message)}`;
+      if (popup) popup.location.href = url;
+      else window.location.href = url;
+    } catch (error: any) {
+      popup?.close();
+      notify("error", "Could not start transfer", error?.message);
+    } finally {
+      setIsGeneratingBankRequest(false);
+    }
   };
 
   const handleGenerateCryptoInvoice = async () => {
@@ -301,9 +268,9 @@ export default function TopUpModal({
         "create-crypto-invoice",
         {
           body: {
-            amount: selectedPack.cost,
-            coins_amount: selectedPack.coins,
-            actor_id: actorData.id,
+            actorId: actorData.id,
+            packId: selectedPack.id,
+            credits: selectedPack.credits,
           },
         }
       );
@@ -311,17 +278,10 @@ export default function TopUpModal({
       if (error) throw error;
 
       if (data?.invoiceUrl) {
-        // 1. Mercilessly force HTTPS
         let finalUrl = data.invoiceUrl;
         if (finalUrl.includes("http://")) {
           finalUrl = finalUrl.replace("http://", "https://");
         }
-
-        // 2. Log it to prove it worked!
-        console.log("🔗 Original API URL:", data.invoiceUrl);
-        console.log("🔒 Secured iframe URL:", finalUrl);
-
-        // 3. Set the state
         setCryptoInvoiceUrl(finalUrl);
       } else {
         throw new Error("Failed to generate invoice URL.");
@@ -346,7 +306,7 @@ export default function TopUpModal({
     if (error || (data && !data.success)) {
       notify("error", "Redeem Failed", data?.message || error?.message);
     } else {
-      notify("success", "Coins Added!", "Gift code redeemed.");
+      notify("success", "Credits added!", "Gift code redeemed.");
       setRedeemCode("");
       onSuccess();
       if (tourStep === 4) {
@@ -369,65 +329,31 @@ export default function TopUpModal({
     onOpenChange(open);
   };
 
-  const getPackStyling = (rarity: number) => {
-    if (rarity === 3)
-      return {
-        bg: "from-blue-900 to-slate-900",
-        border: "border-blue-500/30",
-        glow: "bg-blue-500/20",
-        text: "text-blue-50",
-        star: "text-blue-300",
-      };
-    if (rarity === 4)
-      return {
-        bg: "from-purple-900 to-slate-900",
-        border: "border-purple-500/30",
-        glow: "bg-purple-500/20",
-        text: "text-purple-50",
-        star: "text-purple-300",
-      };
-    if (rarity === 5)
-      return {
-        bg: "from-amber-700 to-slate-900",
-        border: "border-amber-500/40",
-        glow: "bg-amber-500/30",
-        text: "text-amber-50",
-        star: "text-yellow-400",
-      };
-    return {
-      bg: "from-slate-800 to-slate-950",
-      border: "border-slate-700",
-      glow: "bg-slate-500/10",
-      text: "text-slate-100",
-      star: "text-slate-400",
-    };
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="w-full h-[100dvh] sm:h-[85vh] sm:max-w-[1000px] p-0 gap-0 bg-zinc-50 dark:bg-zinc-950 border-none shadow-2xl sm:rounded-2xl flex flex-col overflow-hidden">
+      <DialogContent className="w-full h-[100dvh] sm:h-[85vh] sm:max-w-[1000px] p-0 gap-0 bg-background border-none shadow-2xl sm:rounded-2xl flex flex-col overflow-hidden">
         {(tourStep === 3 || tourStep === 4) && (
           <div className="absolute inset-0 z-[50] bg-slate-950/80 backdrop-blur-sm pointer-events-none transition-all animate-in fade-in" />
         )}
 
         {tourStep === 5 ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-gradient-to-br from-indigo-900 to-purple-900 text-white animate-in zoom-in-95 duration-500">
-            <div className="w-24 h-24 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_60px_rgba(245,158,11,0.6)]">
-              <Coins size={48} className="text-white" />
+          <div className="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-background animate-in zoom-in-95 duration-500">
+            <div className="w-20 h-20 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 size={40} />
             </div>
-            <h2 className="text-4xl font-black mb-4 text-white">2,700 Coins Claimed!</h2>
-            <p className="text-xl text-white/80 mb-8 max-w-md">
-              Mashallah! You've successfully redeemed your welcome gift. You can use these coins to unlock Pro features once your trial ends, or buy new themes from the marketplace.
+            <h2 className="text-3xl font-black mb-3 text-foreground">2,700 credits added</h2>
+            <p className="text-base text-muted-foreground mb-8 max-w-md">
+              Your welcome gift has been credited to your balance. Use these credits to unlock Pro features once your trial ends, or purchase new themes from the marketplace.
             </p>
             <Button 
               size="lg" 
-              className="w-full max-w-xs bg-amber-500 hover:bg-amber-600 text-white font-bold text-xl h-14"
+              className="w-full max-w-xs font-bold text-base h-12"
               onClick={() => {
                  window.dispatchEvent(new CustomEvent('TOUR_STEP_CHANGED', { detail: 0 }));
                  handleOpenChange(false);
               }}
             >
-              Awesome, Thanks!
+              Continue
             </Button>
           </div>
         ) : selectedPack ? (
@@ -441,7 +367,7 @@ export default function TopUpModal({
                 variant="ghost"
                 size="icon"
                 onClick={() => setSelectedPack(null)}
-                aria-label="Back to coin packs"
+                aria-label="Back to credit packs"
                 className="h-8 w-8 rounded-full bg-muted/50 hover:bg-muted transition-transform active:scale-90"
               >
                 <ArrowLeft size={16} />
@@ -451,110 +377,63 @@ export default function TopUpModal({
 
             {/* Split Layout */}
             <div className="flex flex-col lg:flex-row flex-grow overflow-y-auto overflow-x-hidden">
-              {/* LEFT COLUMN: The Hype / Summary */}
-              <div className="w-full lg:w-[45%] p-6 lg:p-8 bg-zinc-100/50 dark:bg-zinc-900/30 border-r border-border/50 flex flex-col items-center lg:items-start text-center lg:text-left shrink-0">
-                {/* The Pack Card Preview */}
-                <div
-                  className={cn(
-                    "w-full max-w-[280px] aspect-[4/3] rounded-3xl border flex flex-col shadow-2xl mb-8 relative overflow-hidden",
-                    getPackStyling(selectedPack.rarity).border,
-                    "bg-gradient-to-br",
-                    getPackStyling(selectedPack.rarity).bg
-                  )}
-                >
-                  <div className="p-5 flex justify-between relative z-10 pointer-events-none">
-                    <div className="flex gap-1">
-                      {[...Array(selectedPack.rarity)].map((_, i) => (
-                        <Star
-                          key={i}
-                          size={16}
-                          className={cn(
-                            "fill-current",
-                            getPackStyling(selectedPack.rarity).star
-                          )}
-                        />
-                      ))}
-                    </div>
+              {/* LEFT COLUMN: Order Summary */}
+              <div className="w-full lg:w-[40%] p-6 lg:p-8 bg-muted/20 border-r border-border/50 flex flex-col shrink-0">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="h-14 w-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Coins size={26} />
                   </div>
-                  <div className="flex-grow flex flex-col items-center justify-center relative pointer-events-none">
-                    <div
-                      className={cn(
-                        "absolute inset-0 blur-3xl rounded-full opacity-70",
-                        getPackStyling(selectedPack.rarity).glow
-                      )}
-                    />
-                    <Coins
-                      size={72}
-                      className={cn(
-                        "relative z-10 drop-shadow-2xl mb-2",
-                        getPackStyling(selectedPack.rarity).text
-                      )}
-                    />
-                    <h3
-                      className={cn(
-                        "font-black text-4xl tracking-tight relative z-10",
-                        getPackStyling(selectedPack.rarity).text
-                      )}
-                    >
-                      {selectedPack.coins.toLocaleString()}
-                    </h3>
-                    <p
-                      className={cn(
-                        "text-xs font-bold uppercase tracking-widest mt-1 opacity-80",
-                        getPackStyling(selectedPack.rarity).text
-                      )}
-                    >
-                      UCP Coins
+                  <div>
+                    <h2 className="text-lg font-bold text-foreground leading-tight">
+                      {selectedPack.name}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedPack.credits.toLocaleString()} credits
                     </p>
                   </div>
                 </div>
 
-                <h2 className="text-2xl font-black text-foreground mb-2">
-                  {selectedPack.name}
-                </h2>
-                <p className="text-muted-foreground mb-8 leading-relaxed">
-                  You are purchasing virtual coins to be credited instantly to
-                  your workspace balance.
-                </p>
-
-                <div className="w-full space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-background rounded-xl border border-border/50 shadow-sm">
-                    <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 dark:text-green-400 shrink-0">
-                      <Zap size={18} />
-                    </div>
-                    <div className="text-sm font-semibold">
-                      Instant Delivery upon payment
-                    </div>
+                {selectedPack.bonus && (
+                  <div className="mb-6 flex items-center gap-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-emerald-700 dark:text-emerald-400 w-fit">
+                    <Gift size={16} />
+                    <span className="text-sm font-semibold">Includes {selectedPack.bonus}</span>
                   </div>
-                  <div className="flex items-center gap-3 p-3 bg-background rounded-xl border border-border/50 shadow-sm">
-                    <div className="h-10 w-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                      <CheckCircle2 size={18} />
-                    </div>
-                    <div className="text-sm font-semibold">
-                      Coins never expire
-                    </div>
+                )}
+
+                <div className="rounded-xl border border-border/60 bg-background p-4 space-y-3 mb-6">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Credits</span>
+                    <span className="font-semibold text-foreground">{selectedPack.credits.toLocaleString()}</span>
+                  </div>
+                  <div className="border-t border-border/60 pt-3 flex justify-between">
+                    <span className="font-bold text-foreground">Total due</span>
+                    <span className="text-xl font-black text-foreground">${selectedPack.costUsd.toFixed(2)}</span>
                   </div>
                 </div>
 
-                {selectedPack.bonus && (
-                  <div className="mt-8 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-500 w-full flex items-center gap-3">
-                    <Star size={24} className="fill-amber-500 shrink-0" />
-                    <div className="text-sm font-bold">
-                      Includes {selectedPack.bonus}
-                    </div>
+                <div className="space-y-3 mt-auto">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Zap size={16} className="text-primary shrink-0" />
+                    Instant delivery upon payment
                   </div>
-                )}
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <CheckCircle2 size={16} className="text-primary shrink-0" />
+                    Credits never expire
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <ShieldCheck size={16} className="text-primary shrink-0" />
+                    Secured checkout
+                  </div>
+                </div>
               </div>
 
               {/* RIGHT COLUMN: The Payment Gateway */}
-              <div className="w-full lg:w-[55%] p-6 lg:p-8 bg-background flex flex-col">
-                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="w-full lg:w-[60%] p-6 lg:p-8 bg-background flex flex-col">
+                <div className="mb-6">
                   <h3 className="font-bold text-xl text-foreground">
-                    Payment Method
+                    Payment method
                   </h3>
-                  <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
-                    ${selectedPack.cost.toFixed(2)}
-                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">Choose how you'd like to pay ${selectedPack.costUsd.toFixed(2)}.</p>
                 </div>
 
                 <Tabs
@@ -593,7 +472,7 @@ export default function TopUpModal({
                     <TabsContent value="card" className="mt-0 h-full">
                       {isInitializing || !clientSecret ? (
                         <div className="flex flex-col items-center justify-center h-full min-h-[300px] space-y-4 animate-in fade-in">
-                          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                          <Loader2 className="w-8 h-8 animate-spin text-primary" />
                           <p className="text-muted-foreground font-medium text-sm">
                             Securing payment channel...
                           </p>
@@ -638,29 +517,29 @@ export default function TopUpModal({
                       ) : (
                         // THE STANDARD GENERATE UI
                         <>
-                          <div className="p-8 border-2 border-amber-500/20 bg-amber-500/5 rounded-3xl flex flex-col items-center text-center mb-6">
-                            <div className="h-20 w-20 bg-gradient-to-br from-amber-400 to-orange-600 text-white rounded-full flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20">
-                              <QrCode size={36} />
-                            </div>
-                            <h4 className="font-black text-2xl mb-3 text-foreground">
-                              Pay with Web3
+                          <div className="p-8 border border-border/60 bg-muted/20 rounded-2xl flex flex-col items-center text-center mb-6">
+                            <div className="h-16 w-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6">
+                              <QrCode size={32} />
+                          </div>
+                            <h4 className="font-bold text-xl mb-2 text-foreground">
+                              Pay with crypto
                             </h4>
-                            <p className="text-base text-muted-foreground mb-8 max-w-sm">
+                            <p className="text-sm text-muted-foreground mb-6 max-w-sm">
                               We accept USDC, USDT, BTC, and Solana. Instant
                               settlement, no borders.
                             </p>
                           </div>
                           <Button
-                            className="w-full h-12 font-bold text-lg bg-amber-500 hover:bg-amber-600 text-white shadow-xl shadow-amber-500/20 transition-transform active:scale-[0.98] mt-auto"
+                            className="w-full h-12 font-bold text-base shadow-sm transition-transform active:scale-[0.98] mt-auto"
                             onClick={handleGenerateCryptoInvoice}
                             disabled={isGeneratingCrypto}
                           >
                             {isGeneratingCrypto ? (
                               <Loader2 className="animate-spin mr-2" />
                             ) : (
-                              <Bitcoin className="mr-2" />
+                              <Bitcoin className="mr-2" size={18} />
                             )}
-                            Generate Crypto Checkout
+                            Generate crypto checkout
                           </Button>
                         </>
                       )}
@@ -672,31 +551,33 @@ export default function TopUpModal({
                       value="bank"
                       className="mt-0 animate-in fade-in slide-in-from-right-4 duration-300"
                     >
-                      <div className="p-8 border-2 border-emerald-500/20 bg-emerald-500/5 rounded-3xl flex flex-col items-center text-center mb-6">
-                        <div className="h-20 w-20 bg-gradient-to-br from-emerald-400 to-teal-600 text-white rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
-                          <Landmark size={36} />
+                      <div className="p-8 border border-border/60 bg-muted/20 rounded-2xl flex flex-col items-center text-center mb-6">
+                        <div className="h-16 w-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mb-6">
+                          <Landmark size={32} />
                         </div>
-                        <h4 className="font-black text-2xl mb-3 text-foreground">
-                          Manual Transfer
+                        <h4 className="font-bold text-xl mb-2 text-foreground">
+                          Manual transfer
                         </h4>
-                        <p className="text-base text-muted-foreground mb-6 max-w-sm">
+                        <p className="text-sm text-muted-foreground mb-6 max-w-sm">
                           Prefer to use Wise, Revolut, or a local bank? Message
                           us directly on WhatsApp.
                         </p>
-                        <div className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-4 py-2 rounded-xl">
-                          Coins will be credited manually once the transfer
+                        <div className="text-xs font-semibold text-muted-foreground bg-background border border-border/60 px-3 py-2 rounded-lg">
+                          Credits will be credited manually once the transfer
                           clears.
                         </div>
                       </div>
                       <Button
-                        className="w-full h-12 font-bold text-lg bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-xl shadow-[#25D366]/20 transition-transform active:scale-[0.98]"
+                        className="w-full h-12 font-bold text-base bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-sm transition-transform active:scale-[0.98]"
                         onClick={handleBankTransfer}
+                        disabled={isGeneratingBankRequest}
                       >
-                        <MessageCircle
-                          size={20}
-                          className="mr-2 fill-current"
-                        />{" "}
-                        Buy via WhatsApp
+                        {isGeneratingBankRequest ? (
+                          <Loader2 className="animate-spin mr-2" size={18} />
+                        ) : (
+                          <MessageCircle size={18} className="mr-2 fill-current" />
+                        )}
+                        Continue on WhatsApp
                       </Button>
                     </TabsContent>
                   </div>
@@ -716,17 +597,17 @@ export default function TopUpModal({
                 window.dispatchEvent(new CustomEvent("TOUR_STEP_CHANGED", { detail: 4 }));
               }
             }}
-            className="w-full h-full flex flex-col bg-zinc-50 dark:bg-zinc-950"
+            className="w-full h-full flex flex-col bg-background"
           >
             <div className={cn("p-4 md:p-8 shrink-0 bg-background border-b border-border/50 shadow-sm transition-all", tourStep === 3 ? "relative z-[60]" : "z-20")}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className={cn("space-y-1 transition-opacity duration-300", tourStep === 3 && "opacity-20 pointer-events-none")}>
                   <DialogTitle className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-2">
-                    <Coins className="text-amber-500 fill-amber-500 w-8 h-8" />{" "}
-                    Coin Shop
+                    <Coins className="text-primary w-7 h-7" />{" "}
+                    Add credits
                   </DialogTitle>
                   <DialogDescription className="text-base">
-                    Top up your balance to purchase Pro upgrades and slots.
+                    Top up your Platform Credits to purchase Pro upgrades and slots.
                   </DialogDescription>
                 </div>
                 <TabsList className={cn("bg-muted/50 p-1 w-full md:w-fit grid grid-cols-2 md:flex rounded-xl border border-border/50 transition-all", tourStep === 3 && "ring-4 ring-primary bg-background shadow-2xl scale-105 pointer-events-auto")}>
@@ -745,17 +626,16 @@ export default function TopUpModal({
               className="mt-0 flex-grow overflow-y-auto px-4 py-6 md:p-8 custom-scrollbar"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pb-12 sm:pb-0 max-w-6xl mx-auto">
-                {COIN_PACKS.map((pack) => {
-                  const style = getPackStyling(pack.rarity);
+                {CREDIT_PACKS.map((pack) => {
                   return (
                     <div
                       key={pack.id}
                       role="button"
                       tabIndex={0}
-                      aria-label={`Buy ${pack.name} for $${pack.cost.toFixed(2)}`}
+                      aria-label={`Buy ${pack.name} for $${pack.costUsd.toFixed(2)}`}
                       className={cn(
-                        "relative rounded-3xl border dark:border-white/10 overflow-hidden transition-all duration-300 active:scale-[0.98] sm:hover:scale-[1.02] flex flex-col shadow-xl cursor-pointer group hover:shadow-2xl hover:shadow-indigo-500/10",
-                        style.bg
+                        "group relative flex flex-col rounded-2xl border-2 bg-card p-6 text-left transition-all cursor-pointer hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.99] outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        pack.popular ? "border-primary shadow-sm" : "border-border/60 hover:border-primary/40"
                       )}
                       onClick={() => handleSelectPack(pack)}
                       onKeyDown={(event) => {
@@ -765,90 +645,72 @@ export default function TopUpModal({
                         }
                       }}
                     >
-                      <div className="p-4 flex justify-between relative z-10 pointer-events-none">
-                        <div className="flex gap-1">
-                          {[...Array(pack.rarity)].map((_, i) => (
-                            <Star
-                              key={i}
-                              size={14}
-                              className={cn("fill-current", style.star)}
-                            />
-                          ))}
+                      {pack.popular && (
+                        <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground shadow-sm">
+                          Most popular
+                        </Badge>
+                      )}
+                      <div className="flex items-start justify-between mb-5">
+                        <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                          <Coins size={20} />
                         </div>
                         {pack.bonus && (
-                          <Badge className="bg-white text-black text-[10px] font-black uppercase tracking-wider h-6 px-2 shadow-sm border-none">
-                            BONUS
+                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold">
+                            {pack.bonus}
                           </Badge>
                         )}
                       </div>
-                      <div className="flex-grow flex flex-col items-center justify-center py-4 relative pointer-events-none">
-                        <div
-                          className={cn(
-                            "absolute inset-0 blur-3xl rounded-full opacity-40 transition-opacity duration-500 group-hover:opacity-80",
-                            style.glow
-                          )}
-                        />
-                        <Coins
-                          size={56}
-                          className={cn(
-                            "relative z-10 drop-shadow-2xl transform transition-transform duration-500 group-hover:scale-110 mb-2",
-                            style.text
-                          )}
-                        />
-                        <h3
-                          className={cn(
-                            "font-black text-3xl tracking-tight relative z-10",
-                            style.text
-                          )}
-                        >
-                          {pack.coins.toLocaleString()}
-                        </h3>
+                      <div className="text-2xl font-black text-foreground tracking-tight">
+                        {pack.credits.toLocaleString()} <span className="text-sm font-semibold text-muted-foreground">credits</span>
                       </div>
-                      <div className="p-4 bg-black/30 backdrop-blur-xl border-t border-white/5 relative z-10">
-                        <Button className="w-full bg-white/10 hover:bg-white/20 text-white font-bold h-11 border border-white/10 transition-colors pointer-events-none">
-                          ${pack.cost.toFixed(2)}
-                        </Button>
+                      <p className="text-sm text-muted-foreground mt-1">{pack.name}</p>
+
+                      <div className="mt-6 pt-4 border-t border-border/60 flex items-center justify-between">
+                        <span className="text-xl font-bold text-foreground">${pack.costUsd.toFixed(2)}</span>
+                        <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
+                          Select <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+                        </span>
                       </div>
                     </div>
                   );
                 })}
 
-                {/* --- CUSTOM COIN GENERATOR --- */}
-                <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-4 border-2 border-dashed border-border/50 rounded-3xl p-6 bg-card dark:bg-zinc-900 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm hover:border-primary/30 transition-colors">
-                  <div className="space-y-2 text-center sm:text-left flex-1">
-                    <h4 className="font-black text-xl flex items-center justify-center sm:justify-start gap-2 text-foreground">
-                      <Coins className="text-primary fill-primary/20" /> Need a
+                {/* --- CUSTOM CREDIT AMOUNT --- */}
+                <div className="col-span-1 sm:col-span-2 lg:col-span-3 mt-4 border border-border/60 rounded-2xl p-6 bg-card flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-primary/30 transition-colors">
+                  <div className="space-y-1 text-center sm:text-left flex-1">
+                    <h4 className="font-bold text-lg flex items-center justify-center sm:justify-start gap-2 text-foreground">
+                      <Coins size={18} className="text-primary" /> Need a
                       specific amount?
                     </h4>
                     <p className="text-sm text-muted-foreground">
-                      Type exactly how many coins you need. ($0.02 per coin)
+                      Enter exactly how many credits you need (${CREDIT_UNIT_USD.toFixed(2)} per credit).
                     </p>
                   </div>
                   <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="relative">
                       <Input
-                        id="custom-coins"
-                        aria-label="Custom coin amount"
+                        id="custom-credits"
+                        aria-label="Custom credit amount"
                         type="number"
                         placeholder="e.g. 750"
-                        min="50"
+                        min={MIN_CUSTOM_CREDIT_AMOUNT}
                         step="50"
-                        value={customCoins}
-                        onChange={(e) => setCustomCoins(e.target.value)}
-                        className="h-12 w-full sm:w-32 text-lg font-black text-center pr-12 bg-background border-2"
+                        value={customCredits}
+                        onChange={(e) => setCustomCredits(e.target.value)}
+                        className="h-11 w-full sm:w-32 text-base font-bold text-center pr-12 bg-background"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">
-                        UCP
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-xs">
+                        credits
                       </span>
                     </div>
                     <Button
-                      className="h-12 px-6 font-bold text-base shadow-lg"
-                      disabled={!customCoins || parseInt(customCoins) < 50}
+                      className="h-11 px-6 font-bold"
+                      disabled={!customCredits || parseInt(customCredits) < MIN_CUSTOM_CREDIT_AMOUNT}
                       onClick={handleCustomPackSubmit}
                     >
                       Buy for $
-                      {customCoins && parseInt(customCoins) >= 50
-                        ? (parseInt(customCoins) * COIN_PRICE_USD).toFixed(2)
+                      {customCredits && parseInt(customCredits) >= MIN_CUSTOM_CREDIT_AMOUNT
+                        ? (parseInt(customCredits) * CREDIT_UNIT_USD).toFixed(2)
                         : "0.00"}
                     </Button>
                   </div>
@@ -860,23 +722,23 @@ export default function TopUpModal({
               value="redeem"
               className="mt-0 flex-grow overflow-y-auto px-4 pb-8"
             >
-              <div className={cn("bg-card dark:bg-zinc-900 border border-border/50 p-8 rounded-3xl shadow-sm flex flex-col gap-6 mt-8 max-w-lg mx-auto text-center transition-all duration-300", (tourStep === 4 && activeTab === "redeem") && "relative z-[60] bg-background shadow-2xl ring-4 ring-primary/50 pointer-events-auto")}>
-                <div className="h-16 w-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-2">
-                  <Star size={32} className="fill-primary/20" />
+              <div className={cn("bg-card border border-border/60 p-8 rounded-2xl flex flex-col gap-6 mt-8 max-w-lg mx-auto text-center transition-all duration-300", (tourStep === 4 && activeTab === "redeem") && "relative z-[60] bg-background shadow-2xl ring-4 ring-primary/50 pointer-events-auto")}>
+                <div className="h-14 w-14 bg-primary/10 text-primary rounded-xl flex items-center justify-center mx-auto">
+                  <Gift size={26} />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="font-black text-2xl text-foreground">
-                    Redeem Gift Code
+                <div className="space-y-1">
+                  <h3 className="font-bold text-xl text-foreground">
+                    Redeem a gift code
                   </h3>
                   <p className="text-muted-foreground text-sm">
-                    Enter your promotional code to instantly add free coins to
+                    Enter your promotional code to instantly add free credits to
                     your wallet.
                   </p>
                 </div>
                 <Input
                   id="redeem-code"
                   aria-label="Gift code"
-                  className={cn("text-center font-mono uppercase text-2xl h-14 font-bold tracking-widest bg-background border-2 transition-all", tourStep === 4 && "ring-4 ring-primary")}
+                  className={cn("text-center font-mono uppercase text-xl h-12 font-bold tracking-widest bg-background", tourStep === 4 && "ring-4 ring-primary")}
                   placeholder="XXXX-XXXX"
                   value={redeemCode}
                   onChange={(e) => setRedeemCode(e.target.value)}
@@ -884,12 +746,12 @@ export default function TopUpModal({
                 <Button
                   onClick={handleRedeemCode}
                   disabled={isRedeeming}
-                  className={cn("w-full h-14 font-bold text-lg shadow-lg transition-all", tourStep === 4 && redeemCode.toUpperCase() === "BISSMILAH" && "ring-4 ring-primary animate-pulse")}
+                  className={cn("w-full h-12 font-bold text-base transition-all", tourStep === 4 && redeemCode.toUpperCase() === "BISSMILAH" && "ring-4 ring-primary animate-pulse")}
                 >
                   {isRedeeming ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    "Apply to Balance"
+                    "Apply to balance"
                   )}
                 </Button>
               </div>
@@ -916,7 +778,7 @@ export default function TopUpModal({
               <h3 className="text-lg font-bold">Enter Code</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Type <strong>BISSMILAH</strong> in the box and hit Apply to get 2,700 coins instantly!
+              Type <strong>BISSMILAH</strong> in the box and hit Apply to get 2,700 credits instantly!
             </p>
           </div>
         )}
@@ -928,7 +790,7 @@ export default function TopUpModal({
               className="w-full h-12 font-bold"
               onClick={() => handleOpenChange(false)}
             >
-              Close Shop
+              Close
             </Button>
           </div>
         )}

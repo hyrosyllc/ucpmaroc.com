@@ -48,6 +48,8 @@ import {
   Video,
   PackageCheck,
   Bot,
+  AlertTriangle,
+  Receipt,
   MessageCircle,
 } from "lucide-react";
 
@@ -89,6 +91,8 @@ interface Actor {
   HeadshotURL?: string;
   is_p2p_enabled?: boolean;
   wallet_balance?: number;
+  is_suspended?: boolean;
+  suspended_reason?: string;
   country?: string;
   marketplace_status?: string;
   email?: string;
@@ -215,6 +219,12 @@ const NAV_GROUPS = [
         description: "Manage domains & profile",
       },
       {
+        to: "/dashboard/billing",
+        name: "Billing",
+        icon: Receipt,
+        description: "Credits, services & payment methods",
+      },
+      {
         to: "/dashboard/profile",
         name: "My Profile",
         icon: User,
@@ -317,7 +327,7 @@ const ActorDashboardLayout = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const isMessagesPage = location.pathname.includes("/dashboard/messages");
+  const isMessagesPage = location.pathname.includes("/dashboard/messages") || location.pathname.includes("/dashboard/store-inbox");
   const isShopActive =
     location.pathname.includes("/products") ||
     location.pathname.includes("/collections");
@@ -369,7 +379,7 @@ const ActorDashboardLayout = () => {
     const { data: actorProfile, error: actorError } = await supabase
       .from("actors")
       .select(
-        "id, ActorName, slug, HeadshotURL, is_p2p_enabled, wallet_balance, country, marketplace_status"
+        "id, ActorName, slug, HeadshotURL, is_p2p_enabled, wallet_balance, is_suspended, suspended_reason, country, marketplace_status"
       )
       .eq("user_id", user.id)
       .single();
@@ -404,6 +414,7 @@ const ActorDashboardLayout = () => {
           setActorData((prev) => ({
             ...prev,
             wallet_balance: payload.new.wallet_balance,
+            is_suspended: payload.new.is_suspended,
           }));
         }
       )
@@ -431,7 +442,7 @@ const ActorDashboardLayout = () => {
   const isApprovedMarketplace = actorData.marketplace_status === "approved";
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 dark:bg-zinc-950 text-foreground flex flex-col antialiased">
+    <div className="min-h-screen bg-background text-foreground flex flex-col antialiased">
       <SubscriptionProvider actorId={actorData.id}>
         {/* --- GLOBAL TOP-UP MODAL --- */}
         <TopUpModal
@@ -472,14 +483,28 @@ const ActorDashboardLayout = () => {
 
           <div className="flex items-center gap-2">
             {/* 🚀 THE WALLET WIDGET */}
-            <div className={cn("flex items-center bg-amber-500/10 border border-amber-500/20 rounded-full pr-1 pl-3 h-9 mr-2 transition-all", tourStep === 2 && "relative z-[10001] ring-4 ring-amber-500/50 bg-background shadow-2xl scale-105 pointer-events-auto")}>
-              <Coins size={14} className="text-amber-500 mr-2" />
-              <span className="font-black text-sm text-amber-600 dark:text-amber-400 mr-3">
+            <div
+              className={cn(
+                "flex items-center rounded-full pr-1 pl-3 h-9 mr-2 transition-all border",
+                (actorData.is_suspended || (actorData.wallet_balance ?? 0) < 0)
+                  ? "bg-destructive/10 border-destructive/30"
+                  : "bg-amber-500/10 border-amber-500/20",
+                tourStep === 2 && "relative z-[10001] ring-4 ring-amber-500/50 bg-background shadow-2xl scale-105 pointer-events-auto"
+              )}
+            >
+              <Coins size={14} className={cn("mr-2", (actorData.is_suspended || (actorData.wallet_balance ?? 0) < 0) ? "text-destructive" : "text-amber-500")} />
+              <span className={cn("font-black text-sm mr-3", (actorData.is_suspended || (actorData.wallet_balance ?? 0) < 0) ? "text-destructive" : "text-amber-600 dark:text-amber-400")}>
                 {actorData.wallet_balance?.toLocaleString() || 0}
               </span>
               <Button
                 size="icon"
-                className={cn("h-7 w-7 rounded-full bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition-all", tourStep === 2 && "animate-pulse")}
+                className={cn(
+                  "h-7 w-7 rounded-full text-white shadow-sm transition-all",
+                  (actorData.is_suspended || (actorData.wallet_balance ?? 0) < 0)
+                    ? "bg-destructive hover:bg-destructive/90"
+                    : "bg-amber-500 hover:bg-amber-600",
+                  tourStep === 2 && "animate-pulse"
+                )}
                 onClick={() => {
                   setIsTopUpOpen(true);
                   if (tourStep === 2) {
@@ -577,7 +602,8 @@ const ActorDashboardLayout = () => {
             onMouseLeave={() => setIsSidebarHovered(false)}
             className={cn(
               "hidden md:flex flex-col fixed left-0 h-[calc(100vh-3.5rem)] border-r border-border/40 bg-background/80 backdrop-blur-xl z-40 transition-all duration-300 ease-in-out",
-              isCollapsed ? "w-[72px]" : "w-[260px]"
+              isCollapsed ? "w-[72px]" : "w-[260px]",
+              isPinnedCollapsed && isSidebarHovered && "shadow-2xl"
             )}
           >
             <nav className="flex-1 overflow-y-auto py-6 space-y-6 custom-scrollbar overflow-x-hidden">
@@ -789,11 +815,22 @@ const ActorDashboardLayout = () => {
           {/* ========================================== */}
           <main
             className={cn(
-              "flex-1 min-w-0 min-h-[calc(100vh-3.5rem)] flex flex-col transition-all duration-300 ease-in-out bg-zinc-50/50 dark:bg-black",
-              isCollapsed ? "md:ml-[72px]" : "md:ml-[260px]",
+              "flex-1 min-w-0 min-h-[calc(100vh-3.5rem)] flex flex-col transition-all duration-300 ease-in-out bg-background",
+              isPinnedCollapsed ? "md:ml-[72px]" : "md:ml-[260px]",
               isMessagesPage ? "app-bottom-safe md:pb-0" : "app-bottom-safe pb-20 md:pb-8"
             )}
           >
+        {actorData.is_suspended && (
+          <div role="alert" className="m-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <AlertTriangle size={16} className="shrink-0" />
+              Account suspended: your credit balance is negative. Settle the outstanding amount to unlock your account.
+            </div>
+            <Button size="sm" variant="destructive" onClick={() => setIsTopUpOpen(true)} className="shrink-0">
+              Settle balance
+            </Button>
+          </div>
+        )}
         <Outlet context={{ actorData, role: "actor", selectedSiteId, setSelectedSiteId }} />
           </main>
         </div>

@@ -756,7 +756,21 @@ const PublicCheckoutPage = () => {
       try {
         const { data, error } = await supabase.functions.invoke(
           "create-payment-intent",
-          { body: { amount: Math.round(finalTotal * 100), portfolioId: portfolio.id } }
+          {
+            body: {
+              storeCheckout: {
+                portfolioId: portfolio.id,
+                items: items.map((item) => ({
+                  id: item.id,
+                  quantity: item.quantity,
+                  variant: item.variant || "default",
+                })),
+                couponCode: coupon?.code || null,
+                shippingRateId: selectedShippingRate?.id || null,
+                country: userCountry,
+              },
+            },
+          }
         );
         if (error) throw error;
         if (data.error) throw new Error(data.error);
@@ -773,7 +787,16 @@ const PublicCheckoutPage = () => {
     if (checkoutStep === 2 && finalTotal > 0 && !isSuccess) {
       initializeCheckout();
     }
-  }, [checkoutStep, finalTotal, portfolio.id, isSuccess]);
+  }, [
+    checkoutStep,
+    finalTotal,
+    portfolio.id,
+    isSuccess,
+    items,
+    coupon?.code,
+    selectedShippingRate?.id,
+    userCountry,
+  ]);
 
 
 

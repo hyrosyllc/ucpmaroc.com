@@ -9,7 +9,20 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") as string, {
 
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
+async function claimEvent(supabase: any, eventId: string, eventType: string) {
+  const { data, error } = await supabase.rpc("claim_processed_stripe_event", {
+    p_event_id: eventId,
+    p_event_type: eventType,
+  });
+  if (error) throw error;
+  const result = data?.[0];
+  if (result?.claimed) return true;
+  if (result?.event_status === "completed") return false;
+  throw new Error("This webhook event is already being processed; please retry.");
+}
+
 serve(async (request) => {
+  let claimedEventId: string | null = null;
   const signature = request.headers.get("Stripe-Signature");
   // Note: We use a distinct secret specifically for Connect events!
   const webhookSecret = Deno.env.get("STRIPE_CONNECT_WEBHOOK_SECRET");
@@ -34,62 +47,61 @@ serve(async (request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Idempotency: Stripe can redeliver the same event after a network retry.
-    // Record the event id first; if it already exists, this event was already handled.
-    const { error: dedupeError } = await supabase
-      .from("processed_stripe_events")
-      .insert({ event_id: event.id, event_type: event.type });
-    if (dedupeError) {
-      if (dedupeError.code === "23505") {
-        return new Response(JSON.stringify({ received: true, deduped: true }), { status: 200 });
-      }
-      throw dedupeError;
+    const eventId = `connect_${event.id}`;
+    if (!(await claimEvent(supabase, eventId, event.type))) {
+      return new Response(JSON.stringify({ received: true, deduped: true }), { status: 200 });
+    }
+    claimedEventId = eventId;
+
+    // This endpoint is only for connected-account events. Platform billing
+    // events belong to stripe-webhook and must never be processed here.
+    const connectedAccountId = (event as any).account as string | undefined;
+    if (!connectedAccountId) {
+      await supabase.rpc("complete_processed_stripe_event", { p_event_id: eventId });
+      return new Response(JSON.stringify({ received: true, ignored: "not a connected-account event" }), { status: 200 });
     }
 
     // We only care about successful Connect payments
     if (event.type === "payment_intent.succeeded") {
       const paymentIntent = event.data.object as any;
 
-      // This platform charges Platform Credit top-ups on the same Stripe account, so
-      // top-up payment intents can also arrive here — handle them and stop.
-      if (paymentIntent.metadata?.type === "top_up") {
-        const { error } = await supabase.rpc("process_stripe_topup", {
-          p_actor_id: paymentIntent.metadata.actor_id,
-          p_coins_amount: parseInt(paymentIntent.metadata.coins_amount),
-          p_amount_paid_cents: paymentIntent.amount,
-          p_stripe_payment_intent_id: paymentIntent.id,
-        });
-        if (error) throw error;
-        return new Response(JSON.stringify({ received: true }), { status: 200 });
+      if (paymentIntent.metadata?.connected_account_id && paymentIntent.metadata.connected_account_id !== connectedAccountId) {
+        throw new Error("Connected account does not match payment metadata.");
       }
 
-      // 1. Fetch the exact order to process items and customer info
-      const { data: order } = await supabase
+      const storeAttemptId = paymentIntent.metadata?.store_payment_attempt_id;
+      if (!storeAttemptId || paymentIntent.metadata?.store_checkout !== "true") {
+        await supabase.rpc("complete_processed_stripe_event", { p_event_id: eventId });
+        return new Response(
+          JSON.stringify({ received: true, ignored: "not a platform store checkout" }),
+          { status: 200 },
+        );
+      }
+
+      // Payment, order state, coupon redemption, and inventory move in one
+      // database transaction. A webhook retry cannot repeat fulfillment.
+      const { data: applied, error: fulfillmentError } = await supabase.rpc(
+        "complete_store_order_payment",
+        {
+          p_attempt_id: storeAttemptId,
+          p_stripe_payment_intent_id: paymentIntent.id,
+          p_connected_account_id: connectedAccountId,
+          p_amount_paid_cents: Number(paymentIntent.amount_received || paymentIntent.amount),
+          p_currency: paymentIntent.currency,
+        },
+      );
+      if (fulfillmentError) throw fulfillmentError;
+
+      const { data: order, error: orderError } = await supabase
         .from("pro_orders")
         .select("*")
         .eq("stripe_payment_intent_id", paymentIntent.id)
         .single();
+      if (orderError) throw orderError;
 
-      if (order && order.status === "pending") {
-        // 2. Mark the order as paid!
-        const { error } = await supabase
-          .from("pro_orders")
-          .update({ status: "paid" })
-          .eq("id", order.id);
-          
-        if (error) throw error;
-
-        // 3. Inventory Management: Deduct stock automatically
-        if (order.items && Array.isArray(order.items)) {
-          for (const item of order.items) {
-            await supabase.rpc("decrement_stock", {
-              p_product_id: item.id,
-              p_quantity: item.quantity,
-            });
-          }
-        }
-
-        // 4. Automated Email Receipts (via Resend API)
+      if (order && applied) {
+        // Email is intentionally outside the financial transaction. A receipt
+        // failure is logged but must not roll back a settled order.
         const resendApiKey = Deno.env.get("RESEND_API_KEY");
         // Intelligently parse the email out of the notes text
         const emailMatch = order.notes?.match(/(?:email|checkout_email|email address):\s*([^\n]+)/i);
@@ -175,19 +187,26 @@ serve(async (request) => {
             </div>
           `;
 
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${resendApiKey}`,
-            },
-            body: JSON.stringify({
-              from: "Store Updates <orders@resend.dev>", // Replace with your verified Resend domain later
-              to: customerEmail,
-              subject: `Receipt for Order #${order.id.split("-")[0].toUpperCase()}`,
-              html: emailHtml,
-            }),
-          });
+          try {
+            const receiptResponse = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${resendApiKey}`,
+              },
+              body: JSON.stringify({
+                from: "Store Updates <orders@resend.dev>", // Replace with your verified Resend domain later
+                to: customerEmail,
+                subject: `Receipt for Order #${order.id.split("-")[0].toUpperCase()}`,
+                html: emailHtml,
+              }),
+            });
+            if (!receiptResponse.ok) {
+              console.error("Store receipt delivery failed:", receiptResponse.status);
+            }
+          } catch (receiptError) {
+            console.error("Store receipt delivery failed:", receiptError);
+          }
         }
       }
     }
@@ -196,28 +215,38 @@ serve(async (request) => {
     // a Platform Credits top-up (reverse credits + suspend) or a store order (flag it).
     if (event.type === "charge.dispute.created") {
       const dispute = event.data.object as any;
-      const paymentIntent = await stripe.paymentIntents.retrieve(dispute.payment_intent as string);
+      const paymentIntent = await stripe.paymentIntents.retrieve(
+        dispute.payment_intent as string,
+        {},
+        { stripeAccount: connectedAccountId },
+      );
 
-      if (paymentIntent.metadata?.type === "top_up") {
-        const { error } = await supabase.rpc("handle_charge_dispute", {
-          p_actor_id: paymentIntent.metadata.actor_id,
-          p_credits_amount: parseInt(paymentIntent.metadata.coins_amount),
-          p_stripe_payment_intent_id: paymentIntent.id,
-          p_amount_cents: dispute.amount,
-          p_dispute_reason: `Stripe chargeback on payment ${paymentIntent.id}`,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("pro_orders")
-          .update({ status: "disputed" })
-          .eq("stripe_payment_intent_id", paymentIntent.id);
-        if (error) console.error("Failed to flag disputed order:", error.message);
-      }
+      const { error } = await supabase
+        .from("pro_orders")
+        .update({ status: "disputed" })
+        .eq("stripe_payment_intent_id", paymentIntent.id);
+      if (error) throw error;
+      const { error: attemptError } = await supabase
+        .from("store_payment_attempts")
+        .update({ status: "disputed", updated_at: new Date().toISOString() })
+        .eq("stripe_payment_intent_id", paymentIntent.id);
+      if (attemptError) throw attemptError;
     }
 
+    await supabase.rpc("complete_processed_stripe_event", { p_event_id: eventId });
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (err: any) {
+    if (claimedEventId) {
+      try {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+        await supabase.rpc("fail_processed_stripe_event", { p_event_id: claimedEventId });
+      } catch (failureError) {
+        console.error("Could not mark webhook event as failed:", failureError);
+      }
+    }
     console.error(`Connect Webhook Error: ${err.message}`);
     return new Response(`Connect Webhook Error: ${err.message}`, { status: 400 });
   }

@@ -96,9 +96,9 @@ export const PLAN_LIMITS: Record<
 // ============================================================================
 // BILLING / MONETIZATION CONFIG
 // ----------------------------------------------------------------------------
-// Single source of truth for every "sellable unit" on the platform (site plan
-// pricing, Platform Credit packs, and future usage credits), so pricing UI
-// never duplicates numbers across pages.
+// Single UI catalog for every sellable unit, so pricing pages do not drift.
+// This is display data only: the Edge Function/SQL billing catalogs independently
+// validate every amount and entitlement and are authoritative at purchase time.
 //
 // Compliance: "Platform Credits" are a specific digital good (not a generic
 // stored-value balance), so revenue is recognized at purchase rather than
@@ -113,9 +113,8 @@ export const PLAN_LIMITS: Record<
 export type BillingDurationMonths = 1 | 3 | 6 | 12;
 
 export interface SitePlanPricing {
-  stripePriceId: string;
-  /** USD cost per month, billed for the full duration up front. */
-  monthlyUsd: number;
+  /** Total USD charged once per recurring billing period. */
+  totalUsd: number;
   /** Equivalent cost in Platform Credits ($0.02 per credit, see CREDIT_UNIT_USD). */
   creditCost: number;
   /** Marketing label, e.g. "17% OFF", shown next to the price. */
@@ -141,10 +140,10 @@ export const SITE_PLANS: SitePlan[] = [
     description: "Perfect for personal portfolios.",
     features: ["100MB Storage", "Standard Support", "UCP Branding"],
     pricing: {
-      1: { stripePriceId: "price_starter_1m", monthlyUsd: 3.0, creditCost: 150, label: null },
-      3: { stripePriceId: "price_starter_3m", monthlyUsd: 8.55, creditCost: 425, label: "5% OFF" },
-      6: { stripePriceId: "price_starter_6m", monthlyUsd: 16.2, creditCost: 800, label: "10% OFF" },
-      12: { stripePriceId: "price_STARTER_YEARLY", monthlyUsd: 30.0, creditCost: 1500, label: "17% OFF" },
+      1: { totalUsd: 3.0, creditCost: 150, label: null },
+      3: { totalUsd: 8.55, creditCost: 425, label: "5% OFF" },
+      6: { totalUsd: 16.2, creditCost: 800, label: "10% OFF" },
+      12: { totalUsd: 30.0, creditCost: 1500, label: "17% OFF" },
     },
   },
   {
@@ -155,10 +154,10 @@ export const SITE_PLANS: SitePlan[] = [
     description: "For selling digital products.",
     features: ["500MB Storage", "Custom Domain", "Online Shop", "Leads Dashboard"],
     pricing: {
-      1: { stripePriceId: "price_ECOMMERCE_1M", monthlyUsd: 9.0, creditCost: 450, label: null },
-      3: { stripePriceId: "price_ECOMMERCE_3M", monthlyUsd: 25.0, creditCost: 1250, label: "5% OFF" },
-      6: { stripePriceId: "price_ECOMMERCE_6M", monthlyUsd: 48.0, creditCost: 2400, label: "11% OFF" },
-      12: { stripePriceId: "price_ECOMMERCE_1Y", monthlyUsd: 90.0, creditCost: 4500, label: "17% OFF" },
+      1: { totalUsd: 9.0, creditCost: 450, label: null },
+      3: { totalUsd: 25.0, creditCost: 1250, label: "5% OFF" },
+      6: { totalUsd: 48.0, creditCost: 2400, label: "11% OFF" },
+      12: { totalUsd: 90.0, creditCost: 4500, label: "17% OFF" },
     },
   },
   {
@@ -168,10 +167,10 @@ export const SITE_PLANS: SitePlan[] = [
     description: "Ultimate power and storage.",
     features: ["2GB Storage", "Priority Support", "Bookings / Appointments", "White Label"],
     pricing: {
-      1: { stripePriceId: "price_PRO_1M", monthlyUsd: 19.0, creditCost: 950, label: null },
-      3: { stripePriceId: "price_PRO_3M", monthlyUsd: 54.0, creditCost: 2700, label: "5% OFF" },
-      6: { stripePriceId: "price_PRO_6M", monthlyUsd: 102.0, creditCost: 5100, label: "10% OFF" },
-      12: { stripePriceId: "price_PRO_1Y", monthlyUsd: 190.0, creditCost: 9500, label: "25% OFF" },
+      1: { totalUsd: 19.0, creditCost: 950, label: null },
+      3: { totalUsd: 54.0, creditCost: 2700, label: "5% OFF" },
+      6: { totalUsd: 102.0, creditCost: 5100, label: "10% OFF" },
+      12: { totalUsd: 190.0, creditCost: 9500, label: "25% OFF" },
     },
   },
 ];

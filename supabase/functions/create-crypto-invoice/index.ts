@@ -1,114 +1,97 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { requireActorForRequest } from "../_shared/actorAuth.ts";
+import { asUuid, resolveCreditPurchase } from "../_shared/billingConfig.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+  let attemptId: string | null = null;
+  let invoiceCreated = false;
+  let invoiceRequestStarted = false;
 
   try {
-    const { amount, actor_id, coins_amount } = await req.json();
+    const { actorId, packId, credits } = await req.json();
+    const trustedActorId = asUuid(actorId, "actorId");
+    await requireActorForRequest(req, supabase, trustedActorId);
+    const purchase = resolveCreditPurchase(packId, credits);
 
-    if (!amount || !actor_id || !coins_amount) {
-      throw new Error("Missing required parameters.");
-    }
+    const nowPaymentsApiKey = Deno.env.get("NOWPAYMENTS_API_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const appUrl = Deno.env.get("APP_URL")?.replace(/\/$/, "");
+    if (!nowPaymentsApiKey) throw new Error("Missing NOWPAYMENTS_API_KEY");
+    if (!supabaseUrl) throw new Error("Missing SUPABASE_URL");
+    if (!appUrl) throw new Error("Missing APP_URL in Supabase Edge Function secrets.");
 
-    // Determine which provider you are using from env variables
-    const PROVIDER = Deno.env.get("CRYPTO_PROVIDER") || "nowpayments"; // 'nowpayments' or 'btcpay'
-
-    let invoiceUrl = "";
-
-    // ==========================================
-    // 🟢 NOWPAYMENTS INTEGRATION
-    // ==========================================
-    if (PROVIDER === "nowpayments") {
-      const NOWPAYMENTS_API_KEY = Deno.env.get("NOWPAYMENTS_API_KEY");
-      if (!NOWPAYMENTS_API_KEY) throw new Error("Missing NOWPAYMENTS_API_KEY");
-
-      const response = await fetch("https://api.nowpayments.io/v1/invoice", {
-        method: "POST",
-        headers: {
-          "x-api-key": NOWPAYMENTS_API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          price_amount: amount,
-          price_currency: "usd",
-          order_id: `TOPUP_${actor_id}_${Date.now()}`,
-          order_description: `${coins_amount} UCP Coins`,
-          // This is where NOWPayments will ping your webhook later!
-          ipn_callback_url:
-            "https://your-supabase-url.supabase.co/functions/v1/crypto-webhook",
-          success_url:
-            "https://yourdomain.com/dashboard/settings?tab=billing&topup=success",
-          cancel_url:
-            "https://yourdomain.com/dashboard/settings?tab=billing&topup=canceled",
-        }),
+    attemptId = crypto.randomUUID();
+    const { error: attemptError } = await supabase
+      .from("billing_payment_attempts")
+      .insert({
+        id: attemptId,
+        actor_id: trustedActorId,
+        provider: "nowpayments",
+        purpose: "credit_topup",
+        status: "pending",
+        currency: "usd",
+        expected_amount_cents: purchase.amountCents,
+        credits_amount: purchase.credits,
+        metadata: { pack_id: purchase.packId },
       });
+    if (attemptError) throw attemptError;
 
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.message || "NOWPayments API Error");
+    invoiceRequestStarted = true;
+    const response = await fetch("https://api.nowpayments.io/v1/invoice", {
+      method: "POST",
+      headers: {
+        "x-api-key": nowPaymentsApiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        price_amount: purchase.amountCents / 100,
+        price_currency: "usd",
+        order_id: `CREDIT_TOPUP_${attemptId}`,
+        order_description: `${purchase.credits} Platform Credits`,
+        ipn_callback_url: `${supabaseUrl}/functions/v1/crypto-webhook`,
+        success_url: `${appUrl}/dashboard/billing?topup=success`,
+        cancel_url: `${appUrl}/dashboard/billing?topup=canceled`,
+      }),
+    });
 
-      invoiceUrl = data.invoice_url;
-    }
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "NOWPayments API error");
+    if (!data.invoice_url || !data.id) throw new Error("NOWPayments returned an incomplete invoice.");
+    invoiceCreated = true;
 
-    // ==========================================
-    // 🟠 BTCPAY SERVER INTEGRATION
-    // ==========================================
-    else if (PROVIDER === "btcpay") {
-      const BTCPAY_URL = Deno.env.get("BTCPAY_URL"); // e.g., https://btcpay.yourdomain.com
-      const BTCPAY_STORE_ID = Deno.env.get("BTCPAY_STORE_ID");
-      const BTCPAY_API_KEY = Deno.env.get("BTCPAY_API_KEY");
+    const { error: updateError } = await supabase
+      .from("billing_payment_attempts")
+      .update({
+        provider_reference: String(data.id),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", attemptId);
+    if (updateError) throw updateError;
 
-      if (!BTCPAY_URL || !BTCPAY_STORE_ID || !BTCPAY_API_KEY) {
-        throw new Error("Missing BTCPay environment variables");
-      }
-
-      const response = await fetch(
-        `${BTCPAY_URL}/api/v1/stores/${BTCPAY_STORE_ID}/invoices`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `token ${BTCPAY_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount: amount,
-            currency: "USD",
-            metadata: {
-              orderId: `TOPUP_${actor_id}_${Date.now()}`,
-              itemDesc: `${coins_amount} UCP Coins`,
-              actor_id: actor_id,
-              coins_amount: coins_amount,
-            },
-            checkout: {
-              redirectURL:
-                "https://yourdomain.com/dashboard/settings?tab=billing&topup=success",
-            },
-          }),
-        }
-      );
-
-      const data = await response.json();
-      if (!response.ok) throw new Error("BTCPay Server API Error");
-
-      invoiceUrl = data.checkoutLink;
-    } else {
-      throw new Error("Invalid CRYPTO_PROVIDER configured.");
-    }
-
-    // Return the generated invoice URL back to the frontend
-    return new Response(JSON.stringify({ invoiceUrl }), {
+    return new Response(JSON.stringify({ invoiceUrl: data.invoice_url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Crypto Invoice Error:", error);
+    if (attemptId && !invoiceCreated && !invoiceRequestStarted) {
+      await supabase.from("billing_payment_attempts").update({
+        status: "failed",
+        failure_code: "invoice_creation_failed",
+        updated_at: new Date().toISOString(),
+      }).eq("id", attemptId).eq("status", "pending");
+    }
+    console.error("Crypto invoice error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

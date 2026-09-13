@@ -70,122 +70,26 @@ import {
 import { useSubscription } from "@/context/SubscriptionContext";
 import { TopUpModal } from "@/features/portfolio-builder";
 import { CreateSiteModal } from "@/features/ecommerce/components/CreateSiteModal";
-type PlanDuration = 1 | 3 | 6 | 12;
+import {
+  BillingDurationMonths as PlanDuration,
+  SITE_PLANS,
+  SITE_SLOT_COST_CREDITS,
+} from "@/config/plans";
 
-const SLOT_COST = 500;
-
-const PLANS = [
-  {
-    id: "starter",
-    tier: 1,
-    name: "Starter",
-    description: "Perfect for personal portfolios.",
-    features: ["100MB Storage", "Standard Support", "UCP Branding"],
-    pricing: {
-      1: {
-        stripePriceId: "price_starter_1m",
-        stripeCost: 3.0,
-        coinCost: 150,
-        label: null,
+const SLOT_COST = SITE_SLOT_COST_CREDITS;
+const PLANS = SITE_PLANS.map((plan) => ({
+  ...plan,
+  pricing: Object.fromEntries(
+    Object.entries(plan.pricing).map(([duration, price]) => [
+      duration,
+      {
+        stripeCost: price.totalUsd,
+        coinCost: price.creditCost,
+        label: price.label,
       },
-      3: {
-        stripePriceId: "price_starter_3m",
-        stripeCost: 8.55,
-        coinCost: 425,
-        label: "5% OFF",
-      },
-      6: {
-        stripePriceId: "price_starter_6m",
-        stripeCost: 16.2,
-        coinCost: 800,
-        label: "10% OFF",
-      },
-      12: {
-        stripePriceId: "price_STARTER_YEARLY",
-        stripeCost: 30.0,
-        coinCost: 1500,
-        label: "17% OFF",
-      },
-    },
-  },
-  {
-    id: "ecommerce",
-    tier: 2,
-    name: "eCommerce",
-    popular: true,
-    description: "For selling digital products.",
-    features: [
-      "500MB Storage",
-      "Custom Domain",
-      "Online Shop",
-      "Leads Dashboard",
-    ],
-    pricing: {
-      1: {
-        stripePriceId: "price_ECOMMERCE_1M",
-        stripeCost: 9.0,
-        coinCost: 450,
-        label: null,
-      },
-      3: {
-        stripePriceId: "price_ECOMMERCE_3M",
-        stripeCost: 25.0,
-        coinCost: 1250,
-        label: "5% OFF",
-      },
-      6: {
-        stripePriceId: "price_ECOMMERCE_6M",
-        stripeCost: 48.0,
-        coinCost: 2400,
-        label: "11% OFF",
-      },
-      12: {
-        stripePriceId: "price_ECOMMERCE_1Y",
-        stripeCost: 90.0,
-        coinCost: 4500,
-        label: "17% OFF",
-      },
-    },
-  },
-  {
-    id: "pro",
-    tier: 3,
-    name: "Pro",
-    description: "Ultimate power and storage.",
-    features: [
-      "2GB Storage",
-      "Priority Support",
-      "Bookings / Appointments",
-      "White Label",
-    ],
-    pricing: {
-      1: {
-        stripePriceId: "price_PRO_1M",
-        stripeCost: 19.0,
-        coinCost: 950,
-        label: null,
-      },
-      3: {
-        stripePriceId: "price_PRO_3M",
-        stripeCost: 54.0,
-        coinCost: 2700,
-        label: "5% OFF",
-      },
-      6: {
-        stripePriceId: "price_PRO_6M",
-        stripeCost: 102.0,
-        coinCost: 5100,
-        label: "10% OFF",
-      },
-      12: {
-        stripePriceId: "price_PRO_1Y",
-        stripeCost: 190.0,
-        coinCost: 9500,
-        label: "25% OFF",
-      },
-    },
-  },
-];
+    ]),
+  ) as Record<PlanDuration, { stripeCost: number; coinCost: number; label: string | null }>,
+}));
 
 
 const SettingsPage = () => {
@@ -397,6 +301,21 @@ const SettingsPage = () => {
     }
 
     const currentSub = subscriptions[selectedPortfolioId];
+    const currentSubIsActive =
+      currentSub.status === "active" &&
+      new Date(currentSub.current_period_end) > new Date();
+
+    if (!currentSubIsActive) {
+      return {
+        cost: targetPlan.pricing[billingDuration].coinCost,
+        originalPrice: targetPlan.pricing[billingDuration].coinCost,
+        isUpgrade: true,
+        isDowngrade: false,
+        unusedValue: 0,
+        activeDuration: 0,
+      };
+    }
+
     if (currentSub.payment_method === "stripe")
       return {
         cost: 0,
@@ -529,21 +448,22 @@ const SettingsPage = () => {
       async () => {
         setConfirmDialog(null);
         setProcessingPlan("canceling");
-        const sub = subscriptions[selectedPortfolioId];
-        const { error } = await supabase
-          .from("subscriptions")
-          .update({
-            cancel_at_period_end: false,
-            metadata: { ...sub?.metadata, next_plan_id: null },
-          })
-          .eq("portfolio_id", selectedPortfolioId);
+        const { data, error } = await supabase.rpc(
+          "cancel_credit_subscription_downgrade",
+          {
+            p_actor_id: actorData.id,
+            p_portfolio_id: selectedPortfolioId,
+          }
+        );
 
-        if (error) notify("error", "Action Failed", error.message);
+        if (error || (data && !data.success)) {
+          notify("error", "Action Failed", data?.message || error?.message);
+        }
         else {
           notify(
             "success",
             "Downgrade Cancelled",
-            "Your current plan will automatically renew at the end of the cycle."
+            "Your current plan remains active through its paid period."
           );
           fetchData();
           refreshSubscription();
@@ -567,29 +487,33 @@ const SettingsPage = () => {
         `Downgrade to ${plan.name}`,
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Changes will take effect at the end of your current billing cycle (
+            Your current plan remains active until the end of its paid period (
             <strong>{endDate}</strong>).
           </p>
           <p>
-            You will retain your current features until then. No coins will be
-            charged today.
+            This saves your preference; no credits are charged today. You can
+            activate the lower plan after that date.
           </p>
         </div>,
         async () => {
           setProcessingPlan(plan.id);
-          const { error } = await supabase
-            .from("subscriptions")
-            .update({
-              cancel_at_period_end: true,
-              metadata: { ...sub?.metadata, next_plan_id: plan.id },
-            })
-            .eq("portfolio_id", selectedPortfolioId);
-          if (error) notify("error", "Downgrade Failed", error.message);
+          const { data, error } = await supabase.rpc(
+            "schedule_credit_subscription_downgrade",
+            {
+              p_actor_id: actorData.id,
+              p_portfolio_id: selectedPortfolioId,
+              p_next_plan_id: plan.id,
+              p_next_duration_months: billingDuration,
+            }
+          );
+          if (error || (data && !data.success)) {
+            notify("error", "Downgrade Failed", data?.message || error?.message);
+          }
           else {
             notify(
               "success",
-              "Downgrade Scheduled",
-              `Your plan will switch to ${plan.name} after ${endDate}`
+              "Downgrade preference saved",
+              `Your current plan stays active through ${endDate}. You can activate ${plan.name} afterward.`
             );
             fetchData();
             refreshSubscription();
@@ -741,33 +665,16 @@ const SettingsPage = () => {
 
   const handleDirectStripe = async (plan: (typeof PLANS)[0]) => {
     if (!actorData?.id || !selectedPortfolioId) return;
-    const details = plan.pricing[billingDuration as PlanDuration];
-    if (!details.stripePriceId)
-      return notify(
-        "error",
-        "Unavailable",
-        "This plan duration is not available via card yet."
-      );
 
     setIsRedirecting(true);
     const { data, error } = await supabase.functions.invoke(
       "create-checkout-session",
       {
         body: {
-          mode: "subscription",
-          priceId: details.stripePriceId,
-          metadata: {
-            type: "subscription",
-            actor_id: actorData.id,
-            portfolio_id: selectedPortfolioId,
-            plan_id: plan.id,
-            interval: billingDuration === 12 ? "yearly" : "monthly",
-            duration_months: billingDuration,
-          },
-          successUrl:
-            window.location.origin + "/dashboard/settings?success=true",
-          cancelUrl:
-            window.location.origin + "/dashboard/settings?canceled=true",
+          actorId: actorData.id,
+          portfolioId: selectedPortfolioId,
+          planId: plan.id,
+          durationMonths: billingDuration,
         },
       }
     );
@@ -784,6 +691,7 @@ const SettingsPage = () => {
       "create-portal-session",
       {
         body: {
+          actorId: actorData.id,
           returnUrl: window.location.origin + "/dashboard/settings?tab=billing",
         },
       }
@@ -792,6 +700,29 @@ const SettingsPage = () => {
       notify("error", "Portal Error", "Could not load billing portal.");
       setIsRedirecting(false);
     } else window.location.href = data.url;
+  };
+
+  const handleSwitchStripeToCredits = async () => {
+    if (!selectedPortfolioId || !actorData?.id) return;
+    setIsRedirecting(true);
+    const { error } = await supabase.functions.invoke("stripe-billing", {
+      body: {
+        action: "cancel_subscription",
+        actorId: actorData.id,
+        portfolioId: selectedPortfolioId,
+      },
+    });
+    if (error) {
+      notify("error", "Could not switch payment method", error.message);
+    } else {
+      notify(
+        "success",
+        "Stripe renewal cancelled",
+        "Your site remains active until the current period ends. You can then renew it with Platform Credits."
+      );
+      await fetchData();
+    }
+    setIsRedirecting(false);
   };
 
   const openDeleteDialog = (portfolioId: string) => {
@@ -1344,7 +1275,9 @@ const SettingsPage = () => {
                 const isCurrentPlanId = sub?.plan_id === plan.id;
                 const isExactlyCurrent =
                   isCurrentPlanId &&
-                  billingDuration === proration.activeDuration;
+                  billingDuration === proration.activeDuration &&
+                  sub?.status === "active" &&
+                  new Date(sub.current_period_end) > new Date();
 
                 // 🚀 NEW: Robust State Detection for Down/Up-grades
                 const isDowngradeScheduledToThis =
@@ -1377,7 +1310,9 @@ const SettingsPage = () => {
                       <div className="flex items-baseline gap-2 mt-2">
                         <span className="text-2xl font-bold text-foreground">
                           ${details.stripeCost}
-                          <span className="text-sm text-muted-foreground font-medium">/mo</span>
+                          <span className="text-sm text-muted-foreground font-medium">
+                            /{billingDuration === 1 ? "month" : `${billingDuration} months`}
+                          </span>
                         </span>
                         {details.label && (
                           <Badge variant="outline" className="text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
@@ -1389,7 +1324,7 @@ const SettingsPage = () => {
                     </CardHeader>
                     <CardContent className="flex-grow p-5 pt-0 space-y-4">
                       <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-                        <span className="text-xs font-medium text-muted-foreground">Or pay with coins</span>
+                        <span className="text-xs font-medium text-muted-foreground">Or pay with Platform Credits</span>
                         <span className="flex items-center gap-1.5 font-bold text-sm text-foreground">
                           <Coins size={14} className="text-amber-500" />
                           {proration.isUpgrade && proration.unusedValue > 0
@@ -1417,13 +1352,29 @@ const SettingsPage = () => {
                     {/* 🚀 THE UPGRADED CARD FOOTER LOGIC */}
                     <CardFooter className="p-5 pt-0 flex flex-col gap-3">
                       {isStripe ? (
-                        <Button
-                          variant="secondary"
-                          className="w-full"
-                          onClick={handleManageStripeSub}
-                        >
-                          Manage in Stripe
-                        </Button>
+                        <div className="flex flex-col gap-2 w-full">
+                          <Button
+                            variant="secondary"
+                            className="w-full"
+                            onClick={handleManageStripeSub}
+                          >
+                            Manage in Stripe
+                          </Button>
+                          {sub?.cancel_at_period_end ? (
+                            <p className="text-center text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-2">
+                              Ends on {new Date(sub.current_period_end).toLocaleDateString()}. Renew with Platform Credits after it ends.
+                            </p>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              className="w-full text-xs"
+                              onClick={handleSwitchStripeToCredits}
+                              disabled={isRedirecting}
+                            >
+                              Switch renewal to Platform Credits
+                            </Button>
+                          )}
+                        </div>
                       ) : isDowngradeScheduledToThis ? (
                         <div className="flex flex-col gap-2 w-full">
                           <div className="text-xs font-bold text-center text-amber-600 bg-amber-50 py-2 rounded-lg border border-amber-200">
@@ -1465,7 +1416,7 @@ const SettingsPage = () => {
                             ) : proration.isDowngrade ? (
                               "Schedule Downgrade"
                             ) : (
-                              `Upgrade with Coins`
+                              `Upgrade with Credits`
                             )}
                           </Button>
                           {!proration.isDowngrade && (
@@ -1474,7 +1425,7 @@ const SettingsPage = () => {
                               className="w-full h-8 text-xs"
                               onClick={() => handleDirectStripe(plan)}
                             >
-                              Pay with Card
+                              Pay with Card / Stripe
                             </Button>
                           )}
                         </>

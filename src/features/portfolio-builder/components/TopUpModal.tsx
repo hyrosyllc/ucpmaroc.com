@@ -86,8 +86,8 @@ const EmbeddedStripeForm = ({ pack, onComplete, notify }: any) => {
     if (paymentIntent && paymentIntent.status === "succeeded") {
       notify(
         "success",
-        "Payment Successful!",
-        `Added ${pack.credits} credits to your wallet.`
+        "Payment received",
+        `${pack.credits} credits will appear as soon as the signed payment notification is processed.`
       );
       onComplete();
     }
@@ -153,6 +153,7 @@ export default function TopUpModal({
     "card" | "crypto" | "bank"
   >("card");
   const [isGeneratingCrypto, setIsGeneratingCrypto] = useState(false);
+  const [isGeneratingBankRequest, setIsGeneratingBankRequest] = useState(false);
   const [cryptoInvoiceUrl, setCryptoInvoiceUrl] = useState<string | null>(null); // 🚀 ADD THIS LINE
   // Detect Dark Mode for Stripe Elements
   useEffect(() => {
@@ -180,12 +181,10 @@ export default function TopUpModal({
         "create-payment-intent",
         {
           body: {
-            amount: pack.costUsd,
-            currency: "usd",
-            metadata: {
-              type: "top_up",
-              actor_id: actorData.id,
-              coins_amount: pack.credits,
+            topUp: {
+              actorId: actorData.id,
+              packId: pack.id,
+              credits: pack.credits,
             },
           },
         }
@@ -222,20 +221,42 @@ export default function TopUpModal({
     handleSelectPack(customPack);
   };
 
-  const handleBankTransfer = () => {
+  const handleBankTransfer = async () => {
     if (!actorData?.ActorName || !selectedPack) return;
-    const userEmail = profile?.email || actorData.email || "No Email";
-    const message = `Hello, I would like to purchase the "${
-      selectedPack.name
-    }" (${selectedPack.credits} credits) for $${selectedPack.costUsd.toFixed(
-      2
-    )} via Wise / Local Bank Transfer.\n\nMy Details:\nName: ${
-      actorData.ActorName
-    }\nEmail: ${userEmail}\nWorkspace ID: ${
-      actorData.id
-    }\n\nPlease provide the transfer details so I can complete my top-up.`;
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/212695121176?text=${encodedMessage}`, "_blank");
+    const popup = window.open("", "_blank");
+    setIsGeneratingBankRequest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "create-bank-transfer-request",
+        {
+          body: {
+            actorId: actorData.id,
+            packId: selectedPack.id,
+            credits: selectedPack.credits,
+          },
+        }
+      );
+      if (error || !data?.reference) {
+        throw error || new Error("Could not create transfer reference.");
+      }
+
+      const userEmail = profile?.email || actorData.email || "No Email";
+      const message = `Hello, I would like to purchase ${data.credits} Platform Credits for $${Number(
+        data.amountUsd
+      ).toFixed(2)} via Wise / Local Bank Transfer.\n\nBilling reference: ${
+        data.reference
+      }\nName: ${actorData.ActorName}\nEmail: ${userEmail}\nWorkspace ID: ${
+        actorData.id
+      }\n\nPlease provide the transfer details so I can complete my top-up.`;
+      const url = `https://wa.me/212695121176?text=${encodeURIComponent(message)}`;
+      if (popup) popup.location.href = url;
+      else window.location.href = url;
+    } catch (error: any) {
+      popup?.close();
+      notify("error", "Could not start transfer", error?.message);
+    } finally {
+      setIsGeneratingBankRequest(false);
+    }
   };
 
   const handleGenerateCryptoInvoice = async () => {
@@ -247,9 +268,9 @@ export default function TopUpModal({
         "create-crypto-invoice",
         {
           body: {
-            amount: selectedPack.costUsd,
-            coins_amount: selectedPack.credits,
-            actor_id: actorData.id,
+            actorId: actorData.id,
+            packId: selectedPack.id,
+            credits: selectedPack.credits,
           },
         }
       );
@@ -257,17 +278,10 @@ export default function TopUpModal({
       if (error) throw error;
 
       if (data?.invoiceUrl) {
-        // 1. Mercilessly force HTTPS
         let finalUrl = data.invoiceUrl;
         if (finalUrl.includes("http://")) {
           finalUrl = finalUrl.replace("http://", "https://");
         }
-
-        // 2. Log it to prove it worked!
-        console.log("🔗 Original API URL:", data.invoiceUrl);
-        console.log("🔒 Secured iframe URL:", finalUrl);
-
-        // 3. Set the state
         setCryptoInvoiceUrl(finalUrl);
       } else {
         throw new Error("Failed to generate invoice URL.");
@@ -556,11 +570,13 @@ export default function TopUpModal({
                       <Button
                         className="w-full h-12 font-bold text-base bg-[#25D366] hover:bg-[#20bd5a] text-white shadow-sm transition-transform active:scale-[0.98]"
                         onClick={handleBankTransfer}
+                        disabled={isGeneratingBankRequest}
                       >
-                        <MessageCircle
-                          size={18}
-                          className="mr-2 fill-current"
-                        />{" "}
+                        {isGeneratingBankRequest ? (
+                          <Loader2 className="animate-spin mr-2" size={18} />
+                        ) : (
+                          <MessageCircle size={18} className="mr-2 fill-current" />
+                        )}
                         Continue on WhatsApp
                       </Button>
                     </TabsContent>

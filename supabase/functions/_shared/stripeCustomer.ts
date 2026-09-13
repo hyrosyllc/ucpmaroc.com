@@ -21,13 +21,28 @@ export async function getOrCreateStripeCustomer(
     name: actor?.ActorName ?? undefined,
     email: actor?.ActorEmail ?? undefined,
     metadata: { actor_id: actorId },
+  }, {
+    idempotencyKey: `platform-customer-${actorId}`,
   });
 
-  const { error: updateError } = await supabase
+  const { data: updatedActor, error: updateError } = await supabase
     .from("actors")
     .update({ stripe_customer_id: customer.id })
-    .eq("id", actorId);
+    .eq("id", actorId)
+    .is("stripe_customer_id", null)
+    .select("stripe_customer_id")
+    .maybeSingle();
   if (updateError) throw updateError;
 
-  return customer.id;
+  if (updatedActor?.stripe_customer_id) return updatedActor.stripe_customer_id;
+
+  const { data: concurrentActor, error: concurrentError } = await supabase
+    .from("actors")
+    .select("stripe_customer_id")
+    .eq("id", actorId)
+    .single();
+  if (concurrentError || !concurrentActor?.stripe_customer_id) {
+    throw concurrentError ?? new Error("Could not persist Stripe customer.");
+  }
+  return concurrentActor.stripe_customer_id;
 }

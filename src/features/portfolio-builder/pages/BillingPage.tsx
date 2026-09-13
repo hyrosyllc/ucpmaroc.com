@@ -125,12 +125,14 @@ export default function BillingPage() {
   const [portfolios, setPortfolios] = useState<any[]>([]);
   const [subscriptions, setSubscriptions] = useState<Record<string, any>>({});
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [paymentAttempts, setPaymentAttempts] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(true);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [isAddCardOpen, setIsAddCardOpen] = useState(false);
   const [cardSetupSecret, setCardSetupSecret] = useState<string | null>(null);
   const [busyMethodId, setBusyMethodId] = useState<string | null>(null);
+  const [busySubscriptionId, setBusySubscriptionId] = useState<string | null>(null);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const notify = (type: "success" | "error" | "info", title: string, message?: string) => {
@@ -174,6 +176,14 @@ export default function BillingPage() {
       .order("created_at", { ascending: false })
       .limit(50);
     if (txs) setTransactions(txs);
+
+    const { data: attempts } = await supabase
+      .from("billing_payment_attempts")
+      .select("id, provider, purpose, status, expected_amount_cents, currency, credits_amount, plan_id, provider_reference, created_at")
+      .eq("actor_id", actorData.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    if (attempts) setPaymentAttempts(attempts);
 
     setLoading(false);
   }, [actorData?.id]);
@@ -234,6 +244,34 @@ export default function BillingPage() {
       fetchPaymentMethods();
     }
     setBusyMethodId(null);
+  };
+
+  const handleSubscriptionRenewal = async (subscription: any) => {
+    if (!subscription?.portfolio_id) return;
+    setBusySubscriptionId(subscription.portfolio_id);
+    const action = subscription.cancel_at_period_end
+      ? "resume_subscription"
+      : "cancel_subscription";
+    const { error } = await supabase.functions.invoke("stripe-billing", {
+      body: {
+        action,
+        actorId: actorData.id,
+        portfolioId: subscription.portfolio_id,
+      },
+    });
+    if (error) {
+      notify("error", "Subscription update failed", error.message);
+    } else {
+      notify(
+        "success",
+        action === "cancel_subscription" ? "Renewal cancelled" : "Renewal resumed",
+        action === "cancel_subscription"
+          ? "Your website stays active until the current period ends. You can then continue with Platform Credits."
+          : "Your Stripe subscription will renew normally."
+      );
+      fetchBillingData();
+    }
+    setBusySubscriptionId(null);
   };
 
   if (loading)
@@ -373,6 +411,40 @@ export default function BillingPage() {
                 )}
               </CardContent>
             </Card>
+            {paymentAttempts.length > 0 && (
+              <Card className="rounded-xl shadow-sm border-border/60">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Payment status</CardTitle>
+                  <CardDescription>Card, crypto, and bank-transfer attempts awaiting or completing reconciliation.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y">
+                    {paymentAttempts.slice(0, 5).map((attempt) => (
+                      <div key={attempt.id} className="flex items-center justify-between gap-3 p-4">
+                        <div>
+                          <div className="text-sm font-medium capitalize">
+                            {attempt.purpose.replace("_", " ")} · {attempt.provider.replace("_", " ")}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {attempt.provider_reference ? `Reference ${attempt.provider_reference} · ` : ""}
+                            {new Date(attempt.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant="outline" className="text-[10px] capitalize">{attempt.status}</Badge>
+                          <div className="text-xs font-semibold mt-1">
+                            {(attempt.expected_amount_cents / 100).toLocaleString(undefined, {
+                              style: "currency",
+                              currency: attempt.currency.toUpperCase(),
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* --- ACTIVE SERVICES --- */}
@@ -418,9 +490,23 @@ export default function BillingPage() {
                               {sub?.payment_method || "—"}
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button size="sm" variant="outline" asChild>
-                                <a href={`/dashboard/settings?tab=websites`}>Manage</a>
-                              </Button>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" asChild>
+                                  <a href={`/dashboard/settings?tab=websites`}>Manage</a>
+                                </Button>
+                                {isPro && sub?.payment_method === "stripe" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={busySubscriptionId === sub.portfolio_id}
+                                    onClick={() => handleSubscriptionRenewal(sub)}
+                                  >
+                                    {busySubscriptionId === sub.portfolio_id
+                                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                                      : sub.cancel_at_period_end ? "Resume" : "Cancel renewal"}
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );

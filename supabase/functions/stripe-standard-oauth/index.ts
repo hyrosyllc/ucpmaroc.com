@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { requireActorForRequest } from "../_shared/actorAuth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,6 +44,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+    await requireActorForRequest(req, supabaseClient, actorId);
 
     if (portfolioId === "global") {
       // Save as Global Account
@@ -55,6 +57,14 @@ serve(async (req) => {
         .eq("id", actorId);
     } else {
       // Save as Site Override
+      const { data: portfolio, error: portfolioError } = await supabaseClient
+        .from("portfolios")
+        .select("id")
+        .eq("id", portfolioId)
+        .eq("actor_id", actorId)
+        .maybeSingle();
+      if (portfolioError || !portfolio) throw new Error("Portfolio does not belong to this actor.");
+
       await supabaseClient
         .from("portfolios")
         .update({

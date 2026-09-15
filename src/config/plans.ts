@@ -236,6 +236,16 @@ export const USAGE_CREDIT_PRODUCTS: UsageCreditProduct[] = [
     unitLabel: "1 confirmed order",
     creditCostPerUnit: 10,
   },
+  {
+    id: "bot_plus_voice_minute",
+    name: "Bot+ live voice",
+    unitLabel: "1 minute of live voice",
+    // Priced separately from bot_plus_action: a live voice call runs far longer
+    // than one chat turn and costs meaningfully more against the OpenAI Realtime
+    // API. This is a starting estimate — verify against current Realtime API
+    // pricing and keep this in sync with record_billing_usage() in Supabase.
+    creditCostPerUnit: 6,
+  },
 ];
 
 // --- One-time / recurring add-ons (a la carte features) ---------------------------------

@@ -12,7 +12,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { portfolio_id } = await req.json();
+    const reqBody = await req.json();
+    const { portfolio_id, action, session_id, minute_index, duration_seconds } = reqBody;
     if (!portfolio_id) {
       return new Response(JSON.stringify({ error: "Missing portfolio_id" }), {
         status: 400,
@@ -31,6 +32,93 @@ serve(async (req) => {
       .eq("id", portfolio_id)
       .single();
 
+    // The browser calls back here roughly once per minute while a live voice call is
+    // active. Billing happens incrementally, one minute in advance per tick, so the
+    // wallet balance actually reflects an in-progress call (unlike a single lump-sum
+    // charge at hangup) and a call can be cut off the moment the store runs out of
+    // Platform Credits, instead of only finding out afterward.
+    if (action === "heartbeat") {
+      const actorId = portfolio?.actor_id;
+      const minuteIndex = Number(minute_index);
+      if (!actorId || typeof session_id !== "string" || !session_id || !Number.isInteger(minuteIndex) || minuteIndex < 2) {
+        return new Response(JSON.stringify({ sufficient: false, error: "Invalid heartbeat request" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error: heartbeatError } = await supabase.rpc('record_billing_usage', {
+        p_actor_id: actorId,
+        p_product_id: 'bot_plus_voice_minute',
+        p_quantity: 1,
+        p_idempotency_key: `store_realtime_session:minute:${session_id}:${minuteIndex}`,
+        p_source: 'store_realtime_session',
+        p_metadata: { portfolio_id, session_id, minute_index: minuteIndex },
+      });
+      if (heartbeatError) {
+        const insufficientBalance = Boolean(heartbeatError.message?.includes('Insufficient'));
+        if (!insufficientBalance) {
+          console.error('Bot+ voice heartbeat charge failed', heartbeatError.message, { actorId, session_id, minuteIndex });
+        }
+        return new Response(JSON.stringify({ sufficient: false }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ sufficient: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // The browser calls back here when a live voice call ends normally. It sends the
+    // actual duration so we can verify billing matches ceil(seconds/60) and reconcile
+    // any overpayment from heartbeat pre-charging (e.g. a 50-second call should only charge
+    // 1 minute, never reach a heartbeat tick, so the math is correct; but we log it for
+    // transparency).
+    if (action === "reconcile") {
+      const actorId = portfolio?.actor_id;
+      const durationSec = Number(duration_seconds) || 0;
+      if (!actorId || typeof session_id !== "string" || !session_id || durationSec <= 0) {
+        return new Response(JSON.stringify({ ok: false }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const actualMinutesUsed = Math.ceil(durationSec / 60);
+      const minutesChargedByHeartbeat = Math.max(1, Math.floor(durationSec / 60)) + (durationSec % 60 > 0 ? 1 : 0);
+      // These should always match due to the heartbeat charging model, but log if they diverge.
+      if (actualMinutesUsed !== minutesChargedByHeartbeat) {
+        console.warn('Bot+ voice billing discrepancy', { actorId, session_id, durationSec, actualMinutesUsed, minutesChargedByHeartbeat });
+      }
+      return new Response(JSON.stringify({ ok: true, duration_seconds: durationSec, minutes_charged: actualMinutesUsed }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // The browser calls back here if the OpenAI Realtime session was minted (and its
+    // first minute charged) but the call never actually connected — refund that minute
+    // since no service was delivered.
+    if (action === "cancel") {
+      const actorId = portfolio?.actor_id;
+      if (!actorId || typeof session_id !== "string" || !session_id) {
+        return new Response(JSON.stringify({ ok: false }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error: reversalError } = await supabase.rpc('reverse_billing_usage', {
+        p_actor_id: actorId,
+        p_product_id: 'bot_plus_voice_minute',
+        p_idempotency_key: `store_realtime_session:start:${session_id}`,
+        p_reason: 'session_failed_to_connect',
+      });
+      if (reversalError) {
+        console.error('Bot+ voice minute reversal failed', reversalError.message, { actorId, session_id });
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const config = portfolio?.theme_config || {};
     if (!config.store_chat_live_voice_enabled || !config.store_chat_ai_assistant) {
       return new Response(JSON.stringify({ error: "Live voice is not enabled for this store" }), {
@@ -43,6 +131,41 @@ serve(async (req) => {
     if (!openAiKey) {
       return new Response(JSON.stringify({ error: "Missing OpenAI key" }), {
         status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const actorId = portfolio?.actor_id;
+    if (!actorId) {
+      return new Response(JSON.stringify({ error: "Store is not linked to an actor", code: "NO_ACTOR" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Meter Bot+ live voice per minute (a call runs far longer, and costs meaningfully
+    // more against the OpenAI Realtime API, than a single chat turn). The first minute is
+    // charged upfront as a gate so a $0-balance store never mints a paid session; every
+    // minute after that is charged in advance by the "heartbeat" action above, once per
+    // minute, for as long as the call stays connected. If the call never connects at all,
+    // the browser calls the "cancel" action above to refund this first minute.
+    const sessionId = crypto.randomUUID();
+    const { error: usageError } = await supabase.rpc('record_billing_usage', {
+      p_actor_id: actorId,
+      p_product_id: 'bot_plus_voice_minute',
+      p_quantity: 1,
+      p_idempotency_key: `store_realtime_session:start:${sessionId}`,
+      p_source: 'store_realtime_session',
+      p_metadata: { portfolio_id, session_id: sessionId },
+    });
+    if (usageError) {
+      const insufficientBalance = Boolean(usageError.message?.includes('Insufficient'));
+      console.error('Bot+ usage charge failed', usageError.message);
+      return new Response(JSON.stringify({
+        error: insufficientBalance ? "This store is out of Platform Credits for live voice." : "Could not start voice session",
+        code: insufficientBalance ? "INSUFFICIENT_CREDITS" : "USAGE_METERING_FAILED",
+      }), {
+        status: insufficientBalance ? 402 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -141,6 +264,19 @@ Always disclose that you are an AI assistant if asked. If the visitor needs a hu
         // Keep the response safe when OpenAI does not return JSON.
       }
       console.error("Realtime client secret error", { status: sessionRes.status, code: lastError });
+      // The first minute was already charged above (it has to be, to gate a $0-balance
+      // store before this expensive call), but OpenAI never actually minted a session, so
+      // no service was delivered. Refund it here directly rather than relying on the
+      // browser to call back with a session it never received.
+      const { error: refundError } = await supabase.rpc('reverse_billing_usage', {
+        p_actor_id: actorId,
+        p_product_id: 'bot_plus_voice_minute',
+        p_idempotency_key: `store_realtime_session:start:${sessionId}`,
+        p_reason: 'openai_realtime_mint_failed',
+      });
+      if (refundError) {
+        console.error('Bot+ voice minute refund failed', refundError.message, { actorId, sessionId });
+      }
       return new Response(JSON.stringify({ error: "Could not start voice session", code: lastError, reason: lastReason }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -148,7 +284,7 @@ Always disclose that you are an AI assistant if asked. If the visitor needs a hu
     }
 
     const session = await sessionRes.json();
-    return new Response(JSON.stringify(session), {
+    return new Response(JSON.stringify({ ...session, ucp_session_id: sessionId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

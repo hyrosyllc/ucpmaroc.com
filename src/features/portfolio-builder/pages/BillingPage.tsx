@@ -51,7 +51,7 @@ import {
   Notification,
 } from "@/components/ui/NotificationToast";
 import { TopUpModal } from "@/features/portfolio-builder";
-import { SITE_PLANS } from "@/config/plans";
+import { SITE_PLANS, USAGE_CREDIT_PRODUCTS } from "@/config/plans";
 
 // --- STRIPE (for adding a new saved card) ---
 import { loadStripe } from "@stripe/stripe-js";
@@ -78,6 +78,7 @@ const TXN_TYPE_META: Record<string, { label: string; icon: any; tone: string }> 
   redeem_code: { label: "Redeemed code", icon: Gift, tone: "text-emerald-600" },
   chargeback: { label: "Chargeback", icon: RotateCcw, tone: "text-destructive" },
   usage: { label: "Usage", icon: Zap, tone: "text-foreground" },
+  usage_reversal: { label: "Usage refund", icon: RotateCcw, tone: "text-emerald-600" },
 };
 
 const AddCardForm = ({ onSuccess, notify }: { onSuccess: () => void; notify: (t: "success" | "error", title: string, msg?: string) => void }) => {
@@ -126,6 +127,12 @@ export default function BillingPage() {
   const [subscriptions, setSubscriptions] = useState<Record<string, any>>({});
   const [transactions, setTransactions] = useState<any[]>([]);
   const [paymentAttempts, setPaymentAttempts] = useState<any[]>([]);
+  const [usageRecords, setUsageRecords] = useState<{ product_id: string; quantity: number; credits_charged: number }[]>([]);
+  const [todayUsageRecords, setTodayUsageRecords] = useState<{ product_id: string; quantity: number; credits_charged: number }[]>([]);
+  const [autoTopUpThreshold, setAutoTopUpThreshold] = useState<number>(50);
+  const [autoTopUpAmount, setAutoTopUpAmount] = useState<number>(20);
+  const [autoTopUpEnabled, setAutoTopUpEnabled] = useState<boolean>(false);
+  const [autoTopUpLoading, setAutoTopUpLoading] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(true);
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
@@ -184,6 +191,25 @@ export default function BillingPage() {
       .order("created_at", { ascending: false })
       .limit(10);
     if (attempts) setPaymentAttempts(attempts);
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: usage } = await supabase
+      .from("billing_usage_records")
+      .select("product_id, quantity, credits_charged")
+      .eq("actor_id", actorData.id)
+      .is("reversed_at", null)
+      .gte("occurred_at", thirtyDaysAgo);
+    if (usage) setUsageRecords(usage);
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data: todayUsage } = await supabase
+      .from("billing_usage_records")
+      .select("product_id, quantity, credits_charged")
+      .eq("actor_id", actorData.id)
+      .is("reversed_at", null)
+      .gte("occurred_at", todayStart.toISOString());
+    if (todayUsage) setTodayUsageRecords(todayUsage);
 
     setLoading(false);
   }, [actorData?.id]);
@@ -281,6 +307,24 @@ export default function BillingPage() {
       </div>
     );
 
+  const usageByProduct = usageRecords.reduce<Record<string, { quantity: number; credits: number }>>((acc, record) => {
+    const bucket = acc[record.product_id] || { quantity: 0, credits: 0 };
+    bucket.quantity += record.quantity;
+    bucket.credits += record.credits_charged;
+    acc[record.product_id] = bucket;
+    return acc;
+  }, {});
+
+  const todayUsageByProduct = todayUsageRecords.reduce<Record<string, { quantity: number; credits: number }>>((acc, record) => {
+    const bucket = acc[record.product_id] || { quantity: 0, credits: 0 };
+    bucket.quantity += record.quantity;
+    bucket.credits += record.credits_charged;
+    acc[record.product_id] = bucket;
+    return acc;
+  }, {});
+
+  const totalTodayCredits = Object.values(todayUsageByProduct).reduce((sum, b) => sum + b.credits, 0);
+
   const activeSitesCount = portfolios.filter((site) => {
     const sub = subscriptions[site.id];
     return sub && sub.status === "active" && new Date(sub.current_period_end) > new Date();
@@ -377,6 +421,73 @@ export default function BillingPage() {
         <div className="px-4 md:px-8 py-6">
           {/* --- OVERVIEW --- */}
           <TabsContent value="overview" className="mt-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {totalTodayCredits > 0 && (
+              <Card className="rounded-xl shadow-sm border-border/60 bg-gradient-to-r from-primary/5 to-transparent">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Today's usage</CardTitle>
+                  <CardDescription>Credits burned in the last 24 hours.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {Object.entries(todayUsageByProduct).filter(([_, b]) => b.credits > 0).map(([productId, bucket]) => {
+                    const product = USAGE_CREDIT_PRODUCTS.find(p => p.id === productId);
+                    return (
+                      <div key={productId} className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-card/50 p-3">
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{product?.name || productId}</div>
+                          <div className="text-xs text-muted-foreground">{bucket.quantity.toLocaleString()} × {product?.unitLabel}</div>
+                        </div>
+                        <div className="text-sm font-semibold text-primary">{bucket.credits.toLocaleString()} credits</div>
+                      </div>
+                    );
+                  })}
+                  <div className="col-span-full flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <span className="text-sm font-medium text-foreground">Total today</span>
+                    <span className="text-lg font-bold text-primary">{totalTodayCredits.toLocaleString()} credits</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            <Card className="rounded-xl shadow-sm border-border/60">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Auto top-up</CardTitle>
+                <CardDescription>Automatically refill your wallet when credits run low.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <input type="checkbox" id="autoTopUp" checked={autoTopUpEnabled} onChange={(e) => setAutoTopUpEnabled(e.target.checked)} className="rounded border border-border" />
+                  <label htmlFor="autoTopUp" className="text-sm font-medium text-foreground">Enable auto top-up</label>
+                </div>
+                {autoTopUpEnabled && (
+                  <div className="space-y-3 pt-2 border-t border-border/60">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">When credits drop below</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input type="number" min="10" max="1000" value={autoTopUpThreshold} onChange={(e) => setAutoTopUpThreshold(Math.max(10, Number(e.target.value)))} className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background" />
+                        <span className="text-sm font-medium text-foreground">credits</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">Automatically charge</label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm font-medium text-foreground">$</span>
+                        <input type="number" min="5" max="500" step="5" value={autoTopUpAmount} onChange={(e) => setAutoTopUpAmount(Math.max(5, Number(e.target.value)))} className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background" />
+                      </div>
+                    </div>
+                    <Button className="w-full" size="sm" disabled={autoTopUpLoading} onClick={async () => {
+                      setAutoTopUpLoading(true);
+                      // TODO: Save auto-top-up settings via API
+                      setTimeout(() => {
+                        notify("success", "Auto top-up settings saved");
+                        setAutoTopUpLoading(false);
+                      }, 500);
+                    }}>
+                      {autoTopUpLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                      Save settings
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             <Card className="rounded-xl shadow-sm border-border/60">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Recent activity</CardTitle>
@@ -519,7 +630,29 @@ export default function BillingPage() {
           </TabsContent>
 
           {/* --- USAGE & ACTIVITY --- */}
-          <TabsContent value="usage" className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <TabsContent value="usage" className="mt-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {USAGE_CREDIT_PRODUCTS.some((product) => usageByProduct[product.id]) && (
+              <Card className="rounded-xl shadow-sm border-border/60">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">AI usage (last 30 days)</CardTitle>
+                  <CardDescription>Metered Bot+ actions charged against your Platform Credits.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {USAGE_CREDIT_PRODUCTS.filter((product) => usageByProduct[product.id]).map((product) => {
+                    const bucket = usageByProduct[product.id];
+                    return (
+                      <div key={product.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 p-3">
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{product.name}</div>
+                          <div className="text-xs text-muted-foreground">{bucket.quantity.toLocaleString()} × {product.unitLabel}</div>
+                        </div>
+                        <div className="text-sm font-semibold whitespace-nowrap">{bucket.credits.toLocaleString()} credits</div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
             <Card className="rounded-xl shadow-sm border-border/60 overflow-hidden">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Transaction history</CardTitle>

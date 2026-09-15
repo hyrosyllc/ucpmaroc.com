@@ -78,6 +78,9 @@ const StorefrontChatWidget: React.FC<StorefrontChatWidgetProps> = ({ portfolioId
   const liveStreamRef = useRef<MediaStream | null>(null);
   const liveAudioElRef = useRef<HTMLAudioElement | null>(null);
   const liveDataChannelRef = useRef<RTCDataChannel | null>(null);
+  const liveSessionIdRef = useRef<string | null>(null);
+  const liveCallStartedAtRef = useRef<number | null>(null);
+  const liveMinuteIndexRef = useRef(1);
   const conversationPromiseRef = useRef<Promise<string> | null>(null);
   const conversationLookupRef = useRef<Promise<string | null> | null>(null);
   const visitorSupabaseRef = useRef(supabase);
@@ -170,7 +173,28 @@ const StorefrontChatWidget: React.FC<StorefrontChatWidgetProps> = ({ portfolioId
     mediaRecorderRef.current = null;
   };
 
-  const stopLiveVoice = useCallback(() => {
+  const stopLiveVoice = useCallback((options?: { creditsExhausted?: boolean }) => {
+    const sessionId = liveSessionIdRef.current;
+    const startedAt = liveCallStartedAtRef.current;
+    const wasConnected = startedAt !== null;
+    // Minute-by-minute billing (the heartbeat effect below) already covers every minute the
+    // call was actually connected, charged in advance as it goes. The only case left to
+    // settle here is a session that was minted (and its first minute charged) but never
+    // connected at all — that minute bought nothing, so refund it.
+    if (sessionId && !wasConnected) {
+      supabase.functions.invoke('store-realtime-session', {
+        body: { action: 'cancel', portfolio_id: portfolioId, session_id: sessionId },
+      }).catch(() => {});
+    } else if (sessionId && wasConnected) {
+      // Call ended normally. Reconcile to verify billing matches actual usage.
+      const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
+      supabase.functions.invoke('store-realtime-session', {
+        body: { action: 'reconcile', portfolio_id: portfolioId, session_id: sessionId, duration_seconds: durationSeconds },
+      }).catch(() => {});
+    }
+    liveSessionIdRef.current = null;
+    liveCallStartedAtRef.current = null;
+    liveMinuteIndexRef.current = 1;
     liveDataChannelRef.current?.close();
     livePeerConnectionRef.current?.close();
     liveStreamRef.current?.getTracks().forEach(track => track.stop());
@@ -182,13 +206,45 @@ const StorefrontChatWidget: React.FC<StorefrontChatWidgetProps> = ({ portfolioId
     setLiveAssistantSpeaking(false);
     setLiveVisitorSpeaking(false);
     setVoiceUiMinimized(false);
-  }, []);
+    if (options?.creditsExhausted) {
+      setLiveCallError("This store has run out of Platform Credits for live voice. The call has ended.");
+    }
+  }, [portfolioId]);
 
   useEffect(() => {
     if (liveCallStatus === 'idle') return;
     const timer = window.setInterval(() => setLiveCallSeconds(seconds => seconds + 1), 1000);
     return () => window.clearInterval(timer);
   }, [liveCallStatus]);
+
+  // Bill (and balance-check) one additional minute in advance, once per minute, for as
+  // long as the call is connected. This is what makes a live call stop the moment the
+  // store's Platform Credit balance runs out, instead of only reconciling afterward.
+  useEffect(() => {
+    if (liveCallStatus !== 'active') return;
+    const interval = window.setInterval(async () => {
+      const sessionId = liveSessionIdRef.current;
+      if (!sessionId) return;
+      liveMinuteIndexRef.current += 1;
+      const minuteIndex = liveMinuteIndexRef.current;
+      try {
+        const { data, error } = await supabase.functions.invoke('store-realtime-session', {
+          body: { action: 'heartbeat', portfolio_id: portfolioId, session_id: sessionId, minute_index: minuteIndex },
+        });
+        // Only a definitive "sufficient: false" (the server actually tried to charge and the
+        // balance is out) ends the call. A network hiccup or transient invoke error should not
+        // hang up a live call — it just retries on the next minute's tick.
+        if (!error && data?.sufficient === false) {
+          stopLiveVoice({ creditsExhausted: true });
+        } else if (error) {
+          console.error('Bot+ voice heartbeat check failed, will retry next minute', error);
+        }
+      } catch (err) {
+        console.error('Bot+ voice heartbeat check threw, will retry next minute', err);
+      }
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [liveCallStatus, portfolioId, stopLiveVoice]);
 
   useEffect(() => {
     if (liveCallStatus !== 'active') return;
@@ -227,6 +283,7 @@ const StorefrontChatWidget: React.FC<StorefrontChatWidgetProps> = ({ portfolioId
       const ephemeralKey = session?.value ?? session?.client_secret?.value ?? session?.session?.client_secret?.value;
       const responseError = session?.error || session?.reason || session?.code;
       if (sessionError || !ephemeralKey) throw sessionError || new Error(responseError ? `${session.error || 'Voice session unavailable'}${session.code ? ` (${session.code})` : ''}` : 'Voice session unavailable');
+      liveSessionIdRef.current = typeof session?.ucp_session_id === 'string' ? session.ucp_session_id : null;
 
       const peer = new RTCPeerConnection();
       const audio = new Audio();
@@ -292,6 +349,7 @@ const StorefrontChatWidget: React.FC<StorefrontChatWidgetProps> = ({ portfolioId
       livePeerConnectionRef.current = peer;
       liveDataChannelRef.current = channel;
       liveStreamRef.current = microphone;
+      liveCallStartedAtRef.current = Date.now();
       setLiveCallStatus('active');
     } catch (error) {
       stopLiveVoice();

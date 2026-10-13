@@ -1,0 +1,24 @@
+[submodule "resources/reference-repos/awesome-react"]
+	path = resources/reference-repos/awesome-react
+	url = https://github.com/enaqx/awesome-react.git
+[submodule "resources/reference-repos/awesome-agent-skills"]
+	path = resources/reference-repos/awesome-agent-skills
+	url = https://github.com/VoltAgent/awesome-agent-skills.git
+[submodule "resources/reference-repos/design-resources-for-developers"]
+	path = resources/reference-repos/design-resources-for-developers
+	url = https://github.com/bradtraversy/design-resources-for-developers.git
+[submodule "resources/reference-repos/vercel-agent-skills"]
+	path = resources/reference-repos/vercel-agent-skills
+	url = https://github.com/vercel-labs/agent-skills.git
+[submodule "resources/reference-repos/anthropic-skills"]
+	path = resources/reference-repos/anthropic-skills
+	url = https://github.com/anthropics/skills.git
+[submodule "resources/reference-repos/ui-ux-pro-max-skill"]
+	path = resources/reference-repos/ui-ux-pro-max-skill
+	url = https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git
+[submodule "resources/reference-repos/liquid-web"]
+	path = resources/reference-repos/liquid-web
+	url = https://github.com/koirodev/liquid-web.git
+[submodule "resources/reference-repos/shadcn-ui"]
+	path = resources/reference-repos/shadcn-ui
+	url = https://github.com/shadcn-ui/ui.git

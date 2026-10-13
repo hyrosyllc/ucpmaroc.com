@@ -1,4 +1,6 @@
-# 🚀 UCP Maroc - Platform Feature Guide
+# UCP Maroc Project Guide
+
+> **Documentation status:** The detailed notes below are historical and contain stale paths, theme descriptions, pricing assumptions, and rollout claims. Use [the current architecture map](docs/PROJECT_ARCHITECTURE.md), [feature catalog](docs/FEATURES.md), and [billing operations guide](docs/BILLING_OPERATIONS.md) as the source of truth. Confirm behavior in source before relying on any older detail below.
 
 Welcome to the definitive guide for the **UCP Maroc Platform**. This document outlines the core modules, capabilities, and technical achievements of the application. 
 

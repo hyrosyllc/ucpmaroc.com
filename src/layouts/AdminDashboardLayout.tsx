@@ -10,7 +10,6 @@ import {
   Menu,
   DollarSign,
   ChevronRight,
-  Globe,
   Briefcase,
   PanelLeftClose,
   PanelLeftOpen,
@@ -43,7 +42,6 @@ const NAV_GROUPS = [
       { to: "/admin/clients", name: "Clients", icon: Briefcase },
       { to: "/admin/payouts", name: "Financial Payouts", icon: DollarSign },
       { to: "/admin/marketplace-settings", name: "Marketplace Settings", icon: Layers3 },
-      { to: "/admin/domains", name: "Custom Domains", icon: Globe },
       { to: "/admin/themes", name: "Themes", icon: Palette },
 
     ],

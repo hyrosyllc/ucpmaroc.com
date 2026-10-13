@@ -46,8 +46,6 @@ const AdminActorListPage = lazy(() => import("@/features/admin-core/pages/AdminA
 const AdminClientListPage = lazy(() => import("@/features/admin-core/pages/AdminClientListPage"));
 const AdminThemesPage = lazy(() => import("@/features/admin-core/pages/AdminThemesPage"));
 const AdminPayoutsPage = lazy(() => import("@/features/admin-core/pages/AdminPayoutsPage"));
-const AdminDomainListPage = lazy(() => import("@/features/admin-core/pages/AdminDomainListPage"));
-const AdminDomainOrderDetailPage = lazy(() => import("@/features/admin-core/pages/AdminDomainOrderDetailPage"));
 const AdminMarketplaceSettingsPage = lazy(() => import("@/features/admin-core/pages/AdminMarketplaceSettingsPage"));
 
 // --- DASHBOARD IMPORTS ---
@@ -76,10 +74,6 @@ const ClientAuthPage = lazy(() => import("@/features/auth/pages/ClientAuthPage")
 const CreateProfilePromptPage = lazy(() => import("@/features/auth/pages/CreateProfilePromptPage"));
 const MessagesPage = lazy(() => import("@/features/messaging/pages/MessagesPage"));
 const AdminChatSheet = lazy(() => import("@/features/messaging/components/AdminChatSheet").then((module) => ({ default: module.AdminChatSheet || module.default })));
-const DomainMarketplace = lazy(() => import("@/features/domain-marketplace/pages/DomainMarketplace"));
-const DomainCheckout = lazy(() => import("@/features/domain-marketplace/pages/DomainCheckout"));
-const DomainThankYouPage = lazy(() => import("@/features/domain-marketplace/pages/DomainThankYouPage"));
-const DomainOrderPage = lazy(() => import("@/features/domain-marketplace/pages/DomainOrderPage"));
 const AnalyticsPage = lazy(() => import("@/features/ecommerce/pages/AnalyticsPage"));
 const OrdersPage = lazy(() => import("@/features/ecommerce/pages/OrdersPage"));
 const StoreInboxPage = lazy(() => import("@/features/ecommerce/pages/store-inbox/StoreInboxPage"));
@@ -418,14 +412,6 @@ function App() {
                           path="clients"
                           element={<AdminClientListPage />}
                         />
-                        <Route
-                          path="domains"
-                          element={<AdminDomainListPage />}
-                        />
-                        <Route
-                          path="domains/order/:id"
-                          element={<AdminDomainOrderDetailPage />}
-                        />
                                                 <Route
                           path="themes"
                           element={<AdminThemesPage />}
@@ -439,23 +425,6 @@ function App() {
                       </Route>
                     </Route>
 
-                    {/* MARKETPLACE ROUTES */}
-                    <Route
-                      path="/marketplace/domains"
-                      element={<DomainMarketplace />}
-                    />
-                    <Route
-                      path="/marketplace/domains/:id/checkout"
-                      element={<DomainCheckout />}
-                    />
-                    <Route
-                      path="/marketplace/order/:id/thank-you"
-                      element={<DomainThankYouPage />}
-                    />
-                    <Route
-                      path="/marketplace/order/:id/status"
-                      element={<DomainOrderPage />}
-                    />
                   </>
                 )}
               </Routes>

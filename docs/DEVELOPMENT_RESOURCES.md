@@ -1,6 +1,6 @@
 # Development Resources
 
-This repository is a React 18, TypeScript, Vite application using Tailwind, Radix/shadcn-style components, Lucide, and Framer Motion. The resources below are scoped to that stack and installed as agent guidance; they do not add runtime dependencies.
+This repository is a React 18, TypeScript, Vite application using Tailwind, Radix/shadcn-style components, Lucide, and Framer Motion. The skills below provide agent guidance; the upstream repositories are isolated reference submodules. Neither changes the application dependency graph.
 
 ## Installed
 
@@ -11,13 +11,29 @@ This repository is a React 18, TypeScript, Vite application using Tailwind, Radi
 
 These prompts and skills are optional guidance. Follow the user's request and existing project conventions when recommendations conflict; verify accessibility, responsive behavior, and performance in the affected feature.
 
-## Reference Catalogs
+## Other Workspace Prompt Suites
 
-These repositories are indexes, not application dependencies. Browse them for a specific need and evaluate the chosen package or asset before adoption.
+The workspace also contains bundled design/brand skills and their supporting references/scripts under `.github/prompts/`: `brand`, `design`, `design-system`, `slides`, `banner-design`, and `ui-styling`. `design` routes among identity, logo, corporate-identity, slide, banner, social, and icon workflows; the focused suites contain their own data, templates, tests, or generation helpers. These are development-time resources, not app dependencies. The complete prompt-file inventory is in `docs/REPOSITORY_CATALOG.md`'s agent-resource section.
 
-- [Awesome React](https://github.com/enaqx/awesome-react): React ecosystem catalog.
-- [Awesome Agent Skills](https://github.com/VoltAgent/awesome-agent-skills): agent-skill catalog.
-- [Design Resources for Developers](https://github.com/bradtraversy/design-resources-for-developers): design and asset catalog.
-- [shadcn/ui](https://ui.shadcn.com/): accessible, copy-in components compatible with the current Tailwind/Radix foundation.
+## Local Reference Repositories
 
-The suggested `ibelick/baseline-ui` URL was unavailable when checked. The Beautiful Shadows reference did not include a repository URL, so it was not installed.
+The checked-out sources live under `resources/reference-repos/`, outside Vite's `src/` tree. Git records each as a commit-pinned submodule; no source from these repositories is bundled into the product automatically.
+
+- `resources/reference-repos/awesome-react` ([enaqx/awesome-react](https://github.com/enaqx/awesome-react)): React ecosystem index.
+- `resources/reference-repos/awesome-agent-skills` ([VoltAgent/awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills)): agent-skill index.
+- `resources/reference-repos/design-resources-for-developers` ([bradtraversy/design-resources-for-developers](https://github.com/bradtraversy/design-resources-for-developers)): design and asset index.
+- `resources/reference-repos/vercel-agent-skills` ([vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)): upstream skill sources.
+- `resources/reference-repos/anthropic-skills` ([anthropics/skills](https://github.com/anthropics/skills)): skill examples and sources; licensing varies by skill, so inspect each skill's license.
+- `resources/reference-repos/ui-ux-pro-max-skill` ([nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)): UI/UX design data and Copilot skill source (MIT).
+- `resources/reference-repos/liquid-web` ([koirodev/liquid-web](https://github.com/koirodev/liquid-web)): Liquid Glass effect library source (MIT). Its shallow checkout is about 99 MB; it is reference material, not an installed app library.
+- `resources/reference-repos/shadcn-ui` ([shadcn-ui/ui](https://github.com/shadcn-ui/ui)): upstream component registry/source (MIT); this project already has local shadcn-style components.
+
+Initialize submodules after cloning the project with:
+
+```bash
+git submodule update --init --depth 1 --recursive
+```
+
+Before adapting code, packages, or assets, check the relevant upstream license, maintenance status, accessibility, browser support, and bundle/performance impact. Keep imports out of application code unless a dependency is intentionally adopted and reviewed.
+
+The suggested `ibelick/baseline-ui` URL was unavailable when checked. The Beautiful Shadows reference did not include a repository URL, so it was not added.

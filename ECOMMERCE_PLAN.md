@@ -1,4 +1,6 @@
-# 🛒 UCP Maroc - E-Commerce Roadmap & Plan
+# UCP Maroc E-Commerce Roadmap
+
+> **Historical roadmap:** Several items marked as future work below are implemented in the current tree (including product details, digital delivery fields, related products, and customer portal pieces). Do not use these checkboxes as current project status. See [the ecommerce developer guide](docs/features/ecommerce.md) and [repository catalog](docs/REPOSITORY_CATALOG.md).
 
 This document tracks the execution phases for the advanced multi-tenant E-Commerce engine.
 

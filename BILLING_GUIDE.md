@@ -235,19 +235,30 @@ If payment fails:
 
 ## Current Status
 
-✅ Completed:
-- `billing_prices` table with database-driven pricing
-- `subscriptions` table with stripe_price_id, duration_months, amount_cents
-- `billingConfig.ts` updated to query from database
-- `stripe-webhook` updated to work with async queries
-- `create-subscription` edge function ready
+The following implementation is present in the checked-out source tree; this is
+not evidence that Supabase migrations/functions or Stripe settings are deployed
+or that the full payment flow has passed end-to-end tests:
 
-⏳ Next Steps:
-1. Update frontend to show "Upgrade to Plan" button
-2. Add subscriptions page showing active plan
-3. Add cancel subscription functionality
-4. Add ability to upgrade/downgrade plans
-5. Test end-to-end: subscribe → Stripe charges → webhook syncs
+- Billing overview, services/subscriptions, saved payment methods, and usage
+  activity pages are registered under `/dashboard/*` in `src/App.tsx`.
+- Database price resolution, the `billing_prices` migration, subscription and
+  credit functions, usage/ledger migrations, and webhook handlers are present.
+
+## Rollout and Verification Still Required
+
+- Compare the remote Supabase migration list with the local migrations through
+  `20260926030007_fix_subscriptions_rls.sql` before applying anything.
+- Replace seeded placeholder Stripe Price IDs in `billing_prices` with the
+  correct test/live identifiers and verify amount, currency, and interval.
+- Confirm the intended subscription checkout path: the services page currently
+  invokes `create-checkout-session`, while a separate `create-subscription`
+  Edge Function also exists.
+- Configure server-side secrets in Supabase, deploy functions, and run the
+  test-mode matrix in `docs/BILLING_OPERATIONS.md` before treating billing as
+  production-verified.
+
+Historical implementation notes below may describe earlier interfaces or
+flows; use current source and `docs/BILLING_OPERATIONS.md` for operations.
 
 ---
 

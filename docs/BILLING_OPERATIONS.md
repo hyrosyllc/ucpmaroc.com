@@ -15,8 +15,8 @@ Platform Credits. NOWPayments is the only crypto processor in this application.
 
 ## Deployment order
 
-1. Apply all Supabase migrations through
-   `20260912070000_billing_reconciliation_queue.sql`.
+1. Check the remote migration state, then apply all pending migrations in order. The latest migration in this checkout is
+  `20260926030007_fix_subscriptions_rls.sql`; this does not mean it has been applied remotely.
 2. Set the secrets below in **Supabase Edge Function secrets**.
 3. Deploy the Edge Functions.
 4. Deploy the web application.
@@ -35,17 +35,14 @@ the Supabase project.
   `stripe-connect-webhook` destination.
 - `APP_URL`: canonical production origin, without a trailing slash.
 - `NOWPAYMENTS_API_KEY` and `NOWPAYMENTS_IPN_SECRET`.
-- `STRIPE_PRICE_STARTER_1M`, `STRIPE_PRICE_STARTER_3M`,
-  `STRIPE_PRICE_STARTER_6M`, `STRIPE_PRICE_STARTER_12M`.
-- `STRIPE_PRICE_ECOMMERCE_1M`, `STRIPE_PRICE_ECOMMERCE_3M`,
-  `STRIPE_PRICE_ECOMMERCE_6M`, `STRIPE_PRICE_ECOMMERCE_12M`.
-- `STRIPE_PRICE_PRO_1M`, `STRIPE_PRICE_PRO_3M`,
-  `STRIPE_PRICE_PRO_6M`, `STRIPE_PRICE_PRO_12M`.
 
-Each Stripe Price must be active, USD, and recurring at the matching interval.
-The amount must match the server catalog in
-`supabase/functions/_shared/billingConfig.ts`. Checkout rejects a mismatched
-amount, currency, interval, or unrecognized Price ID.
+Subscription prices are resolved from `public.billing_prices` through database
+RPCs by `supabase/functions/_shared/billingConfig.ts`; `STRIPE_PRICE_*` Edge
+Function secrets are not used by that resolver. Replace the placeholder Stripe
+Price IDs seeded by `20260926020000_billing_prices_table.sql` with real test/live
+IDs for the matching environment. Each Stripe Price must be active, USD, and
+recurring at the matching interval and amount. Checkout validates these values
+against the database catalog.
 
 Configure the Stripe Customer Portal to allow payment-method updates, invoice
 history, and cancellation, but disable portal-side plan switching. Plan changes

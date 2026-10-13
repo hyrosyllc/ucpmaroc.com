@@ -46,8 +46,8 @@ serve(async (req) => {
       throw new Error("Portfolio does not belong to the authenticated actor.");
     }
 
-    const configured = resolveSubscriptionPrice(planId, durationMonths);
-    const stripePrice = await stripe.prices.retrieve(configured.stripePriceId);
+    const configured = await resolveSubscriptionPrice(supabase, planId, durationMonths);
+    const stripePrice = await stripe.prices.retrieve(configured.stripe_price_id);
     validateStripeRecurringPrice(stripePrice, configured);
 
     const { data: currentSubscription, error: subscriptionError } = await supabase
@@ -70,8 +70,8 @@ serve(async (req) => {
       billing_purpose: "subscription",
       actor_id: trustedActorId,
       portfolio_id: trustedPortfolioId,
-      plan_id: configured.planId,
-      duration_months: String(configured.durationMonths),
+      plan_id: configured.plan_id,
+      duration_months: String(configured.duration_months),
     };
 
     const { error: attemptError } = await supabase.from("billing_payment_attempts").insert({
@@ -81,10 +81,10 @@ serve(async (req) => {
       purpose: "subscription",
       status: "pending",
       currency: "usd",
-      expected_amount_cents: configured.amountCents,
-      plan_id: configured.planId,
+      expected_amount_cents: configured.amount_cents,
+      plan_id: configured.plan_id,
       portfolio_id: trustedPortfolioId,
-      metadata: { duration_months: configured.durationMonths, stripe_price_id: configured.stripePriceId },
+      metadata: { duration_months: configured.duration_months, stripe_price_id: configured.stripe_price_id },
     });
     if (attemptError) throw attemptError;
 
@@ -96,7 +96,7 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "subscription",
-      line_items: [{ price: configured.stripePriceId, quantity: 1 }],
+      line_items: [{ price: configured.stripe_price_id, quantity: 1 }],
       metadata,
       customer: customerId,
       subscription_data: { metadata },

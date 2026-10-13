@@ -220,6 +220,7 @@ const StorefrontChatWidget: React.FC<StorefrontChatWidgetProps> = ({ portfolioId
   // Bill (and balance-check) one additional minute in advance, once per minute, for as
   // long as the call is connected. This is what makes a live call stop the moment the
   // store's Platform Credit balance runs out, instead of only reconciling afterward.
+  // Also check if auto-top-up should trigger when balance drops low.
   useEffect(() => {
     if (liveCallStatus !== 'active') return;
     const interval = window.setInterval(async () => {
@@ -238,6 +239,15 @@ const StorefrontChatWidget: React.FC<StorefrontChatWidgetProps> = ({ portfolioId
           stopLiveVoice({ creditsExhausted: true });
         } else if (error) {
           console.error('Bot+ voice heartbeat check failed, will retry next minute', error);
+        }
+
+        // Also check if auto-top-up should trigger (every 3rd heartbeat, ~3 min interval).
+        if (liveMinuteIndexRef.current % 3 === 0) {
+          supabase.functions.invoke('auto-topup-charge', {
+            body: { actor_id: portfolioId },
+          }).catch((err) => {
+            console.error('Auto-top-up check failed (non-blocking)', err);
+          });
         }
       } catch (err) {
         console.error('Bot+ voice heartbeat check threw, will retry next minute', err);

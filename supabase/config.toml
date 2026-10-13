@@ -91,3 +91,19 @@ entrypoint = "./functions/store-voice-agent-transfer/index.ts"
 verify_jwt = true
 import_map = "./functions/admin-delete-account/deno.json"
 entrypoint = "./functions/admin-delete-account/index.ts"
+
+[functions.charge-saved-card]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/charge-saved-card/index.ts"
+
+[functions.auto-topup-charge]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/auto-topup-charge/index.ts"
+
+[functions.create-subscription]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-subscription/deno.json"
+entrypoint = "./functions/create-subscription/index.ts"

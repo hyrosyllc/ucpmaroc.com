@@ -83,13 +83,37 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const actualMinutesUsed = Math.ceil(durationSec / 60);
-      const minutesChargedByHeartbeat = Math.max(1, Math.floor(durationSec / 60)) + (durationSec % 60 > 0 ? 1 : 0);
-      // These should always match due to the heartbeat charging model, but log if they diverge.
-      if (actualMinutesUsed !== minutesChargedByHeartbeat) {
-        console.warn('Bot+ voice billing discrepancy', { actorId, session_id, durationSec, actualMinutesUsed, minutesChargedByHeartbeat });
+      // Per-second billing: charge exactly for duration used (6 credits/min = 0.1 credits/sec).
+      // Example: 10 seconds = 1 credit, 90 seconds = 9 credits (not rounded up to next minute).
+      const creditsPerSecond = 0.1;
+      const exactCreditsUsed = Math.round(durationSec * creditsPerSecond);
+
+      // Heartbeat pre-charged: 1 minute upfront + 1 per heartbeat (every 60 seconds).
+      const minutesChargedByHeartbeat = 1 + Math.floor((durationSec - 1) / 60);
+      const creditsChargedByHeartbeat = minutesChargedByHeartbeat * 6;
+
+      const overpayment = creditsChargedByHeartbeat - exactCreditsUsed;
+
+      // If overpaid, refund the difference (e.g., 10-second call charged 6 credits but owes 1).
+      if (overpayment > 0) {
+        const { error: refundError } = await supabase.rpc('reverse_billing_usage', {
+          p_actor_id: actorId,
+          p_product_id: 'bot_plus_voice_minute',
+          p_idempotency_key: `store_realtime_session:reconcile:${session_id}`,
+          p_reason: `reconciliation_overpayment_${overpayment}_credits`,
+        });
+        if (refundError) {
+          console.error('Bot+ voice reconciliation refund failed', refundError.message, { actorId, session_id, durationSec, overpayment });
+        }
       }
-      return new Response(JSON.stringify({ ok: true, duration_seconds: durationSec, minutes_charged: actualMinutesUsed }), {
+
+      return new Response(JSON.stringify({
+        ok: true,
+        duration_seconds: durationSec,
+        credits_charged: creditsChargedByHeartbeat,
+        credits_owed: exactCreditsUsed,
+        refunded_credits: Math.max(0, overpayment),
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

@@ -475,11 +475,25 @@ export default function BillingPage() {
                     </div>
                     <Button className="w-full" size="sm" disabled={autoTopUpLoading} onClick={async () => {
                       setAutoTopUpLoading(true);
-                      // TODO: Save auto-top-up settings via API
-                      setTimeout(() => {
-                        notify("success", "Auto top-up settings saved");
+                      try {
+                        const { error } = await supabase
+                          .from("actors")
+                          .update({
+                            auto_topup_enabled: autoTopUpEnabled,
+                            auto_topup_threshold: autoTopUpThreshold,
+                            auto_topup_amount: autoTopUpAmount,
+                          })
+                          .eq("id", actorData.id);
+                        if (error) {
+                          notify("error", "Failed to save settings", error.message);
+                        } else {
+                          notify("success", "Auto top-up settings saved", `Will charge $${autoTopUpAmount.toFixed(2)} when balance drops below ${autoTopUpThreshold} credits`);
+                        }
+                      } catch (err) {
+                        notify("error", "Error saving settings", err instanceof Error ? err.message : "Unknown error");
+                      } finally {
                         setAutoTopUpLoading(false);
-                      }, 500);
+                      }
                     }}>
                       {autoTopUpLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                       Save settings

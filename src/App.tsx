@@ -90,7 +90,10 @@ const ProOrderDetailPage = lazy(() => import("@/features/ecommerce/pages/ProOrde
 const PaymentsPage = lazy(() => import("@/features/ecommerce/pages/PaymentsPage"));
 const StripeCallbackPage = lazy(() => import("@/features/ecommerce/pages/StripeCallbackPage"));
 const SettingsPage = lazy(() => import("@/features/portfolio-builder/pages/SettingsPage"));
-const BillingPage = lazy(() => import("@/features/portfolio-builder/pages/BillingPage"));
+const BillingDashboard = lazy(() => import("@/features/portfolio-builder/pages/BillingDashboard"));
+const BillingServicesSubscriptions = lazy(() => import("@/features/portfolio-builder/pages/BillingServicesSubscriptions"));
+const BillingPaymentMethods = lazy(() => import("@/features/portfolio-builder/pages/BillingPaymentMethods"));
+const BillingUsageActivity = lazy(() => import("@/features/portfolio-builder/pages/BillingUsageActivity"));
 const CustomersPage = lazy(() => import("@/features/ecommerce/pages/CustomersPage"));
 const ReviewsPage = lazy(() => import("@/features/ecommerce/pages/ReviewsPage.tsx"));
 const CustomerLoginPage = lazy(() => import("@/features/ecommerce/pages/CustomerLoginPage"));
@@ -380,7 +383,10 @@ function App() {
                       <Route path="leads" element={<LeadsPage />} />
                       <Route path="store-bot" element={<StoreBotSettingsPage />} />
                       <Route path="settings" element={<SettingsPage />} />
-                      <Route path="billing" element={<BillingPage />} />
+                      <Route path="billing" element={<BillingDashboard />} />
+                      <Route path="billing-services" element={<BillingServicesSubscriptions />} />
+                      <Route path="billing-payment-methods" element={<BillingPaymentMethods />} />
+                      <Route path="billing-usage" element={<BillingUsageActivity />} />
                       <Route path="products" element={<ProductsPage />} />
                       <Route path="collections" element={<CollectionsPage />} />
                       <Route path="shipping" element={<ShippingRatesPage />} />

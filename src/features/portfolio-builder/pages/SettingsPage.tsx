@@ -193,16 +193,25 @@ const SettingsPage = () => {
       .from("subscriptions")
       .select("*")
       .eq("actor_id", actorData.id);
+    console.log("Fetched subscriptions:", subs);
     if (subs) {
       const subMap: Record<string, any> = {};
       // Prioritize active subscriptions so an old expired sub doesn't overwrite an active one
       subs.forEach((s) => {
+        console.log("Processing subscription:", {
+          portfolio_id: s.portfolio_id,
+          status: s.status,
+          current_period_end: s.current_period_end,
+          payment_method: s.payment_method,
+          isActive: s.status === "active" && new Date(s.current_period_end) > new Date()
+        });
         if (s.status === "active" && new Date(s.current_period_end) > new Date()) {
           subMap[s.portfolio_id] = s;
         } else if (!subMap[s.portfolio_id]) {
           subMap[s.portfolio_id] = s;
         }
       });
+      console.log("Final subMap:", subMap);
       setSubscriptions(subMap);
     }
 
@@ -603,20 +612,27 @@ const SettingsPage = () => {
             p_duration_months: billingDuration,
           }
         );
-        if (error || (data && !data.success))
+        if (error || (data && !data.success)) {
+          console.error("RPC Error:", { error, data });
           notify(
             "error",
             "Transaction Failed",
             data?.message || error?.message || "Unknown error"
           );
+        }
         else {
+          console.log("RPC Success:", data);
           notify(
             "success",
             "Plan Activated!",
             `You have successfully subscribed to ${plan.name}.`
           );
-          fetchData();
-          refreshSubscription();
+          // Small delay to ensure database sync
+          await new Promise(r => setTimeout(r, 500));
+          console.log("Calling fetchData()...");
+          await fetchData();
+          console.log("fetchData() complete");
+          await refreshSubscription();
           setIsUpgradeOpen(false);
         }
         setProcessingPlan(null);

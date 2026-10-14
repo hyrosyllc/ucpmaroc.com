@@ -3,6 +3,7 @@
 This catalog reflects the route registry and feature ownership in the checked-out tree as of 2026-10-13. A route or component being present does not establish that it is deployed or production-validated.
 
 For the complete source/backend/agent-resource inventory, see [Repository Catalog](REPOSITORY_CATALOG.md).
+For the integration between portfolio builder, ecommerce, built-in themes, Theme Studio, and the UCP SDK, see [Portfolio, Ecommerce, Themes, and UCP SDK](PORTFOLIO_ECOMMERCE_THEMES.md).
 
 ## Developer Guides
 

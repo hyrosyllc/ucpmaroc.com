@@ -96,6 +96,7 @@ The scripts in `package.json` are `npm run dev`, `npm run build`, `npm run lint`
 - `docs/REPOSITORY_CATALOG.md`: exhaustive first-party directory, Edge Function, migration, agent-resource, and root-tool inventory.
 - `docs/FEATURES.md`: current feature-to-route/source map.
 - `docs/features/`: in-depth developer guides for each top-level feature module.
+- `docs/PORTFOLIO_ECOMMERCE_THEMES.md`: cross-feature builder, ecommerce, built-in theme, UCP SDK, and custom-theme pipeline, including current gaps and target contract.
 - `docs/BILLING_OPERATIONS.md`: billing boundaries, secrets, rollout and release checks.
 - `BILLING_GUIDE.md`: billing design notes; confirm its current-status section before relying on it.
 - `docs/DEVELOPMENT_RESOURCES.md`: installed agent skills and external catalogs.

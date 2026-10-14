@@ -14,6 +14,7 @@ Available checks: `npm run build`, `npm run lint`, and `npm run preview`. There 
 
 - [Architecture and source map](docs/PROJECT_ARCHITECTURE.md)
 - [Repository file and backend catalog](docs/REPOSITORY_CATALOG.md)
+- [Portfolio/ecommerce/theme architecture](docs/PORTFOLIO_ECOMMERCE_THEMES.md)
 - [Feature catalog](docs/FEATURES.md)
 - [Billing operations](docs/BILLING_OPERATIONS.md)
 - [Billing design notes](BILLING_GUIDE.md)

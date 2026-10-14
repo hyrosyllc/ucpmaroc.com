@@ -333,7 +333,7 @@ All leaf paths were included in the 255-file tree inventory; these directory sum
 
 ## Known Gaps Found During Inventory
 
-- Domain-sale marketplace UI/admin pages and the domain-specific payment-intent branch have been removed. Existing `store_domains`/`store_orders` tables and their account-deletion cleanup references are retained as legacy data; the separate portfolio custom-domain workflow remains active.
+- Domain-sale marketplace UI/admin pages and the domain-specific payment-intent branch have been removed. Existing `store_domains`/`store_orders` tables and their account-deletion cleanup reference are retained as legacy data; the separate portfolio custom-domain workflow remains active.
 - `src/features/portfolio-builder/components/SectionEditor-backup.tsx` and the payment-intent `index copy.ts` are backup/duplicate sources, not normal route/function entry points.
 - The custom-domain customer dashboard route mounts `CustomerDashboardLayout` without a `:slug`, though the layout consumes it.
 - Live and preview theme palettes explicitly cover only `modern` and `cinematic`; `modern_bright`/`cupertino` currently fall back to Modern values.
@@ -347,7 +347,7 @@ All leaf paths were included in the 255-file tree inventory; these directory sum
 Checks run on 2026-10-13 against this workspace:
 
 - `npm run build`: passes; Vite transformed 4,805 modules and completed in about 30 seconds. It emits existing Tailwind arbitrary-value ambiguity warnings, a PostCSS `from` warning, a Browserslist database freshness warning, and the configured large-chunk warning.
-- `npx eslint . --format json` (with `resources/reference-repos/**` excluded): scans 346 project/config/prompt files and currently reports 5,571 errors and 56 warnings. This is not a clean lint baseline; most reported failures are pre-existing source/prompt issues outside the documentation task. Use the filtered report to triage before treating lint as a release gate.
+- `npx eslint . --format json` (with `resources/reference-repos/**` excluded): scans 335 project/config/prompt files and currently reports 5,545 errors and 54 warnings after the domain feature removal. This is not a clean lint baseline; the remaining issues are pre-existing source/prompt findings outside this removal. Use the filtered report to triage before treating lint as a release gate.
 - `node check_exports.cjs`: passes (`All exported files exist.`).
 - `node check_all_exports.cjs`: fails its every-file-must-be-barrel-exported rule for 31 feature files; see Root Tooling for why this does not mean those files are missing or unreachable.
 - Feature path comparison: every file under each of the seven active `src/features/*` directories appears in that feature's developer guide. Shared-source path comparison matches all 166 non-feature `src/` files. Function/migration path comparison matches all 31 current entry points and all 31 SQL files.

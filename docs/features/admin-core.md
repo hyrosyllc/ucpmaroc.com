@@ -28,7 +28,7 @@ All admin pages are nested under `/admin` in `src/App.tsx` and wrapped by `Prote
 
 - `src/layouts/AdminDashboardLayout.tsx` owns admin navigation; `src/components/ProtectedRoute.tsx` checks role eligibility.
 - Actor payouts connect to talent marketplace payout settings (`actor_payout_methods`) and marketplace orders (`orders`).
-- Theme approval connects to Theme Studio submissions and portfolio rendering through `marketplace_themes.compiled_bundle`.
+- Theme approval connects to Theme Studio submissions and the builder preview through `marketplace_themes.compiled_bundle`; public `PortfolioLayout` does not currently load that bundle.
 - Admin AI chat is a global component mounted by `App.tsx`, not an Admin Core route page; its implementation belongs to `src/features/messaging/components/AdminChatSheet.tsx`.
 
 ## Maintenance Notes

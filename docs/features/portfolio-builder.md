@@ -41,6 +41,8 @@ Portfolio-builder currently contains billing dashboard, subscriptions, payment-m
 
 Ecommerce `CreateSiteModal` creates new portfolios. Store tabs in the builder control storefront configuration but do not replace ecommerce's product/order controllers. Theme Studio submissions use `marketplace_themes`, a separate system from built-in `THEME_REGISTRY` themes.
 
+The detailed cross-feature contract and current custom-theme/live-commerce gaps are documented in [Portfolio, Ecommerce, Themes, and UCP SDK](../PORTFOLIO_ECOMMERCE_THEMES.md). In particular, `BuilderPreview` can render a compiled marketplace theme, but the public `PortfolioLayout` currently resolves only built-in `THEME_REGISTRY` themes.
+
 ## Maintenance Notes
 
 - Keep editor and preview message contracts synchronized; a renamed message type can silently break the iframe.

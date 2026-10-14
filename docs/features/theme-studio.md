@@ -25,7 +25,7 @@ All routes are in `src/App.tsx`. `marketplace_themes` stores developer, metadata
 
 `DeveloperHubPage` changes a draft status to `pending_review`. `AdminThemesPage` lists pending themes and calls `compile-theme` on approval; the function reads `files`, Babel-transforms TSX/JSX, writes `compiled_bundle`, and changes status to `approved`. Rejection writes `status='rejected'`.
 
-Portfolio builder/preview and `PortfolioLayout` can read `marketplace_themes.compiled_bundle`. `usePrecompiledTheme` reconstructs component exports; `resolveThemeComponent`/the section component map then selects components for sections. Built-in theme components remain governed by `THEME_REGISTRY` and the `PortfolioThemeDefinition` contract.
+`BuilderPreview` reads `marketplace_themes.compiled_bundle` and `usePrecompiledTheme` reconstructs component exports for that preview. The published `PortfolioLayout`/`PortfolioHome` do **not** read `compiled_bundle`; they resolve only `THEME_REGISTRY` and fall back to `DEFAULT_THEME` for a marketplace ID. `SectionEditor` also requires a `THEME_REGISTRY` entry to resolve theme settings schemas. Thus compilation/persistence and builder preview exist, but current code does not complete live custom-theme rendering or custom schema editing. See [Portfolio, Ecommerce, Themes, and UCP SDK](../PORTFOLIO_ECOMMERCE_THEMES.md) for the full flow.
 
 ## Security Boundary: Must Verify
 
@@ -40,6 +40,7 @@ At the time of this scan, `supabase/config.toml` sets `compile-theme` to `verify
 - UCP editor types live in `src/lib/ucp-sdk/`, while runtime module bridges are in `useDynamicThemeCompiler.ts`, `usePrecompiledTheme.ts`, and `StudioPreview.tsx`. Keep declared editor modules aligned with actual runtime modules.
 - Version the theme file schema/compiled bundle contract when changing component names or exports; test preview and live rendering together.
 - The project has built-in themes (`modern`, `modern_bright`, `cinematic`, `cupertino`) as well as database marketplace themes. Do not treat them as one registry or licensing path.
+- The SDK is used by Cupertino source and seeded into Theme Studio examples; it is not currently adopted by all built-in themes. Preserve built-in raw theme ownership as a separate design constraint.
 
 ## Complete Module File Map
 

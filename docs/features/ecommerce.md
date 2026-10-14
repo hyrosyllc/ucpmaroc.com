@@ -31,7 +31,7 @@ Other product action types include direct checkout URL, WhatsApp, and form-order
 
 `src/features/ecommerce/store/useCartStore.ts` persists as `portfolio-cart-storage` and maintains `items`, `allCarts`, `coupon`, and `allCoupons` by store ID. `CartDrawerContainer` applies store context and chooses the cart presentation. The current implementation falls back to the Modern cart drawer; changing theme routing requires checking both the live storefront and builder preview.
 
-Public page controllers load/store data; presentation components are in `src/themes/<theme>/`. Theme-specific checkout and thank-you layouts wrap the ecommerce controllers. Theme settings (for example allowed countries and store behavior) are read from `portfolios.theme_config`.
+Public page controllers load/store data; presentation components are in `src/themes/<theme>/`. Theme settings (for example allowed countries and store behavior) are read from `portfolios.theme_config`. Current theme dispatch is incomplete: `PublicShopPage` renders Modern directly, `PublicProductPage` checks the legacy ID `minimal` rather than registered `cupertino`, the cart drawer is Modern-only, and `App.tsx` uses Modern checkout/thank-you wrappers. See [the cross-feature architecture guide](../PORTFOLIO_ECOMMERCE_THEMES.md) before adding theme-specific ecommerce views.
 
 ## Customer Portal and Store Messaging
 

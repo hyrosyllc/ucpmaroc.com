@@ -38,6 +38,7 @@ At the time of this scan, `supabase/config.toml` sets `compile-theme` to `verify
 - Portfolio Builder owns normal site sections, theme selection, theme purchases, and live rendering; Theme Studio owns user-authored marketplace code.
 - Admin Core moderates marketplace submissions; `compile-theme` persists executable bundles.
 - UCP editor types live in `src/lib/ucp-sdk/`, while runtime module bridges are in `useDynamicThemeCompiler.ts`, `usePrecompiledTheme.ts`, and `StudioPreview.tsx`. Keep declared editor modules aligned with actual runtime modules.
+- **Verified SDK mismatch:** the runtime bridge imports `@/lib/ucp-sdk`, which Vite resolves to the sibling legacy `src/lib/ucp-sdk.tsx` (four members), while built-in themes and declarations use the modular `@ucp/sdk` entry in `src/lib/ucp-sdk/index.ts` (eleven members). Seeded Cupertino code calls SDK methods missing from the legacy runtime object. See [the cross-feature guide](../PORTFOLIO_ECOMMERCE_THEMES.md).
 - Version the theme file schema/compiled bundle contract when changing component names or exports; test preview and live rendering together.
 - The project has built-in themes (`modern`, `modern_bright`, `cinematic`, `cupertino`) as well as database marketplace themes. Do not treat them as one registry or licensing path.
 - The SDK is used by Cupertino source and seeded into Theme Studio examples; it is not currently adopted by all built-in themes. Preserve built-in raw theme ownership as a separate design constraint.

@@ -338,6 +338,7 @@ All leaf paths were included in the 255-file tree inventory; these directory sum
 - The custom-domain customer dashboard route mounts `CustomerDashboardLayout` without a `:slug`, though the layout consumes it.
 - Live and preview theme palettes explicitly cover only `modern` and `cinematic`; `modern_bright`/`cupertino` currently fall back to Modern values.
 - The `compile-theme` function uses the service-role client, is configured with `verify_jwt=false`, and does not validate caller/admin authorization in its source. Theme compilation/preview executes user code through `new Function`; import restrictions do not create a sandbox. See `docs/features/theme-studio.md`.
+- SDK imports are split: built-in themes use `@ucp/sdk` → `src/lib/ucp-sdk/index.ts`, while compiler/preview imports `@/lib/ucp-sdk` resolve to the sibling legacy `src/lib/ucp-sdk.tsx` (four exports vs eleven). See `docs/PORTFOLIO_ECOMMERCE_THEMES.md`.
 - Billing pages/functions/migrations exist locally, but the route has both `create-checkout-session` and `stripe-billing` calls while a separate `create-subscription` function exists. Remote migration/deployment and end-to-end payment status are unknown; see `docs/BILLING_OPERATIONS.md`.
 - Customer store login and global actor/client auth are distinct identities/data flows (`pro_customers` per portfolio vs `actors`/`clients` global profiles).
 - No test script is declared in the root `package.json`; the two export checks and prompt-specific tests are separate tools.

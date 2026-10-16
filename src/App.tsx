@@ -80,6 +80,8 @@ const StoreInboxPage = lazy(() => import("@/features/ecommerce/pages/store-inbox
 const StoreBotSettingsPage = lazy(() => import("@/features/ecommerce/pages/store-settings/StoreBotSettingsPage"));
 const LeadsPage = lazy(() => import("@/features/ecommerce/pages/LeadsPage"));
 const FormsPage = lazy(() => import("@/features/ecommerce/pages/FormsPage"));
+const BookingPage = lazy(() => import("@/features/booking/BookingPage"));
+const BookingsDashboardPage = lazy(() => import("@/features/booking/BookingsDashboardPage"));
 const ProOrderDetailPage = lazy(() => import("@/features/ecommerce/pages/ProOrderDetailPage"));
 const PaymentsPage = lazy(() => import("@/features/ecommerce/pages/PaymentsPage"));
 const StripeCallbackPage = lazy(() => import("@/features/ecommerce/pages/StripeCallbackPage"));
@@ -105,8 +107,8 @@ const CouponsPage = lazy(() => import("@/features/ecommerce/pages/CouponsPage"))
 const MarketsPage = lazy(() => import("@/features/ecommerce/pages/MarketsPage"));
 const PublicShopPage = lazy(() => import("@/features/ecommerce/pages/PublicShopPage"));
 const PublicProductPage = lazy(() => import("@/features/ecommerce/pages/PublicProductPage"));
-const PublicCheckoutPage = lazy(() => import("@/features/ecommerce/checkout/PublicCheckoutPage"));
-const PublicThankYouPage = lazy(() => import("@/features/ecommerce/checkout/PublicThankYouPage"));
+const PublicCheckoutPage = lazy(() => import("@/features/ecommerce/checkout/CheckoutRoute"));
+const PublicThankYouPage = lazy(() => import("@/features/ecommerce/checkout/ThankYouRoute"));
 const CheckoutLayout = lazy(() => import("./themes/modern/CheckoutLayout.tsx"));
 const ThankYouLayout = lazy(() => import("./themes/modern/ThankYouLayout.tsx"));
 const BuilderPreview = lazy(() => import("@/features/portfolio-builder/pages/BuilderPreview"));
@@ -286,6 +288,7 @@ function App() {
                     <Route path="/pro/:slug" element={<PortfolioLayout />}>
                       <Route index element={<PortfolioHome />} />
                       <Route path="shop" element={<PublicShopPage />} />
+                      <Route path="book" element={<BookingPage />} />
                       <Route
                         path="product/:productSlug"
                         element={<PublicProductPage />}
@@ -386,6 +389,7 @@ function App() {
                       <Route path="shipping" element={<ShippingRatesPage />} />
                       <Route path="coupons" element={<CouponsPage />} />
                       <Route path="forms" element={<FormsPage />} />
+                      <Route path="bookings" element={<BookingsDashboardPage />} />
                       <Route path="markets" element={<MarketsPage />} />
                       <Route path="payments" element={<PaymentsPage />} />
                       <Route path="customers" element={<CustomersPage />} />

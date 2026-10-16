@@ -54,15 +54,9 @@ The standard builder inline-edit handshake works as follows: `UCP.Text` delegate
 
 Thus, the SDK is a reusable capability layer intended for developer-authored/custom themes. Cupertino validates that layer; the other defaults remain independently authored implementations by design.
 
-### Verified Runtime SDK Split
+### SDK Runtime (resolved)
 
-There are two implementations with overlapping import paths:
-
-- `src/lib/ucp-sdk/index.ts` is the modular SDK entry aliased as `@ucp/sdk` in `vite.config.ts` and `tsconfig.json`. It exports the 11 members listed above.
-- `src/lib/ucp-sdk.tsx` is a sibling legacy implementation that exports only `Text`, `useScrollObserver`, `useCart`, and `useNavigationTree`.
-- Vite resolves the imports `@/lib/ucp-sdk` in `usePrecompiledTheme.ts`, `useDynamicThemeCompiler.ts`, and `StudioPreview.tsx` to the sibling `src/lib/ucp-sdk.tsx`, not the `src/lib/ucp-sdk/index.ts` directory entry. This was verified with the configured Vite resolver and SSR module loader.
-
-Consequently, built-in Cupertino components imported through `@ucp/sdk` get the modular implementation, but custom compiled/precompiled themes get the legacy object. Cupertino's `useGallery`, `useCarousel`, `useLeadForm`, `usePricingForm`, and `useShopOrderForm` calls are absent from that object and can fail in Studio/Builder custom-theme preview. Monaco's `types.d.ts` advertises the newer API, so editor completion can succeed while preview runtime fails. The duplicate source and ambiguous imports must be resolved before relying on custom themes.
+The legacy sibling `src/lib/ucp-sdk.tsx` was removed. `@ucp/sdk` and `@/lib/ucp-sdk` now both resolve to `src/lib/ucp-sdk/index.ts`, and the single module allowlist for custom themes lives in `src/lib/theme-runtime/modules.ts`. The SDK now also covers FAQ, counters, sliders, video, reviews, services, store products, header state, booking, and an HTML sandbox; see `src/lib/ucp-sdk/types.d.ts` (the same typings Monaco loads in Studio).
 
 ## Portfolio Builder to Ecommerce
 
@@ -104,23 +98,19 @@ Therefore, “the portfolio has ecommerce and the theme controls the entire stor
 
 ## Theme Studio and Custom Theme Pipeline
 
-Current implemented path:
+Current implemented path (see [docs/features/theme-studio.md](features/theme-studio.md) for detail):
 
-1. `DeveloperHubPage` creates a `marketplace_themes` draft with developer metadata and prices.
-2. `ThemeStudioPage` loads and autosaves source files in `marketplace_themes.files`. `INITIAL_FILES` are raw source imports from selected Cupertino theme files; Monaco receives SDK and UI `.d.ts` definitions.
-3. Studio preview transpiles the current source in the browser and sends compiled code/bundles to `StudioPreview` with `postMessage`. `StudioPreview` executes those snippets and returns a component schema/test data for its editor controls.
-4. Submission changes status to `pending_review`. Admin review invokes `compile-theme`, which Babel-transforms TSX/JSX and writes a `compiled_bundle` plus `status='approved'`.
-5. `BuilderPreview` alone currently fetches `marketplace_themes.compiled_bundle`, executes it with `usePrecompiledTheme`, and uses the compiled component for custom theme preview. Missing component exports fall back to the Modern built-in component.
+1. `DeveloperHubPage` creates a `marketplace_themes` draft; Studio seeds it with all Cupertino section files as starters.
+2. `ThemeStudioPage` edits multiple files (create, rename, delete, relative imports), autosaves to `marketplace_themes.files`, and previews through `StudioPreview` using the shared runtime in `src/lib/theme-runtime/`.
+3. Submission from Studio validates the files and sets `pending_review`. Admin review calls `compile-theme` (JWT plus `actors.role='admin'`), which checks imports, scans for risky patterns, compiles every file server-side, and writes `compiled_bundle` plus `approved`; rejection stores a reason.
+4. `useActiveTheme` loads the approved bundle (via `marketplace_themes_public`) for `PortfolioHome`, `DynamicPage`, `PortfolioLayout`, `BuilderPreview`, and `SectionEditor`, so custom themes render live and their design schemas (array or legacy map, normalised) appear in the editor. Missing sections fall back to Modern.
 
 ### Current Completion Gaps
 
-- **No published live custom-theme consumer found:** `PortfolioLayout` and `PortfolioHome` resolve only `THEME_REGISTRY`; searches find no `compiled_bundle` read outside `BuilderPreview`. A custom marketplace theme ID therefore does not resolve to its compiled components on public portfolio rendering and falls back to `DEFAULT_THEME`.
-- **Custom schema is not wired into the builder editor:** `SectionEditor` resolves `THEME_REGISTRY[themeId]`; a marketplace ID not present in that registry produces “Theme not found.” Studio preview can inspect a component's `schema`, but `compile-theme` stores only executable component code and the published builder editor does not load custom schemas.
-- **Studio schema editor mismatch:** `StudioPreview` sends component schema arrays; `ThemeStudioPage` enumerates them as object entries, keys mock values by array index, reads `default` while built-in schemas use `defaultValue`, and renders only a subset of schema field types. Single-component preview feeds edited values back as `data`; the built-in section editor writes schema controls to `settings`.
-- **SDK runtime skew:** the custom-theme runtime bridges resolve the legacy four-member UCP object, while declarations and built-in imports resolve the modular eleven-member API above.
-- **Commerce views do not use custom bundles:** the public shop, product/cart/checkout routing described above is not wired to the custom compiled theme bundle.
-- **Server compilation is implemented, but the end-to-end product pipeline is incomplete:** source → local Studio preview → server compile/store → builder preview works as a code path; server compile/store → builder schema editing → public live theme → themed ecommerce is not connected in the current renderers.
-- **Security is a release blocker:** `compile-theme` is configured with `verify_jwt=false`, initializes a service-role client, and does not verify caller/admin role or theme ownership before setting `approved`. Preview/compiled code is evaluated through `new Function`; module allowlists are not a sandbox. See `docs/features/theme-studio.md`.
+- **Commerce views do not use custom bundles:** the public shop, product, cart, and checkout views are not wired to a custom theme bundle (Phase 6 of the work plan; custom themes may style them but not change logic).
+- **Single-version bundles:** no immutable versions or rollback; a re-approved update replaces the bundle.
+- **Isolation:** reviewed-only policy; code runs through `new Function` with a module allowlist. Iframe sandbox/CSP evaluation is Spike 3.
+- **Migration must be applied:** `20261016000000_theme_studio_hardening.sql` adds the write guard, private source reads, and the public bundle view; until then the loader falls back to the table.
 
 ## Recommended Target Contract
 

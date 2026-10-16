@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 // Import Theme Layouts
 import ModernProductLayout from "@/themes/modern/ProductLayout";
-import MinimalProductLayout from "@/themes/cupertino/ProductLayout"; // Note: ensure path is correct!
+import { CommerceView } from "@/features/ecommerce/components/CommerceView";
 import CartDrawerContainer from "@/features/ecommerce/components/CartDrawerContainer";
 
 // Ensure this matches App.tsx
@@ -414,13 +414,15 @@ export default function PublicProductPage() {
 
   return (
     <>
-      <CartDrawerContainer theme={theme} username={layoutProps.username} storeId={portfolioId} />
+      <CartDrawerContainer theme={theme} themeVersion={themeConfig?.themeVersion} username={layoutProps.username} storeId={portfolioId} />
 
-      {theme === "minimal" ? (
-        <MinimalProductLayout {...layoutProps} />
-      ) : (
-        <ModernProductLayout {...layoutProps} />
-      )}
+      <CommerceView
+        view="ProductLayout"
+        themeId={theme}
+        themeVersion={themeConfig?.themeVersion}
+        fallback={ModernProductLayout}
+        {...layoutProps}
+      />
     </>
   );
 }

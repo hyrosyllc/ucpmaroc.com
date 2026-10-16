@@ -12,6 +12,14 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["lucide-react"],
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "index.html"),
+        sandbox: path.resolve(__dirname, "sandbox.html"),
+      },
+    },
+  },
   /* --- 2. ADD THIS RESOLVE OBJECT --- */
   resolve: {
     alias: {

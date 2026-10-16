@@ -32,4 +32,6 @@ export interface PortfolioThemeDefinition {
   DynamicStore: React.FC<BlockProps>;
   Html: React.FC<BlockProps>;
   schemas?: Record<string, any[]>;
+  /** Components for section types added after this theme was written. */
+  [componentKey: string]: any;
 }

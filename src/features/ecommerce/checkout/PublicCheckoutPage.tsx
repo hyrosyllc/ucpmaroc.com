@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useOutletContext, useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useCartStore, type CartItem } from "../store/useCartStore";
 import { supabase } from "@/supabaseClient"; // Adjust path if needed
-import { loadStripe } from "@stripe/stripe-js";
+import { stripeForAccount } from "@/lib/stripeClient";
 import {
   Elements,
   PaymentElement,
@@ -14,11 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-// 🚀 Initialize Stripe outside the render cycle so it doesn't recreate on every state change
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-    "pk_test_YOUR_STRIPE_PUBLIC_KEY"
-);
 
 const getFieldIcon = (type: string) => {
   switch (type) {
@@ -587,10 +582,8 @@ const OrderSummaryContent = ({ items, total, subtotal, discount, coupon, shippin
   </div>
 );
 
-// --- MAIN PAGE COMPONENT ---
-const PublicCheckoutPage = () => {
-  // Grab the portfolio context passed down from CheckoutLayout
-  const { portfolio } = useOutletContext<{ portfolio: any }>();
+// --- CHECKOUT CONTROLLER: state, pricing, shipping and payment-intent logic. Views only render it. ---
+export function useCheckoutController(portfolio: any) {
   const { items, clearCart, coupon, getCartDiscount, applyCoupon, removeCoupon } = useCartStore();
   const navigate = useNavigate();
 
@@ -601,6 +594,8 @@ const PublicCheckoutPage = () => {
   const [selectedShippingRate, setSelectedShippingRate] = useState<any | null>(null);
 
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [connectedAccountId, setConnectedAccountId] = useState<string | null>(null);
+  const stripePromise = useMemo(() => stripeForAccount(connectedAccountId), [connectedAccountId]);
   const [initError, setInitError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
   const [formTemplate, setFormTemplate] = useState<any>(null);
@@ -774,7 +769,10 @@ const PublicCheckoutPage = () => {
         );
         if (error) throw error;
         if (data.error) throw new Error(data.error);
-        if (data.clientSecret) setClientSecret(data.clientSecret);
+        if (data.clientSecret) {
+          setConnectedAccountId(data.connectedAccountId ?? null);
+          setClientSecret(data.clientSecret);
+        }
       } catch (err: any) {
         if (err.message === "SELLER_NOT_CONNECTED") {
           setInitError("This seller is currently not accepting automated payments.");
@@ -810,7 +808,84 @@ const PublicCheckoutPage = () => {
     navigate(thankYouUrl, { replace: true });
   };
 
-  // --- CHECKOUT VIEW ---
+  return {
+    items, coupon, discount, subtotal, finalTotal, shippingCost, requiresShipping, applicableRates,
+    selectedShippingRate, setSelectedShippingRate, couponInput, setCouponInput, couponError, isValidatingCoupon,
+    handleApplyCoupon, removeCoupon, shopUrl, homeUrl, initError, checkoutStep, setCheckoutStep,
+    formTemplate, formValues, setFormValues, isLoadingForm, clientSecret, stripePromise, isLightMode,
+    isSummaryExpanded, setIsSummaryExpanded, handleSuccess,
+  };
+}
+
+// --- PLATFORM-OWNED PAYMENT: Stripe fields and order creation are never rendered by a theme. ---
+const PaymentSlot = ({ checkout, portfolio }: any) => {
+  const {
+    items, coupon, discount, finalTotal, shippingCost, selectedShippingRate, formTemplate, formValues,
+    clientSecret, stripePromise, isLightMode, handleSuccess,
+  } = checkout;
+  if (!clientSecret && finalTotal > 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <Loader2 className="w-8 h-8 animate-spin mb-4" />
+        <p>Loading secure payment...</p>
+      </div>
+    );
+  }
+  const common = {
+    amount: finalTotal,
+    portfolioId: portfolio.id,
+    actorId: portfolio.actor_id,
+    items,
+    onComplete: handleSuccess,
+    formTemplate,
+    formValues,
+    paymentConfig: portfolio?.theme_config?.payments || {},
+    coupon,
+    discount,
+    shippingCost,
+    selectedShippingRate,
+  };
+  if (finalTotal <= 0) return <PaymentForm {...common} clientSecret={null} isFreeOrder={true} />;
+  return (
+    <Elements
+      stripe={stripePromise}
+      options={{
+        clientSecret: clientSecret ?? undefined,
+        appearance: {
+          theme: isLightMode ? "stripe" : "night",
+          variables: {
+            fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
+            borderRadius: '6px',
+            colorBackground: isLightMode ? '#ffffff' : '#171717',
+            colorText: isLightMode ? '#0a0a0a' : '#ffffff',
+            colorPrimary: 'var(--primary)',
+            colorDanger: '#ef4444',
+            colorTextPlaceholder: isLightMode ? '#737373' : '#a3a3a3',
+          },
+          rules: {
+            '.Input': { backgroundColor: isLightMode ? '#ffffff' : '#171717', boxShadow: 'none', padding: '12px' },
+            '.Input:focus': { border: '1px solid var(--primary)', boxShadow: '0 0 0 1px var(--primary)' },
+            '.Label': { fontWeight: '500', color: isLightMode ? '#404040' : '#d4d4d4', marginBottom: '4px' },
+            '.Tab--selected': {},
+          },
+        },
+      }}
+    >
+      <StripeCheckoutWrapper {...common} clientSecret={clientSecret} />
+    </Elements>
+  );
+};
+
+// --- DEFAULT (MODERN) CHECKOUT VIEW ---
+export const DefaultCheckoutView = ({ portfolio }: any) => {
+  const checkout = useCheckout(portfolio);
+  const {
+    items, coupon, discount, subtotal, finalTotal, shippingCost, requiresShipping, applicableRates,
+    selectedShippingRate, setSelectedShippingRate, couponInput, setCouponInput, couponError, isValidatingCoupon,
+    handleApplyCoupon, removeCoupon, shopUrl, initError, checkoutStep, setCheckoutStep,
+    formTemplate, formValues, setFormValues, isLoadingForm, isSummaryExpanded, setIsSummaryExpanded,
+  } = checkout;
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background font-sans text-foreground w-full overflow-x-hidden selection:bg-primary/20 selection:text-primary-foreground">
       
@@ -887,7 +962,7 @@ const PublicCheckoutPage = () => {
                  <div className="space-y-4">
                     <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2"><Truck size={20} className="text-muted-foreground" /> Shipping Method</h2>
                     <div className="space-y-3">
-                       {applicableRates.map(rate => (
+                       {applicableRates.map((rate: any) => (
                           <label key={rate.id} className={cn("flex items-center justify-between p-4 cursor-pointer border rounded-md transition-colors", selectedShippingRate?.id === rate.id ? "border-primary bg-primary/10" : "border-border hover:border-foreground/30 bg-card")}>
                              <div className="flex items-center gap-3">
                                 <div className="relative flex items-center justify-center w-4 h-4 rounded-full border border-border/50 bg-muted">
@@ -906,83 +981,7 @@ const PublicCheckoutPage = () => {
               )}
 
               {/* PAYMENT SECTION */}
-              {!clientSecret && finalTotal > 0 ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                   <Loader2 className="w-8 h-8 animate-spin mb-4" />
-                   <p>Loading secure payment...</p>
-                 </div>
-              ) : finalTotal > 0 ? (
-                <Elements
-                  stripe={stripePromise}
-                  options={{ 
-                    clientSecret, 
-                    appearance: { 
-                      theme: isLightMode ? "stripe" : "night",
-                      variables: {
-                        fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
-                        borderRadius: '6px',
-                        colorBackground: isLightMode ? '#ffffff' : '#171717',
-                        colorText: isLightMode ? '#0a0a0a' : '#ffffff',
-                        colorPrimary: 'var(--primary)',
-                        colorDanger: '#ef4444',
-                        colorTextPlaceholder: isLightMode ? '#737373' : '#a3a3a3',
-                        colorBorder: isLightMode ? '#e5e5e5' : '#333333',
-                      },
-                      rules: {
-                        '.Input': {
-                          backgroundColor: isLightMode ? '#ffffff' : '#171717',
-                          boxShadow: 'none',
-                          padding: '12px',
-                        },
-                        '.Input:focus': {
-                          border: '1px solid var(--primary)',
-                          boxShadow: '0 0 0 1px var(--primary)',
-                        },
-                        '.Label': {
-                          fontWeight: '500',
-                          color: isLightMode ? '#404040' : '#d4d4d4',
-                          marginBottom: '4px'
-                        },
-                        '.Tab--selected': {
-                        }
-                      }
-                    } 
-                  }}
-                >
-                  <StripeCheckoutWrapper
-                    amount={finalTotal}
-                    portfolioId={portfolio.id}
-                    actorId={portfolio.actor_id}
-                    items={items}
-                    onComplete={handleSuccess}
-                    formTemplate={formTemplate}
-                    formValues={formValues}
-                    clientSecret={clientSecret}
-                    paymentConfig={portfolio?.theme_config?.payments || {}}
-                    coupon={coupon}
-                    discount={discount}
-                    shippingCost={shippingCost}
-                    selectedShippingRate={selectedShippingRate}
-                  />
-                </Elements>
-              ) : (
-                <PaymentForm
-                  amount={finalTotal}
-                  portfolioId={portfolio.id}
-                  actorId={portfolio.actor_id}
-                  items={items}
-                  onComplete={handleSuccess}
-                  formTemplate={formTemplate}
-                  formValues={formValues}
-                  clientSecret={null}
-                  paymentConfig={portfolio?.theme_config?.payments || {}}
-                  coupon={coupon}
-                  discount={discount}
-                  isFreeOrder={true}
-                  shippingCost={shippingCost}
-                  selectedShippingRate={selectedShippingRate}
-                />
-              )}
+              <PaymentSlot checkout={checkout} portfolio={portfolio} />
             </div>
           )}
         </div>
@@ -999,4 +998,27 @@ const PublicCheckoutPage = () => {
   );
 };
 
-export default PublicCheckoutPage;
+export function useCheckout(portfolio: any) {
+  const checkout = useCheckoutController(portfolio);
+
+  // Platform-owned pieces a theme can place but not replace.
+  const slots = {
+    contact: (
+      <ContactShippingForm
+        formTemplate={checkout.formTemplate}
+        formValues={checkout.formValues}
+        setFormValues={checkout.setFormValues}
+        isLoadingForm={checkout.isLoadingForm}
+        allowedCountries={portfolio?.theme_config?.allowedCountries || []}
+        onSubmit={(e: React.FormEvent) => {
+          e.preventDefault();
+          checkout.setCheckoutStep(2);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
+    ),
+    payment: <PaymentSlot checkout={checkout} portfolio={portfolio} />,
+  };
+
+  return { ...checkout, slots };
+}

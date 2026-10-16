@@ -6,10 +6,9 @@ import { CustomLoader } from "@/features/portfolio-builder/pages/PortfolioHome";
 import { usePortfolio } from "@/features/portfolio-builder";
 import { trackEvent } from "@/lib/analytics";
 import {
-  THEME_REGISTRY,
-  DEFAULT_THEME,
   resolveThemeComponent,
 } from "@/themes/registry";
+import { useActiveTheme } from "../hooks/useActiveTheme";
 
 import CartDrawerContainer from "@/features/ecommerce/components/CartDrawerContainer";
 import { useBuilderStore } from "@/store/useBuilderStore";
@@ -192,6 +191,11 @@ export default function PortfolioLayout({
   }, [isBuilderPreview, builderSections, builderThemeConfig, data]);
 
   // --- LOADING & ERROR STATES (Only for live site) ---
+  const { theme: ActiveTheme } = useActiveTheme(
+    activeData?.portfolio?.theme_config?.templateId || "modern",
+    activeData?.portfolio?.theme_config?.themeVersion
+  );
+
   if (!isBuilderPreview && isLoading) {
     return (
       <div
@@ -222,11 +226,9 @@ export default function PortfolioLayout({
   const { portfolio, actorProfile } = activeData || {};
   const sections = portfolio?.sections || [];
   const themeConfig = portfolio?.theme_config || {};
+  const themeId = themeConfig.templateId || "modern";
 
   // --- THEME & COMPONENT RESOLUTION ---
-  const themeId = themeConfig.templateId || "modern";
-  const ActiveTheme = THEME_REGISTRY[themeId] || DEFAULT_THEME;
-
   const headerSection = sections.find((s: any) => s.type === "header");
   const HeaderComponent = headerSection
     ? resolveThemeComponent(ActiveTheme, "header")
@@ -334,6 +336,7 @@ export default function PortfolioLayout({
         {!isBuilderPreview && (
           <CartDrawerContainer
             theme={themeId}
+            themeVersion={themeConfig?.themeVersion}
             username={slug}
             isPreview={false}
           />

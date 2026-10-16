@@ -2,46 +2,74 @@
 
 ## Responsibility
 
-Theme Studio is the developer-facing editor and marketplace workflow for custom theme code. It is distinct from built-in themes in `src/themes/registry.ts` and from normal portfolio section editing. The feature includes theme drafts, Monaco editing, preview execution, submission for moderation, and admin compilation/publication.
+Theme Studio is the developer-facing editor and marketplace workflow for custom theme code. It is distinct from the built-in themes in `src/themes/registry.ts`. It covers theme drafts, multi-file Monaco editing, live preview against a real test site, submission, admin review/compilation, and runtime rendering in the builder and on published sites.
 
 ## Entry Points and Records
 
-- `/dashboard/studio` → `ThemeStudioPage`: edit files, compile/run, inspect a real test site, use inline/schema preview.
-- `/dashboard/creator-hub` → `DeveloperHubPage`: create themes, set metadata/prices, list status, submit for review.
-- `/studio-preview` → `StudioPreview`: iframe environment for compiled/editor code and portfolio-derived test data.
-- `/admin/themes` → `AdminThemesPage`: admin review/compile/reject.
+- `/dashboard/studio` → `ThemeStudioPage`: file explorer (create, rename, delete), Monaco editor, preview, test-value panels, submit for review.
+- `/dashboard/creator-hub` → `DeveloperHubPage`: create themes, metadata/prices, status and rejection reasons. Submission happens in Studio so files are validated first.
+- `/studio-preview` → `StudioPreview`: same-origin iframe that evaluates a compiled bundle and renders it.
+- `/admin/themes` → `AdminThemesPage`: automated checks, code viewer, approve, reject with reason.
 
-All routes are in `src/App.tsx`. `marketplace_themes` stores developer, metadata/pricing, `files`, review status, and `compiled_bundle`. Developer ownership queries filter by `developer_id=actorData.id`.
+`marketplace_themes` stores owner, metadata/prices, `files`, `status` (`draft`, `pending_review`, `approved`, `rejected`), `compiled_bundle`, and (after migration `20261016000000`) `rejection_reason`, `reviewed_at`, `reviewed_by`.
+
+## Shared runtime (`src/lib/theme-runtime/`)
+
+One module system serves Studio preview, builder preview, and the live site.
+
+- `loader.ts`: evaluates a bundle of CommonJS files. Relative imports between theme files work (`./SectionTitle`, `../x/Y`); circular imports are safe; one broken file reports an error without blocking the others. Pure, unit tested (`theme-runtime.test.ts`).
+- `modules.ts`: the single allowlist of external modules (react, react-dom, `@ucp/sdk`, `@/lib/utils`, framer-motion, recharts, date-fns, canvas-confetti, `Link` from react-router-dom, lucide-react with a placeholder for unknown icons, and the shadcn UI modules). Any other import throws.
+- `schema.ts`: accepts both schema formats (array `[{ id, type, label, defaultValue, options }]` and the legacy object map) and normalises to the section field format.
+- `compile.ts`: Babel transform used by Studio; also reports sections without a default export.
+- `sectionTypes.ts`: maps file names to section types through the section registry (`Faq.tsx` → `faq`, `RichText.tsx` → `rich_text`).
+
+`useActiveTheme(themeId)` (builder hooks) resolves a built-in theme or an approved marketplace theme to a component map. Missing sections fall back to Modern. It reads the bundle from `marketplace_themes_public` (falling back to the table before the view exists) and caches it. `PortfolioHome`, `DynamicPage`, `PortfolioLayout`, `BuilderPreview`, and `SectionEditor` all use it, so custom themes render live and expose their design schemas in the editor.
 
 ## Authoring and Preview Flow
 
-1. `DeveloperHubPage` inserts a draft `marketplace_themes` row, then navigates to `/dashboard/studio?themeId=...`.
-2. `ThemeStudioPage` loads the developer-owned row, merges any missing `INITIAL_FILES`, and autosaves edited `files` after a debounce.
-3. Monaco uses `src/lib/ucp-sdk/` type declarations and the editor's `addExtraLib` definitions for UCP components and available UI types.
-4. Compile/run transpiles JSX/TSX with Babel Standalone. It sends `EXECUTE_CODE` or `EXECUTE_BUNDLE` through `postMessage` to the preview frame. The frame can return `PREVIEW_READY`, `SCHEMA_PARSED`, `FULL_PAGE_READY`, or inline-edit messages.
-5. `StudioPreview` can load a selected portfolio as real test data and supplies mapped React/UI/SDK modules to the preview renderer.
+1. A new theme opens with all Cupertino sections as starter files (SDK-only code, including the `SectionTitle` helper). Existing themes keep their files; add starters from New file.
+2. Edits autosave after 1.5 s. Editing a theme that is `pending_review` withdraws the submission (status returns to `draft`) so reviewers never approve code that has since changed.
+3. Studio compiles all files with Babel and posts `STUDIO_LOAD { bundle, mode, activeFile }` to the iframe. It recompiles shortly after edits, on file switch, on test-site change, on Refresh, and on Ctrl/Cmd+S.
+4. The iframe returns `PREVIEW_READY`, `STUDIO_ERRORS` (per-file load errors), `SCHEMA_PARSED` (normalised design schema, the section's content schema from the registry, current data and settings), and `STUDIO_INLINE_EDIT`. Both sides accept messages only from the same origin and the expected window.
+5. Component mode shows one file with the test site's real data for that section type (registry starter content when absent). The Design settings and Content tabs edit `settings` and `data` through the shared schema renderer; edits survive recompiles.
+6. Full page mode renders the test site's sections in order, with their settings and layout controls, resolved exactly like the live site (missing sections fall back to Modern). A crashing section shows an inline error instead of blanking the page.
 
-## Review and Runtime Consumption
+## Review and Publication
 
-`DeveloperHubPage` changes a draft status to `pending_review`. `AdminThemesPage` lists pending themes and calls `compile-theme` on approval; the function reads `files`, Babel-transforms TSX/JSX, writes `compiled_bundle`, and changes status to `approved`. Rejection writes `status='rejected'`.
+- **Submit** (Studio): compiles every file; blocks on errors or when no section file exists; then sets `pending_review`. For an approved theme it submits an update while the live version stays available.
+- **Admin** (`compile-theme`, requires JWT and `actors.role='admin'`): `analyze` returns blocking problems (disallowed or unresolvable imports, syntax errors, size limits) and review findings (`eval`, `fetch`, storage, cross-window messaging, direct database access, raw HTML). `approve` compiles all files server-side, writes `compiled_bundle`, sets `approved`; findings need explicit acknowledgement. `reject` stores the reason shown to the developer.
+- **Database** (migration `20261016000000_theme_studio_hardening.sql`): a trigger stops non-admins from writing `compiled_bundle` or deciding review outcomes (developers may only submit or withdraw); theme source is readable only by its developer and admins; browsers read bundles through `marketplace_themes_public`. The migration prints a notice for any existing `FOR ALL` policy that may still expose source; review those.
 
-`BuilderPreview` reads `marketplace_themes.compiled_bundle` and `usePrecompiledTheme` reconstructs component exports for that preview. The published `PortfolioLayout`/`PortfolioHome` do **not** read `compiled_bundle`; they resolve only `THEME_REGISTRY` and fall back to `DEFAULT_THEME` for a marketplace ID. `SectionEditor` also requires a `THEME_REGISTRY` entry to resolve theme settings schemas. Thus compilation/persistence and builder preview exist, but current code does not complete live custom-theme rendering or custom schema editing. See [Portfolio, Ecommerce, Themes, and UCP SDK](../PORTFOLIO_ECOMMERCE_THEMES.md) for the full flow.
+## Versions and rollback
 
-## Security Boundary: Must Verify
+Migration `20261017000000_theme_versions.sql` adds `marketplace_theme_versions` (immutable snapshots with status `pending`, `approved`, `rejected`, `withdrawn`) and `marketplace_themes.published_version`.
 
-Custom theme files are executable code, not inert templates. `useDynamicThemeCompiler`, `usePrecompiledTheme`, and `StudioPreview` execute generated JavaScript with `new Function`; a mocked/allowlisted `require` is not a security sandbox. Review origin isolation, available browser APIs, data exposure, and approval policy before treating custom code as safe.
+- **Submit** calls `submit_theme_version`, which snapshots the files as the next version and moves the theme to `pending_review`.
+- **Edit while in review** withdraws the pending version (trigger) and returns the theme to `draft`.
+- **Review** (`compile-theme`) reads the pending snapshot, never the working copy; approve stores the bundle on that version, publishes it (`published_version`, `compiled_bundle`), reject records the reason on the version.
+- **Rollback**: `rollback_theme_version` (owner or admin) re-points the live bundle to any approved version. Studio's Versions dialog lists history, loads a version's files into the editor, and makes an approved version live.
+- **Pinning**: a site can load a specific approved version through `theme_config.themeVersion` (public view `marketplace_theme_versions_public`); without it the published version is served.
+- The write guard lets only these functions and admins change `compiled_bundle`, `published_version`, and review fields.
 
-At the time of this scan, `supabase/config.toml` sets `compile-theme` to `verify_jwt=false`, and `supabase/functions/compile-theme/index.ts` creates a service-role client and updates the theme to approved without validating the caller's identity, theme ownership, or admin role in the function. The admin page's route guard does not protect a directly callable Edge Function. Treat this as a security issue to resolve before relying on the approval flow in production.
+## Commerce views
 
-## Connections and Maintenance
+A theme can restyle the store by shipping files named after these views (default export, props only): `ShopLayout`, `ProductLayout`, `LoginLayout`, `CartDrawer`, `CheckoutView`, `ThankYouView`. The platform renders the theme's view when present, otherwise the Modern default, and falls back to the default if the view throws (`CommerceView`). Logic never moves to the theme:
 
-- Portfolio Builder owns normal site sections, theme selection, theme purchases, and live rendering; Theme Studio owns user-authored marketplace code.
-- Admin Core moderates marketplace submissions; `compile-theme` persists executable bundles.
-- UCP editor types live in `src/lib/ucp-sdk/`, while runtime module bridges are in `useDynamicThemeCompiler.ts`, `usePrecompiledTheme.ts`, and `StudioPreview.tsx`. Keep declared editor modules aligned with actual runtime modules.
-- **Verified SDK mismatch:** the runtime bridge imports `@/lib/ucp-sdk`, which Vite resolves to the sibling legacy `src/lib/ucp-sdk.tsx` (four members), while built-in themes and declarations use the modular `@ucp/sdk` entry in `src/lib/ucp-sdk/index.ts` (eleven members). Seeded Cupertino code calls SDK methods missing from the legacy runtime object. See [the cross-feature guide](../PORTFOLIO_ECOMMERCE_THEMES.md).
-- Version the theme file schema/compiled bundle contract when changing component names or exports; test preview and live rendering together.
-- The project has built-in themes (`modern`, `modern_bright`, `cinematic`, `cupertino`) as well as database marketplace themes. Do not treat them as one registry or licensing path.
-- The SDK is used by Cupertino source and seeded into Theme Studio examples; it is not currently adopted by all built-in themes. Preserve built-in raw theme ownership as a separate design constraint.
+- `CartDrawer` calls `UCP.useCartDrawer()`; `ShopLayout` uses `UCP.useProductCard()`.
+- `CheckoutView` calls `UCP.useCheckout(portfolio)` (step, items, totals, shipping rates, coupon state, and `slots.contact` / `slots.payment`). The theme decides where the slots sit; Stripe fields and order creation are always platform components.
+- `ThankYouView` calls `UCP.useThankYou(portfolio)` (order, downloads, display fields, URLs, `handlePrint`).
+- `ShopLayout`, `ProductLayout` and `LoginLayout` still receive state and callbacks as props from their pages (same security property; moving them behind hooks is the next consistency step).
+- Cupertino ships all six as the starter set; Studio previews each with sample data.
+
+## Security Boundary
+
+Theme code is executable with `new Function`; the module allowlist and review are the controls. Policy is reviewed-only themes. Static scanning is a reviewer aid. A CSP runs in report-only mode (`vercel.json`, reports at `api/csp-report.ts`). Studio's "Isolated" toggle runs the preview in a sandboxed iframe (`sandbox.html`, opaque origin, strict CSP, sample data only); the builder preview and live site still mount reviewed themes directly.
+
+## Known gaps
+
+- Live commerce views (shop, product, cart, checkout) are not themeable by custom themes yet (Phase 6).
+- Monaco semantic type checking is off (React types are not loaded); syntax errors are shown.
+- `files` and `compiled_bundle` on `marketplace_themes` mirror the working copy and the live version; history lives in `marketplace_theme_versions`.
 
 ## Complete Module File Map
 
@@ -49,3 +77,7 @@ At the time of this scan, `supabase/config.toml` sets `compile-theme` to `verify
 - `src/features/theme-studio/pages/DeveloperHubPage.tsx`
 - `src/features/theme-studio/pages/StudioPreview.tsx`
 - `src/features/theme-studio/pages/ThemeStudioPage.tsx`
+- `src/lib/theme-runtime/` (`loader.ts`, `modules.ts`, `schema.ts`, `compile.ts`, `sectionTypes.ts`, `index.ts`, test)
+- `src/features/portfolio-builder/hooks/useActiveTheme.ts`, `usePrecompiledTheme.ts`, `useDynamicThemeCompiler.ts`
+- `supabase/functions/compile-theme/index.ts`
+- `supabase/migrations/20261016000000_theme_studio_hardening.sql`

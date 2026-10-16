@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 import Stripe from "https://esm.sh/stripe@12.0.0?target=deno";
+import { finalizeBooking } from "../_shared/bookingFulfillment.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") as string, {
   apiVersion: "2022-11-15",
@@ -67,6 +68,32 @@ serve(async (request) => {
 
       if (paymentIntent.metadata?.connected_account_id && paymentIntent.metadata.connected_account_id !== connectedAccountId) {
         throw new Error("Connected account does not match payment metadata.");
+      }
+
+      const bookingId = paymentIntent.metadata?.booking_id;
+      if (paymentIntent.metadata?.booking_checkout === "true" && bookingId) {
+        const { data: outcome, error: bookingError } = await supabase.rpc("complete_booking_payment", {
+          p_booking_id: bookingId,
+          p_payment_intent_id: paymentIntent.id,
+          p_amount_paid_cents: Number(paymentIntent.amount_received || paymentIntent.amount),
+        });
+        if (bookingError) throw bookingError;
+
+        if (outcome === "confirmed") {
+          // Side effects run after the payment is recorded; failures must not undo it.
+          await finalizeBooking(supabase, bookingId).catch((e) => console.error("finalizeBooking", e));
+        } else if (outcome === "refund_needed") {
+          try {
+            await stripe.refunds.create({ payment_intent: paymentIntent.id }, { stripeAccount: connectedAccountId });
+          } catch (refundError) {
+            // A retried event may find the payment already refunded.
+            if ((refundError as any)?.code !== "charge_already_refunded") throw refundError;
+          }
+          await supabase.from("bookings").update({ payment_status: "refunded" }).eq("id", bookingId);
+        }
+
+        await supabase.rpc("complete_processed_stripe_event", { p_event_id: eventId });
+        return new Response(JSON.stringify({ received: true, booking: outcome }), { status: 200 });
       }
 
       const storeAttemptId = paymentIntent.metadata?.store_payment_attempt_id;

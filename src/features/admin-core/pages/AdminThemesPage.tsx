@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "@/supabaseClient";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -20,6 +20,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { diffFileSets, diffLines } from "@/lib/theme-runtime/diff";
 import { 
   Loader2, 
   CheckCircle2, 
@@ -30,10 +31,78 @@ import {
   Play
 } from "lucide-react";
 
+interface CompileReport {
+  success?: boolean;
+  version?: number | null;
+  problems?: string[];
+  findings?: string[];
+  needsAcknowledgement?: boolean;
+  error?: string;
+  message?: string;
+}
+
+// The function answers 4xx with a JSON body the review UI needs (findings, problems).
+async function callCompile(body: Record<string, unknown>): Promise<CompileReport> {
+  const { data, error } = await supabase.functions.invoke("compile-theme", { body });
+  if (!error) return data as CompileReport;
+  try {
+    return await (error as any).context.json();
+  } catch {
+    return { error: error.message };
+  }
+}
+
 export default function AdminThemesPage() {
   const [selectedTheme, setSelectedTheme] = useState<any | null>(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [report, setReport] = useState<CompileReport | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [submittedFiles, setSubmittedFiles] = useState<Record<string, string> | null>(null);
+  // The immutable snapshot that was submitted; the working copy may have changed since.
+  const reviewFiles: Record<string, string> | null = submittedFiles ?? selectedTheme?.files ?? null;
+  // Files of the currently live version, so a reviewer can read only what changed.
+  const [liveFiles, setLiveFiles] = useState<Record<string, string> | null>(null);
+  const [showChanges, setShowChanges] = useState(false);
+  const fileChanges = reviewFiles && liveFiles ? diffFileSets(liveFiles, reviewFiles) : null;
+  const tabFiles = reviewFiles && fileChanges && showChanges ? Object.keys({ ...liveFiles, ...reviewFiles }).filter((n) => fileChanges[n] !== "unchanged") : Object.keys(reviewFiles ?? {});
+
+  useEffect(() => {
+    setLiveFiles(null);
+    setShowChanges(false);
+    if (!selectedTheme?.published_version) return;
+    supabase
+      .from("marketplace_theme_versions")
+      .select("files")
+      .eq("theme_id", selectedTheme.id)
+      .eq("version", selectedTheme.published_version)
+      .maybeSingle()
+      .then(({ data }) => setLiveFiles(data?.files ?? null));
+  }, [selectedTheme]);
+
+  useEffect(() => {
+    setSubmittedFiles(null);
+    if (!selectedTheme) return;
+    supabase
+      .from("marketplace_theme_versions")
+      .select("files")
+      .eq("theme_id", selectedTheme.id)
+      .eq("status", "pending")
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setSubmittedFiles(data?.files ?? null));
+  }, [selectedTheme]);
+
+  useEffect(() => {
+    setReport(null);
+    if (!selectedTheme) return;
+    setIsAnalyzing(true);
+    callCompile({ theme_id: selectedTheme.id, action: "analyze" }).then((r) => {
+      setReport(r);
+      setIsAnalyzing(false);
+    });
+  }, [selectedTheme]);
 
   // 1. Fetch themes needing review
   const { data: pendingThemes = [], refetch, isLoading } = useQuery({
@@ -55,19 +124,23 @@ export default function AdminThemesPage() {
 
   // 2. Trigger the Edge Function to Compile & Approve
   const handleApproveAndCompile = async (themeId: string) => {
-    if (!confirm("Are you sure this code is safe? This will compile and publish the theme to the live marketplace.")) return;
-    
-    setIsCompiling(true);
-    
-    // Call the Edge Function we created earlier!
-    const { data, error } = await supabase.functions.invoke('compile-theme', {
-      body: { theme_id: themeId }
-    });
+    if (!confirm("Approve this theme? It is compiled on the server and becomes available to everyone who buys it.")) return;
 
+    setIsCompiling(true);
+    let result = await callCompile({ theme_id: themeId, action: "approve" });
+    if (result.needsAcknowledgement) {
+      const list = (result.findings ?? []).map((f) => `- ${f}`).join("\n");
+      if (confirm(`The automated scan flagged:\n${list}\n\nI have reviewed these and they are acceptable.`)) {
+        result = await callCompile({ theme_id: themeId, action: "approve", acknowledgeFindings: true });
+      } else {
+        setIsCompiling(false);
+        return;
+      }
+    }
     setIsCompiling(false);
 
-    if (error || data?.error) {
-      alert(`Compilation Failed:\n${error?.message || data?.error}`);
+    if (!result.success) {
+      alert(`Compilation failed:\n${[result.error, ...(result.problems ?? [])].filter(Boolean).join("\n")}`);
     } else {
       alert("Theme successfully compiled and approved!");
       setSelectedTheme(null);
@@ -75,23 +148,16 @@ export default function AdminThemesPage() {
     }
   };
 
-  // 3. Reject Theme
+  // 3. Reject Theme (server-side, so the reason is stored and developers cannot self-approve)
   const handleReject = async (themeId: string) => {
-    const reason = prompt("Enter a rejection reason (optional):");
+    const reason = prompt("Tell the developer what to fix (shown in Theme Studio):");
     if (reason === null) return; // User cancelled
 
     setIsRejecting(true);
-    const { error } = await supabase
-      .from("marketplace_themes")
-      .update({ 
-          status: "rejected",
-          // You could optionally save the rejection reason to a column if you create one
-      })
-      .eq("id", themeId);
-
+    const result = await callCompile({ theme_id: themeId, action: "reject", reason });
     setIsRejecting(false);
 
-    if (error) alert("Failed to reject theme.");
+    if (!result.success) alert("Failed to reject theme.");
     else {
       setSelectedTheme(null);
       refetch();
@@ -159,7 +225,7 @@ export default function AdminThemesPage() {
         <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 border-b bg-muted/30 shrink-0">
             <DialogTitle className="flex items-center gap-2 text-2xl">
-              <TerminalSquare className="text-primary" /> Auditing: {selectedTheme?.name}
+              <TerminalSquare className="text-primary" /> Auditing: {selectedTheme?.name}{report?.version ? ` (version ${report.version})` : ""}
             </DialogTitle>
             <DialogDescription>
               Check the files below for malicious code (e.g., unauthorized <code>fetch</code> calls, raw <code>&lt;script&gt;</code> tags, or `window.parent` hacks).
@@ -167,23 +233,68 @@ export default function AdminThemesPage() {
           </DialogHeader>
 
           <div className="flex-grow overflow-hidden flex flex-col p-6">
-            {selectedTheme?.files ? (
-              <Tabs defaultValue={Object.keys(selectedTheme.files)[0]} className="flex flex-col h-full">
+            <div className="mb-4 shrink-0 text-sm" role="status">
+              {isAnalyzing ? (
+                <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Running automated checks…</span>
+              ) : report ? (
+                <div className="space-y-2">
+                  {report.error && <p className="text-destructive">{report.error}</p>}
+                  {(report.problems?.length ?? 0) > 0 && (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3">
+                      <p className="font-semibold text-destructive">Blocking problems</p>
+                      <ul className="list-disc pl-5 text-xs">{report.problems!.map((p) => <li key={p}>{p}</li>)}</ul>
+                    </div>
+                  )}
+                  {(report.findings?.length ?? 0) > 0 && (
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                      <p className="font-semibold text-amber-600">Review these patterns</p>
+                      <ul className="list-disc pl-5 text-xs">{report.findings!.map((f) => <li key={f}>{f}</li>)}</ul>
+                    </div>
+                  )}
+                  {!report.error && !report.problems?.length && !report.findings?.length && (
+                    <p className="text-emerald-600">Automated checks found nothing. Still read the code.</p>
+                  )}
+                </div>
+              ) : null}
+            </div>
+            {reviewFiles ? (
+              <Tabs key={`${showChanges}`} defaultValue={tabFiles[0]} className="flex flex-col h-full">
+                {liveFiles && (
+                  <div className="mb-3 flex shrink-0 items-center gap-2 text-xs">
+                    <Button size="sm" variant={showChanges ? "outline" : "secondary"} onClick={() => setShowChanges(false)}>All files</Button>
+                    <Button size="sm" variant={showChanges ? "secondary" : "outline"} onClick={() => setShowChanges(true)}>
+                      Changes vs live (v{selectedTheme?.published_version})
+                    </Button>
+                    {showChanges && tabFiles.length === 0 && <span className="text-muted-foreground">No file changes.</span>}
+                  </div>
+                )}
                 <div className="mb-4 max-w-full overflow-x-auto">
                 <TabsList className="w-max">
-                  {Object.keys(selectedTheme.files).map(filename => (
-                    <TabsTrigger key={filename} value={filename}>{filename}</TabsTrigger>
+                  {tabFiles.map(filename => (
+                    <TabsTrigger key={filename} value={filename}>
+                      {filename}{fileChanges && fileChanges[filename] !== "unchanged" ? ` (${fileChanges[filename]})` : ""}
+                    </TabsTrigger>
                   ))}
                 </TabsList>
                 </div>
                 
-                {Object.entries(selectedTheme.files).map(([filename, code]) => (
+                {tabFiles.map((filename) => (
                   <TabsContent key={filename} value={filename} className="flex-grow mt-0 h-full">
                     {/* Read-only code viewer */}
                     <div className="w-full h-full bg-zinc-950 text-zinc-300 p-4 rounded-xl overflow-auto font-mono text-xs leading-relaxed custom-scrollbar border border-zinc-800">
-                      <pre>
-                        <code>{String(code)}</code>
-                      </pre>
+                      {showChanges ? (
+                        <pre>
+                          {diffLines(liveFiles?.[filename] ?? "", reviewFiles[filename] ?? "").map((line, i) => (
+                            <div key={i} className={line.type === "add" ? "bg-emerald-500/15 text-emerald-300" : line.type === "remove" ? "bg-red-500/15 text-red-300" : "opacity-60"}>
+                              {line.type === "add" ? "+ " : line.type === "remove" ? "- " : "  "}{line.text}
+                            </div>
+                          ))}
+                        </pre>
+                      ) : (
+                        <pre>
+                          <code>{String(reviewFiles[filename])}</code>
+                        </pre>
+                      )}
                     </div>
                   </TabsContent>
                 ))}
@@ -208,7 +319,7 @@ export default function AdminThemesPage() {
             <Button 
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
               onClick={() => handleApproveAndCompile(selectedTheme.id)}
-              disabled={isCompiling || isRejecting}
+              disabled={isCompiling || isRejecting || isAnalyzing || (report?.problems?.length ?? 0) > 0}
             >
               {isCompiling ? <Loader2 className="animate-spin mr-2" /> : <Play className="mr-2" size={16} />}
               {isCompiling ? "Compiling Server-Side..." : "Approve & Compile Theme"}

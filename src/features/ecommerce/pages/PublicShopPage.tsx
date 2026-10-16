@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 // Import Layouts
 import ModernShopLayout from "@/themes/modern/ShopLayout";
 import CartDrawerContainer from "@/features/ecommerce/components/CartDrawerContainer";
+import { CommerceView } from "@/features/ecommerce/components/CommerceView";
 import { useCartStore } from "../store/useCartStore";
 
 // Ensure this matches App.tsx
@@ -157,13 +158,14 @@ export default function PublicShopPage() {
     setSearchQuery,
     filteredProducts,
     themeConfig,
+    portfolioId,
   };
 
   // ROUTER: Inject the exact layout based on the actor's active theme
   return (
     <>
-      <CartDrawerContainer theme={theme} username={layoutProps.username} storeId={portfolioId} />
-      <ModernShopLayout {...layoutProps} />
+      <CartDrawerContainer theme={theme} themeVersion={themeConfig?.themeVersion} username={layoutProps.username} storeId={portfolioId} />
+      <CommerceView view="ShopLayout" themeId={theme} themeVersion={themeConfig?.themeVersion} fallback={ModernShopLayout} {...layoutProps} />
     </>
   );
 }

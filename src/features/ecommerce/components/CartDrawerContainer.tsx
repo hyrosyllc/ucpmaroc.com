@@ -1,19 +1,21 @@
 import React, { useEffect } from "react";
 import ModernCartDrawer from "@/themes/modern/components/ModernCartDrawer";
 import { useCartStore } from "@/features/ecommerce/store/useCartStore";
-// import MinimalCartDrawer from '../themes/minimal/CartDrawer';
+import { CommerceView } from "@/features/ecommerce/components/CommerceView";
 
 interface CartDrawerContainerProps {
   theme: string;
+  themeVersion?: number | null;
   username?: string;
-  isPreview?: boolean; // 🚀 1. ADD THIS PROP
+  isPreview?: boolean;
   storeId?: string | null;
 }
 
 export default function CartDrawerContainer({
   theme,
+  themeVersion,
   username,
-  isPreview, // 🚀 2. DESTRUCTURE IT
+  isPreview,
   storeId,
 }: CartDrawerContainerProps) {
   const validateStoreContext = useCartStore((state) => state.validateStoreContext);
@@ -24,13 +26,5 @@ export default function CartDrawerContainer({
     }
   }, [storeId, validateStoreContext]);
 
-  // ROUTER: Inject the exact layout based on the theme
-
-  // if (theme === 'minimal') {
-  //   return <MinimalCartDrawer username={username} isPreview={isPreview} />;
-  // }
-
-  // Default fallback is ALWAYS Modern
-  // 🚀 3. PASS IT DOWN TO THE CART
-  return <ModernCartDrawer username={username} isPreview={isPreview} />;
+  return <CommerceView view="CartDrawer" themeId={theme} themeVersion={themeVersion} fallback={ModernCartDrawer} username={username} isPreview={isPreview} />;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   Menu,
   X,
@@ -69,71 +69,10 @@ export default function CupertinoHeader({
     isPreview,
   });
 
-  // --- THEME LOCAL STATE ---
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
-  const [isHidden, setIsHidden] = useState(false);
-  const [lastScrollY, setLastScrollY] = useState(0);
-  const [activeAnnIndex, setActiveAnnIndex] = useState(0);
-
-  // --- SMART HIDE LOGIC (Theme Specific) ---
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY || document.documentElement.scrollTop;
-      if (
-        settings.hideOnScroll !== false &&
-        scrollY > lastScrollY &&
-        scrollY > 100
-      ) {
-        setIsHidden(true);
-      } else {
-        setIsHidden(false);
-      }
-      setLastScrollY(scrollY);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY, settings.hideOnScroll]);
-
-  const toggleMobileFolder = (folderId: string) => {
-    setExpandedFolders((prev) =>
-      prev.includes(folderId)
-        ? prev.filter((id) => id !== folderId)
-        : [...prev, folderId]
-    );
-  };
-
-  // --- ANNOUNCEMENT COMPILER ---
-  const announcementsList =
-    data.announcements?.length > 0
-      ? data.announcements
-      : data.announcementText
-      ? [
-          {
-            id: "legacy",
-            text: data.announcementText,
-            link: data.announcementLink,
-          },
-        ]
-      : [];
-  const hasAnnouncement = data.showAnnouncement && announcementsList.length > 0;
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-  const announcementHeight = isMobile ? 36 : 40;
-
-  useEffect(() => {
-    if (
-      hasAnnouncement &&
-      !data.announcementMarquee &&
-      announcementsList.length > 1
-    ) {
-      const timer = setInterval(
-        () =>
-          setActiveAnnIndex((prev) => (prev + 1) % announcementsList.length),
-        4000
-      );
-      return () => clearInterval(timer);
-    }
-  }, [hasAnnouncement, data.announcementMarquee, announcementsList.length]);
+  const chrome = UCP.useHeaderChrome({ data, settings });
+  const { isMenuOpen, setIsMenuOpen, expandedFolders, isHidden, hasAnnouncement, announcementHeight, activeAnnIndex } = chrome;
+  const announcementsList = chrome.announcements;
+  const toggleMobileFolder = chrome.toggleFolder;
 
   const RenderAnnouncement = ({ ann }: { ann: any }) =>
     ann.link ? (

@@ -43,6 +43,14 @@ import {
   Type,
   Component as ComponentIcon,
   Code,
+  HelpCircle,
+  Sparkles,
+  ListOrdered,
+  Megaphone,
+  FileText,
+  Award,
+  Quote,
+  CalendarCheck,
   Undo2,
   Redo2,
   Cloud,
@@ -52,7 +60,6 @@ import {
   Trash2,
   Coins,
   ShoppingBag,
-  Sparkles,
   ArrowRight,
   MonitorPlay,
   PanelTop,
@@ -81,6 +88,7 @@ import {
   type SectionType,
 } from "@/features/portfolio-builder/types/portfolio";
 import SectionEditor from "@/features/portfolio-builder/components/SectionEditor";
+import { ThemeVersionPin } from "@/features/portfolio-builder/components/ThemeVersionPin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -109,33 +117,44 @@ import { Slider } from "@/components/ui/slider";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { CreateSiteModal } from "@/features/ecommerce/components/CreateSiteModal";
+import { SECTION_LIST, createSectionData } from "@/features/portfolio-builder/sections/registry";
 
 
 // --- AVAILABLE BLOCKS LIST ---
-const AVAILABLE_BLOCKS: {
-  type: SectionType;
-  label: string;
-  module?: "shop" | "appointments";
-  icon: any;
-}[] = [
-  { type: "header", label: "Header", icon: PanelTop },
-  { type: "hero", label: "Hero", icon: Star },
-  { type: "about", label: "About", icon: User },
-  { type: "shop", label: "Quick Shop", module: "shop", icon: ShoppingBag },
-  { type: "dynamic_store", label: "E-commerce", module: "shop", icon: Store },
-  { type: "gallery", label: "Gallery", icon: ImageIcon },
-  { type: "image_slider", label: "Image Slider", icon: Images },
-  { type: "video_slider", label: "Video Slider", icon: Video },
-  { type: "contact", label: "Contact Form", icon: Mail },
-  { type: "lead_form", label: "Lead Form", icon: ClipboardList },
-  { type: "map", label: "Map", icon: MapPin },
-  { type: "team", label: "Team", icon: Users },
-  { type: "pricing", label: "Pricing", icon: CreditCard },
-  { type: "stats", label: "Statistics", icon: BarChart },
-  { type: "reviews", label: "Reviews", icon: MessageSquare },
-  { type: "services_showcase", label: "Services", icon: Briefcase },
-  { type: "html", label: "Custom HTML", icon: Code },
-];
+const SECTION_ICONS: Record<SectionType, any> = {
+  header: PanelTop,
+  hero: Star,
+  about: User,
+  shop: ShoppingBag,
+  dynamic_store: Store,
+  gallery: ImageIcon,
+  image_slider: Images,
+  video_slider: Video,
+  contact: Mail,
+  lead_form: ClipboardList,
+  map: MapPin,
+  team: Users,
+  pricing: CreditCard,
+  stats: BarChart,
+  reviews: MessageSquare,
+  services_showcase: Briefcase,
+  html: Code,
+  faq: HelpCircle,
+  features: Sparkles,
+  steps: ListOrdered,
+  cta: Megaphone,
+  rich_text: FileText,
+  logo_cloud: Award,
+  testimonials: Quote,
+  booking: CalendarCheck,
+};
+
+const AVAILABLE_BLOCKS = SECTION_LIST.map((d) => ({
+  type: d.type,
+  label: d.label,
+  module: d.module,
+  icon: SECTION_ICONS[d.type],
+}));
 
 const LOCAL_FONT_OPTIONS = [
   { id: "Inter", name: "Inter (Clean & Modern)" },
@@ -542,7 +561,7 @@ const PortfolioBuilderPage = () => {
     queryKey: ["approvedMarketplaceThemes"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("marketplace_themes")
+        .from("marketplace_themes_public")
         .select("id, name, description, preview_color, site_price, global_price")
         .eq("status", "approved");
       
@@ -931,10 +950,7 @@ const PortfolioBuilderPage = () => {
       id: `${type}_${crypto.randomUUID()}`,
       type: type,
       isVisible: true,
-      data: {
-        title:
-          AVAILABLE_BLOCKS.find((b) => b.type === type)?.label || "New Section",
-      },
+      data: createSectionData(type),
     });
   };
 
@@ -1438,6 +1454,7 @@ const PortfolioBuilderPage = () => {
                       onClose={() => setEditingSection(null)}
                       actorId={actorData?.id || ""}
                       themeId={themeConfig.templateId || "modern"}
+                      themeVersion={themeConfig.themeVersion}
                       isInline={true}
                       pages={customPages}
                       portfolioId={activePortfolioId || ""}
@@ -1919,6 +1936,11 @@ const PortfolioBuilderPage = () => {
                            <ToggleGroupItem value="dark" className="h-8 px-4 text-xs font-bold rounded-lg data-[state=on]:bg-background data-[state=on]:text-foreground text-muted-foreground transition-all">Dark</ToggleGroupItem>
                         </ToggleGroup>
                       </div>
+                      <ThemeVersionPin
+                        themeId={themeConfig.templateId}
+                        pinnedVersion={themeConfig.themeVersion}
+                        onChange={(version) => updateThemeConfig({ themeVersion: version })}
+                      />
                     </div>
                     {!hasThemeAccess(themeConfig.templateId) &&
                       (() => {

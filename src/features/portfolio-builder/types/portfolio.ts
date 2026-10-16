@@ -17,7 +17,15 @@ export type SectionType =
   | "pricing"
   | "lead_form"
   | "dynamic_store" // <-- ADD THIS
-  | "html";
+  | "html"
+  | "faq"
+  | "features"
+  | "steps"
+  | "cta"
+  | "rich_text"
+  | "logo_cloud"
+  | "testimonials"
+  | "booking";
 
 export interface PortfolioSection {
   id: string;

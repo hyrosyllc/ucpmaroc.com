@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProductLayoutProps } from "../../features/ecommerce/product-layouts/types";
 
-export default function MinimalProductLayout({
+export default function CupertinoProductLayout({
   product,
   username,
   currentPrice,
@@ -22,7 +21,8 @@ export default function MinimalProductLayout({
   isSubmitting,
   handleMainAction,
   handleConfirmOrder,
-}: ProductLayoutProps) {
+}: any) {
+  const shopUrl = username ? `/${username}/shop` : "/shop";
   const images = product.images?.length
     ? product.images
     : ["https://via.placeholder.com/1200x800?text=No+Image"];
@@ -32,7 +32,7 @@ export default function MinimalProductLayout({
       {/* MINIMAL NAV (Floats over the image) */}
       <nav className="absolute top-0 w-full p-6 z-50 flex justify-between items-center mix-blend-difference text-white">
         <Link
-          to={`/${username}/shop`}
+          to={shopUrl}
           className="flex items-center text-sm uppercase tracking-widest font-semibold hover:opacity-70 transition-opacity"
         >
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Shop
@@ -105,7 +105,7 @@ export default function MinimalProductLayout({
                         <button
                           key={val.label}
                           onClick={() =>
-                            setSelectedVariants((prev) => ({
+                            setSelectedVariants((prev: any) => ({
                               ...prev,
                               [opt.name]: val,
                             }))
@@ -137,14 +137,14 @@ export default function MinimalProductLayout({
                 <div className="flex items-center justify-between border rounded-full px-6 h-14 w-full sm:w-32 bg-background">
                   <button
                     className="text-muted-foreground hover:text-foreground"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    onClick={() => setQuantity((q: number) => Math.max(1, q - 1))}
                   >
                     <Minus size={16} />
                   </button>
                   <span className="font-mono">{quantity}</span>
                   <button
                     className="text-muted-foreground hover:text-foreground"
-                    onClick={() => setQuantity((q) => q + 1)}
+                    onClick={() => setQuantity((q: number) => q + 1)}
                   >
                     <Plus size={16} />
                   </button>
@@ -239,7 +239,7 @@ export default function MinimalProductLayout({
             className="rounded-full h-12 px-8 uppercase tracking-widest text-sm"
             asChild
           >
-            <Link to={`/${username}/shop`}>Return to Shop</Link>
+            <Link to={shopUrl}>Return to Shop</Link>
           </Button>
         </div>
       )}

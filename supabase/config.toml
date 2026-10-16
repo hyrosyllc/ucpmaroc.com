@@ -60,7 +60,9 @@ verify_jwt = false
 entrypoint = "./functions/stripe-connect-webhook/index.ts"
 
 [functions.compile-theme]
-verify_jwt = false
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/compile-theme/index.ts"
 
 [functions.store-ai-bot]
 enabled = true
@@ -107,3 +109,35 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/create-subscription/deno.json"
 entrypoint = "./functions/create-subscription/index.ts"
+
+[functions.booking-availability]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/booking-availability/index.ts"
+
+[functions.booking-create]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/booking-create/index.ts"
+
+[functions.booking-manage]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/booking-manage/index.ts"
+
+[functions.booking-owner-action]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/booking-owner-action/index.ts"
+
+# Scheduled (cron) with the x-cron-secret header; no user JWT.
+[functions.booking-reminders]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/booking-reminders/index.ts"
+
+# Handles Google's OAuth redirect (GET, no JWT) and owner actions (POST, checks the JWT itself).
+[functions.google-calendar]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/google-calendar/index.ts"

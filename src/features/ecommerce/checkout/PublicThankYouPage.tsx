@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useOutletContext, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, ShoppingBag, Printer, MapPin, Mail, Phone, Loader2, FileDown, FileText, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "../store/useCartStore";
@@ -16,8 +16,8 @@ const MAIN_DOMAINS = [
 ];
 
 
-const PublicThankYouPage = () => {
-  const { portfolio } = useOutletContext<{ portfolio: any }>();
+// --- THANK-YOU MODEL: loads the order and derives display values. Views only render it. ---
+export function useThankYouModel(portfolio: any) {
   const navigate = useNavigate();
   const clearCart = useCartStore((state) => state.clearCart);
   const [searchParams] = useSearchParams();
@@ -69,14 +69,6 @@ const PublicThankYouPage = () => {
   const handlePrint = () => {
     window.print();
   };
-
-  if (loading) {
-     return (
-       <div className="flex items-center justify-center min-h-[40vh]">
-         <Loader2 className="animate-spin text-primary w-8 h-8" />
-       </div>
-     );
-  }
 
   const extractDetails = () => {
     const coreExtra: any = {};
@@ -154,6 +146,36 @@ const PublicThankYouPage = () => {
 
   const displayAddress = formatAddress();
 
+  return {
+    loading, order, digitalProducts, coreExtra, customData, displayName, displayEmail, displayPhone, displayAddress,
+    paymentMethod: getPaymentMethodDisplay(),
+    orderNumber: order ? String(order.id).split("-")[0].toUpperCase() : null,
+    firstName: order?.customer_name ? String(order.customer_name).split(" ")[0] : "",
+    shippingMethod: coreExtra.shipping || null,
+    bank: coreExtra.bankName ? { name: coreExtra.bankName, holder: coreExtra.bankHolder, iban: coreExtra.bankIban } : null,
+    items: order?.items?.length ? order.items : null,
+    totalDisplay: order ? (order.amount_cents ? (order.amount_cents / 100).toFixed(2) : String(order.product_price ?? "").replace("$", "")) : null,
+    homeUrl, shopUrl, ordersUrl, navigate, handlePrint,
+  };
+}
+
+// --- DEFAULT (MODERN) THANK-YOU VIEW ---
+export const DefaultThankYouView = ({ portfolio }: any) => {
+  const model = useThankYouModel(portfolio);
+  const {
+    loading, order, digitalProducts, coreExtra, displayName, displayEmail, displayPhone, displayAddress,
+    paymentMethod, homeUrl, ordersUrl, navigate, handlePrint,
+  } = model;
+  const getPaymentMethodDisplay = () => paymentMethod;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="animate-spin text-primary w-8 h-8" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col items-center pt-12 pb-16 lg:pt-16 px-4 sm:px-6 font-sans selection:bg-primary/20 selection:text-primary-foreground animate-in fade-in duration-500 bg-transparent text-foreground print:bg-white print:text-black print:p-0">
       
@@ -201,7 +223,7 @@ const PublicThankYouPage = () => {
                 <FileDown className="text-primary print:text-black" size={20}/> Digital Downloads
               </h2>
               <div className="space-y-6">
-                {digitalProducts.map(dp => (
+                {digitalProducts.map((dp: any) => (
                   <div key={dp.id} className="space-y-3">
                     <h3 className="font-semibold text-foreground print:text-black">{dp.title}</h3>
                     {dp.digital_message && (
@@ -346,5 +368,3 @@ const PublicThankYouPage = () => {
     </div>
   );
 };
-
-export default PublicThankYouPage;

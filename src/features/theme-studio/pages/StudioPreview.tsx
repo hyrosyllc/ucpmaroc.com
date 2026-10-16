@@ -1,211 +1,214 @@
-import React, { useState, useEffect } from 'react';
-import * as ReactDOM from 'react-dom'; // 🚀 ADDED THIS
-import { useSearchParams } from 'react-router-dom';
-import { supabase } from '@/supabaseClient';
-import { UCP } from '@/lib/ucp-sdk'; // Real SDK!
-import { DEFAULT_PORTFOLIO_SECTIONS } from '@/features/portfolio-builder/types/portfolio';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/supabaseClient";
+import { SECTION_LIST, createSectionData, getSectionDefinition } from "@/features/portfolio-builder/sections/registry";
+import { getSectionAnchor, getSectionFrame } from "@/features/portfolio-builder/sections/frame";
+import type { PortfolioSection } from "@/features/portfolio-builder/types/portfolio";
+import { resolveThemeComponent } from "@/themes/registry";
+import { loadThemeBundle, schemaDefaults, sectionTypeForFile, stripExtension, type CompiledTheme } from "@/lib/theme-runtime";
+import { isCommerceViewKey } from "@/lib/theme-runtime/commerceViews";
+import { CommerceViewMock } from "./CommerceViewMock";
 
-// Real UI Components!
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import {
-  Select,
-  SelectGroup,
-  SelectValue,
-  SelectTrigger,
-  SelectContent,
-  SelectLabel,
-  SelectItem,
-  SelectSeparator,
-  SelectScrollUpButton,
-  SelectScrollDownButton,
-} from '@/components/ui/select';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { Link } from 'react-router-dom';
-import * as LucideReact from 'lucide-react';
-import * as FramerMotion from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
-import * as Recharts from 'recharts';
-import { format, parseISO } from 'date-fns';
-import confetti from 'canvas-confetti';
-// Helper to format "Hero.tsx" -> "hero"
-function getSectionTypeFromFilename(filename: string): string {
-  const name = filename.replace(/\.tsx?$/, '');
-  return name.replace(/[A-Z]/g, (letter, index) => 
-    index === 0 ? letter.toLowerCase() : `_${letter.toLowerCase()}`
-  );
+/** Messages the Studio parent may send. Anything else, or from another origin, is ignored. */
+interface LoadMessage {
+  type: "STUDIO_LOAD";
+  bundle: Record<string, string>;
+  mode: "single" | "full";
+  activeFile: string;
+}
+
+// In a sandbox="allow-scripts" iframe the origin is opaque ("null"): trust only the parent window and post with "*".
+const SANDBOXED = window.origin === "null";
+const PARENT_ORIGIN = SANDBOXED ? "*" : window.location.origin;
+const fromParent = (event: MessageEvent) => event.source === window.parent && (SANDBOXED || event.origin === window.location.origin);
+
+class SectionBoundary extends React.Component<{ name: string; children: React.ReactNode }, { error: string | null }> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(error: Error) {
+    return { error: error.message };
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="m-3 rounded-lg border border-red-500/40 bg-red-950/20 p-3 font-mono text-xs text-red-400">
+        <strong>{this.props.name}</strong> crashed while rendering: {this.state.error}
+      </div>
+    );
+  }
 }
 
 export default function StudioPreview() {
-  const [searchParams] = useSearchParams();
-  const portfolioId = searchParams.get('portfolioId');
-  
-  const [portfolioData, setPortfolioData] = useState<any>(null);
-  const [currentComponent, setCurrentComponent] = useState<any>(null);
-  const [compiledComponents, setCompiledComponents] = useState<Record<string, any>>({});
-  const [isFullPage, setIsFullPage] = useState(false);
-  const [currentProps, setCurrentProps] = useState<any>({});
-  const [error, setError] = useState<string | null>(null);
+  const [params] = useSearchParams();
+  const portfolioId = params.get("portfolioId");
 
-  // 1. Fetch real test site data
+  const [portfolio, setPortfolio] = useState<any>(null);
+  const [compiled, setCompiled] = useState<CompiledTheme | null>(null);
+  const [mode, setMode] = useState<"single" | "full">("single");
+  const [activeFile, setActiveFile] = useState("");
+  const [override, setOverride] = useState<{ data?: Record<string, any>; settings?: Record<string, any> }>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!portfolioId) return;
-    const fetchSite = async () => {
-      const { data } = await supabase.from('portfolios').select('*').eq('id', portfolioId).single();
-      setPortfolioData(data);
-    };
-    fetchSite();
+    supabase.from("portfolios").select("*").eq("id", portfolioId).maybeSingle().then(({ data }) => setPortfolio(data));
   }, [portfolioId]);
 
-  // 2. The Interceptor (Now with react-dom and standard libraries allowed)
-  const fakeRequire = (mod: string) => {
-    // 🚀 Core React
-    if (mod === 'react') return React;
-    if (mod === 'react-dom') return ReactDOM;
-    if (mod === 'recharts') return Recharts;
-    if (mod === 'date-fns') return { format, parseISO };
-    if (mod === 'canvas-confetti') return confetti;
-    // 🚀 Platform SDK & Utils
-    if (mod === '@ucp/sdk') return { UCP }; 
-    if (mod === '@/lib/utils') return { cn };
-    
-    // 🚀 Allowed Third-Party Libraries
-    if (mod === 'framer-motion') return FramerMotion;
-    
-    // Inject REAL UI Components!
-    if (mod === '@/components/ui/button') return { Button };
-    if (mod === '@/components/ui/input') return { Input };
-    if (mod === '@/components/ui/textarea') return { Textarea };
-    if (mod === '@/components/ui/label') return { Label };
-    if (mod === '@/components/ui/badge') return { Badge };
-    if (mod === '@/components/ui/card') return { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter };
-    if (mod === '@/components/ui/select') {
-        return {
-            Select,
-            SelectGroup,
-            SelectValue,
-            SelectTrigger,
-            SelectContent,
-            SelectLabel,
-            SelectItem,
-            SelectSeparator,
-            SelectScrollUpButton,
-            SelectScrollDownButton,
-        };
-    }
-    if (mod === '@/components/ui/carousel') return { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious };
-    if (mod === 'react-router-dom') return { Link };
-    
-    if (mod === 'lucide-react') {
-        return new Proxy(LucideReact, {
-            get: (target: any, prop: string) => target[prop] || (() => <span className="text-red-500 text-xs">[{prop}]</span>)
-        });
-    }
+  const sections: PortfolioSection[] = useMemo(() => {
+    const own = (portfolio?.sections ?? []) as PortfolioSection[];
+    if (own.length > 0) return own;
+    // No test site: preview every section type with its starter content.
+    return SECTION_LIST.map((d) => ({ id: `preview-${d.type}`, type: d.type, isVisible: true, data: createSectionData(d.type), settings: {} }));
+  }, [portfolio]);
 
-    // Throw a clean error if they try to import something dangerous
-    throw new Error(`Security Block: Module "${mod}" is not permitted. Check the SDK Docs for available libraries.`);
-  };
+  const activeType = activeFile ? sectionTypeForFile(activeFile) : "";
+  const activeKey = stripExtension(activeFile.split("/").pop() ?? "");
 
-  // 3. Listen for Monaco Compiler
+  // Single-component state: real site data for this section type, starter content as fallback.
+  const single = useMemo(() => {
+    if (!compiled || !activeKey) return null;
+    const Component = compiled.components[activeKey];
+    if (!Component) return null;
+    const real = sections.find((s) => s.type === activeType);
+    const def = getSectionDefinition(activeType);
+    const schema = compiled.normalizedSchemas[activeKey] ?? [];
+    const data = { ...(def ? createSectionData(def.type) : {}), ...(Component.testData || {}), ...(real?.data || {}), ...(override.data || {}) };
+    const settings = { ...schemaDefaults(schema), ...(real?.settings || {}), ...(override.settings || {}) };
+    return { Component, data, settings, schema, id: real?.id ?? `studio-${activeKey}`, contentSchema: def?.contentSchema ?? [] };
+  }, [compiled, activeKey, activeType, sections, override]);
+
+  const handleMessage = useCallback((event: MessageEvent) => {
+    if (!fromParent(event)) return;
+    const msg = event.data;
+    if (msg?.type === "STUDIO_LOAD") {
+      const { bundle, mode: nextMode, activeFile: file } = msg as LoadMessage;
+      setMode(nextMode);
+      setActiveFile(file);
+      setOverride({});
+      try {
+        const next = loadThemeBundle(bundle);
+        setCompiled(next);
+        setLoadError(null);
+        window.parent.postMessage({ type: "STUDIO_ERRORS", errors: next.errors }, PARENT_ORIGIN);
+      } catch (error) {
+        setLoadError((error as Error).message);
+      }
+    } else if (msg?.type === "STUDIO_PROPS") {
+      setOverride({ data: msg.data, settings: msg.settings });
+    }
+  }, []);
+
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'EXECUTE_CODE') {
-        setIsFullPage(false);
-        try {
-          const exports: any = {};
-          const module = { exports };
-          const execute = new Function('exports', 'require', 'module', 'React', event.data.code);
-          execute(exports, fakeRequire, module, React);
+    window.addEventListener("message", handleMessage);
+    window.parent.postMessage({ type: "PREVIEW_READY" }, PARENT_ORIGIN);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [handleMessage]);
 
-          const Comp = exports.default || module.exports.default || exports;
-          setCurrentComponent(() => Comp);
+  // Tell the Studio which schema/data the active file uses so its panels can edit them.
+  useEffect(() => {
+    if (mode !== "single" || !single) return;
+    window.parent.postMessage(
+      { type: "SCHEMA_PARSED", sectionType: activeType, schema: single.schema, contentSchema: single.contentSchema, data: single.data, settings: single.settings },
+      PARENT_ORIGIN
+    );
+    // Only when the file or loaded bundle changes; prop edits must not echo back.
+  }, [mode, compiled, activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-          // Get Real DB Data for this specific component type
-          const sectionType = getSectionTypeFromFilename(event.data.activeFile);
-          
-          const realDbData = portfolioData?.sections?.find((s: any) => s.type === sectionType)?.data;
-          const fallbackData = DEFAULT_PORTFOLIO_SECTIONS.find(s => s.type === sectionType)?.data || {};
-          const mergedData = { ...(Comp.testData || {}), ...fallbackData, ...realDbData };
-          
-          setCurrentProps(mergedData);
-          setError(null);
-
-          window.parent.postMessage({ 
-             type: 'SCHEMA_PARSED', 
-             schema: Comp.schema || {},
-             testData: mergedData
-          }, '*');
-
-        } catch (err: any) {
-          setError(err.message);
-        }
-      }
-
-      if (event.data.type === 'EXECUTE_BUNDLE') {
-         setIsFullPage(true);
-         try {
-             const comps: Record<string, any> = {};
-             Object.keys(event.data.bundle).forEach(filename => {
-                const exports: any = {};
-                const module = { exports };
-                const execute = new Function('exports', 'require', 'module', 'React', event.data.bundle[filename]);
-                execute(exports, fakeRequire, module, React);
-                const Comp = exports.default || module.exports.default || exports;
-                if (Comp) comps[filename.replace('.tsx', '')] = Comp;
-             });
-             setCompiledComponents(comps);
-             setError(null);
-         } catch (err: any) {
-             setError(err.message);
-         }
-      }
-
-      if (event.data.type === 'UPDATE_PROPS') {
-         setCurrentProps((prev: any) => ({ ...prev, ...event.data.props }));
-      }
+  // Inline edits made on the canvas flow back as field updates.
+  useEffect(() => {
+    const onInline = (event: MessageEvent) => {
+      if ((!SANDBOXED && event.origin !== window.location.origin) || event.data?.type !== "INLINE_EDIT") return;
+      const { fieldKey, value } = event.data.payload ?? {};
+      if (fieldKey) window.parent.postMessage({ type: "STUDIO_INLINE_EDIT", field: fieldKey, value }, PARENT_ORIGIN);
     };
+    window.addEventListener("message", onInline);
+    return () => window.removeEventListener("message", onInline);
+  }, []);
 
-    window.addEventListener('message', handleMessage);
-    
-    // Tell parent we are mounted and ready to receive code!
-    window.parent.postMessage({ type: 'PREVIEW_READY' }, '*');
-    
-    return () => window.removeEventListener('message', handleMessage);
-  }, [portfolioData]);
-
-  if (error) {
-    return <div className="p-6 text-red-500 bg-red-950/20 font-mono text-sm border border-red-500/50 rounded-xl m-4 whitespace-pre-wrap break-words">Compile Error: {error}</div>;
+  if (loadError) {
+    return <div className="m-4 whitespace-pre-wrap break-words rounded-xl border border-red-500/50 bg-red-950/20 p-6 font-mono text-sm text-red-500">Theme error: {loadError}</div>;
   }
 
-  // 4. Render Engine
-  if (isFullPage) {
-     return (
-       <div className="w-full min-h-screen flex flex-col bg-background text-foreground">
-         {Object.entries(compiledComponents).map(([name, Comp]) => {
-            const sectionType = getSectionTypeFromFilename(name);
-            const realDbData = portfolioData?.sections?.find((s: any) => s.type === sectionType)?.data;
-            const fallbackData = DEFAULT_PORTFOLIO_SECTIONS.find(s => s.type === sectionType)?.data || {};
-            const mergedData = { ...fallbackData, ...realDbData, ...(Comp.testData || {}) };
-            
-            return <Comp key={name} data={mergedData} settings={portfolioData?.theme_config || {}} actorId={portfolioData?.actor_id} />;
-         })}
-       </div>
-     );
+  if (!compiled) {
+    return (
+      <div className="flex min-h-screen items-center justify-center font-mono text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Waiting for compiler...
+      </div>
+    );
   }
 
-  if (currentComponent) {
-     const Comp = currentComponent;
-     return (
-        <div className="bg-background text-foreground min-h-screen w-full overflow-hidden">
-          <Comp data={currentProps} settings={portfolioData?.theme_config || {}} actorId={portfolioData?.actor_id} isPreview={true} />
+  const fileError = activeKey ? compiled.errors[activeKey] : null;
+
+  if (mode === "single") {
+    if (fileError) {
+      return <div className="m-4 whitespace-pre-wrap break-words rounded-xl border border-red-500/50 bg-red-950/20 p-6 font-mono text-sm text-red-500">{fileError}</div>;
+    }
+    if (!single) {
+      return (
+        <div className="m-6 rounded-xl border border-dashed p-8 text-center font-mono text-sm text-muted-foreground">
+          {activeFile ? `${activeFile} has no default-exported component to preview.` : "Open a file to preview it."}
         </div>
-     );
+      );
+    }
+    const { Component } = single;
+    if (isCommerceViewKey(activeKey)) {
+      return (
+        <div className="min-h-screen w-full bg-background text-foreground">
+          <SectionBoundary name={activeFile}>
+            <CommerceViewMock view={activeKey} Component={compiled.components[activeKey]} />
+          </SectionBoundary>
+        </div>
+      );
+    }
+    return (
+      <div className="min-h-screen w-full overflow-hidden bg-background text-foreground">
+        <SectionBoundary name={activeFile}>
+          <Component
+            data={single.data}
+            settings={single.settings}
+            id={single.id}
+            allSections={sections}
+            actorId={portfolio?.actor_id}
+            portfolioId={portfolio?.id}
+            isPreview
+          />
+        </SectionBoundary>
+      </div>
+    );
   }
 
-  return <div className="flex items-center justify-center min-h-screen text-muted-foreground font-mono text-sm"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Waiting for compiler...</div>;
+  // Full page: the test site's own sections, in order, resolved like the live site (missing sections fall back to Modern).
+  const theme = { ...compiled.components };
+  const fileErrors = Object.entries(compiled.errors);
+  return (
+    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+      {fileErrors.length > 0 && (
+        <div className="m-3 whitespace-pre-wrap rounded-lg border border-amber-500/40 bg-amber-950/20 p-3 font-mono text-xs text-amber-500">
+          {fileErrors.map(([file, message]) => `${file}: ${message}`).join("\n")}
+        </div>
+      )}
+      {sections.filter((s) => s.isVisible).map((section) => {
+        const Component = resolveThemeComponent(theme, section.type);
+        if (!Component) return null;
+        const frame = section.type === "header" ? { className: "", style: {} } : getSectionFrame(section.settings);
+        const anchor = getSectionAnchor(section.settings);
+        return (
+          <div key={section.id} id={section.id} className={`relative ${frame.className}`} style={frame.style}>
+            {anchor && <span id={anchor} aria-hidden className="absolute -top-20" />}
+            <SectionBoundary name={section.type}>
+              <Component
+                data={section.data}
+                settings={section.settings || {}}
+                id={section.id}
+                allSections={sections}
+                actorId={portfolio?.actor_id}
+                portfolioId={portfolio?.id}
+                isPreview
+              />
+            </SectionBoundary>
+          </div>
+        );
+      })}
+    </div>
+  );
 }

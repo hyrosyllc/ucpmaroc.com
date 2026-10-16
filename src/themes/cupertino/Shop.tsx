@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { createPortal } from "react-dom";
-import { BlockProps } from "../types";
+import type { BlockProps } from "../types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -100,10 +100,8 @@ const SpotlightCheckout = ({
   });
 
   const { step, setStep } = checkout;
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const { isOpen: isFaqOpen, toggle: toggleFaq } = UCP.useAccordion();
 
-  // 🚀 Keep image gallery state purely local to the UI component!
-  const [activeImageIdx, setActiveImageIdx] = useState(0);
   const images = product.images?.length
     ? product.images
     : product.image
@@ -111,12 +109,7 @@ const SpotlightCheckout = ({
     : [];
   const actionType = product.actionType || "whatsapp";
 
-  const nextImage = () =>
-    setActiveImageIdx((prev: number) => (prev + 1) % images.length);
-  const prevImage = () =>
-    setActiveImageIdx(
-      (prev: number) => (prev - 1 + images.length) % images.length
-    );
+  const { current: activeImageIdx, next: nextImage, prev: prevImage, goTo: setActiveImageIdx } = UCP.useSlider(images.length);
 
   if (step === "success") {
     return (
@@ -352,20 +345,18 @@ const SpotlightCheckout = ({
                       <button
                         type="button"
                         className="w-full px-5 py-4 flex items-center justify-between text-left text-sm font-semibold text-slate-700 hover:bg-gray-100 transition-colors"
-                        onClick={() =>
-                          setExpandedFaq(expandedFaq === i ? null : i)
-                        }
+                        onClick={() => toggleFaq(i)}
                       >
                         <span>{faq.question}</span>
                         <ChevronDown
                           size={16}
                           className={cn(
                             "transition-transform duration-300 text-slate-400",
-                            expandedFaq === i && "rotate-180"
+                            isFaqOpen(i) && "rotate-180"
                           )}
                         />
                       </button>
-                      {expandedFaq === i && (
+                      {isFaqOpen(i) && (
                         <div className="px-5 pb-4 text-sm text-slate-500 leading-relaxed animate-in slide-in-from-top-1 fade-in font-medium">
                           {faq.answer}
                         </div>
@@ -686,8 +677,10 @@ export default function Shop({
     let href = "#";
     if (isExternal) href = product.checkoutUrl || "#";
 
-    const [activeImageIdx, setActiveImageIdx] = useState(0);
     const images = product.images || (product.image ? [product.image] : []);
+    const slider = UCP.useSlider(images.length);
+    const activeImageIdx = slider.current;
+    const setActiveImageIdx = slider.goTo;
 
     return (
       <div
@@ -727,10 +720,7 @@ export default function Shop({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setActiveImageIdx(
-                        (prev: number) =>
-                          (prev - 1 + images.length) % images.length
-                      );
+                      slider.prev();
                     }}
                     className="absolute left-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-900 p-2.5 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-md shadow-md"
                   >
@@ -740,9 +730,7 @@ export default function Shop({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setActiveImageIdx(
-                        (prev: number) => (prev + 1) % images.length
-                      );
+                      slider.next();
                     }}
                     className="absolute right-4 top-[40%] group-hover/gallery:top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-slate-900 p-2.5 rounded-full opacity-0 group-hover/gallery:opacity-100 transition-all duration-300 z-20 backdrop-blur-md shadow-md"
                   >

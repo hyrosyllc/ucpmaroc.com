@@ -20,18 +20,19 @@ const Pricing = lazy(() => import("./Pricing"));
 const Shop = lazy(() => import("./Shop"));
 const LeadForm = lazy(() => import("./LeadForm"));
 const Html = lazy(() => import("./Html"));
+const Faq = lazy(() => import("./Faq"));
+const Stats = lazy(() => import("./Stats"));
+const Features = lazy(() => import("./Features"));
+const Steps = lazy(() => import("./Steps"));
+const Cta = lazy(() => import("./Cta"));
+const RichText = lazy(() => import("./RichText"));
+const LogoCloud = lazy(() => import("./LogoCloud"));
+const Testimonials = lazy(() => import("./Testimonials"));
+const Booking = lazy(() => import("./Booking"));
 
 // Handle named exports dynamically
 const DynamicStore = lazy(() =>
   import("./DynamicStore").then((module) => ({ default: module.DynamicStore }))
-);
-
-// Temporary Placeholders (Kept inline because they are tiny and don't need splitting)
-const Stats = () => (
-  <div className="py-20 text-center bg-muted">Stats Section (Coming Soon)</div>
-);
-const Demos = () => (
-  <div className="py-20 text-center">Demos Section (Coming Soon)</div>
 );
 
 export const ModernTheme: PortfolioThemeDefinition = {
@@ -52,7 +53,27 @@ export const ModernTheme: PortfolioThemeDefinition = {
   LeadForm,
   DynamicStore,
   Html,
+  Faq,
+  Features,
+  Steps,
+  Cta,
+  RichText,
+  LogoCloud,
+  Testimonials,
+  Booking,
   schemas: {
+    Faq: [
+      {
+        id: "variant",
+        type: "select",
+        label: "Layout",
+        defaultValue: "accordion",
+        options: [
+          { value: "accordion", label: "Accordion" },
+          { value: "grid", label: "Two-column grid" },
+        ],
+      },
+    ],
     Header: [
       {
         id: "variant",

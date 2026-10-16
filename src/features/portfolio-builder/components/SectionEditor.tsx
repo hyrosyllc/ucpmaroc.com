@@ -1,6 +1,6 @@
 // src/components/dashboard/SectionEditor.tsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useBuilderStore } from "../../../store/useBuilderStore";
 import { supabase } from "@/supabaseClient";
 import { useSubscription } from "../../../context/SubscriptionContext";
@@ -116,6 +116,10 @@ import PortfolioMediaManager, {
   UnifiedMediaItem,
 } from "./PortfolioMediaManager";
 import { PortfolioSection } from "../types/portfolio";
+import { getSectionDefinition } from "../sections/registry";
+import { SchemaFields } from "../sections/SchemaFields";
+import { useActiveTheme } from "../hooks/useActiveTheme";
+import { COMMON_SETTINGS_SCHEMA } from "../sections/frame";
 import {
   THEME_REGISTRY,
   SECTION_COMPONENT_MAP,
@@ -378,6 +382,7 @@ interface SectionEditorProps {
   onClose: () => void;
   actorId: string;
   themeId?: string;
+  themeVersion?: number | null;
   pages?: any[];
   portfolioId: string;
 }
@@ -1586,13 +1591,20 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   onClose,
   actorId,
   themeId = "modern",
+  themeVersion,
   portfolioId,
 }) => {
   const updateSectionInStore = useBuilderStore((state) => state.updateSection);
+  const { theme: activeThemeDef, isLoading: themeLoading } = useActiveTheme(themeId, themeVersion);
 
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [isFormManagerOpen, setIsFormManagerOpen] = useState(false);
   const [activeMediaField, setActiveMediaField] = useState<string>("");
+  const schemaImageApply = useRef<((url: string) => void) | null>(null);
+  const pickSchemaImage = (apply: (url: string) => void) => {
+    schemaImageApply.current = apply;
+    setIsMediaPickerOpen(true);
+  };
   const [isProductManagerOpen, setIsProductManagerOpen] = useState(false);
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [formData, setFormData] = useState(section?.data || {});
@@ -1740,6 +1752,12 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   };
 
   const handleMediaSelect = (item: UnifiedMediaItem) => {
+    if (schemaImageApply.current) {
+      schemaImageApply.current(item.url);
+      schemaImageApply.current = null;
+      setIsMediaPickerOpen(false);
+      return;
+    }
     if (activeMediaField === "logoImage") {
       updateField("logoImage", item.url);
     } else if (activeMediaField.startsWith("member-image-")) {
@@ -1934,8 +1952,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
   };
 
   const renderThemeSettings = () => {
-    const ActiveTheme = THEME_REGISTRY[themeId];
-    if (!ActiveTheme) return <p>Theme not found.</p>;
+    const ActiveTheme = activeThemeDef;
+    if (themeLoading) return <p className="text-sm text-muted-foreground">Loading theme…</p>;
 
     const SectionComponent = resolveThemeComponent(ActiveTheme, section!.type);
     const componentKey = SECTION_COMPONENT_MAP[section!.type];
@@ -1944,6 +1962,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       ActiveTheme.schemas?.[componentKey] ||
       SectionComponent?.schema ||
       SectionComponent?.default?.schema ||
+      (!ActiveTheme[componentKey] || ActiveTheme[componentKey] === (THEME_REGISTRY.modern as any)[componentKey] ? THEME_REGISTRY.modern.schemas?.[componentKey] : undefined) ||
       [];
 
     if (section!.type === "dynamic_store" && (!schema || schema.length === 0)) {
@@ -1989,6 +2008,7 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       <div className="space-y-6 animate-in fade-in">
         {schema.map((field: any) => {
           if (field.showIf && !field.showIf(settingsData)) return null;
+          if (!["toggle", "select", "slider", "color"].includes(field.type)) return null;
 
           return (
             <div
@@ -2076,6 +2096,12 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
             </div>
           );
         })}
+        <SchemaFields
+          schema={schema.filter((f: any) => !["toggle", "select", "slider", "color"].includes(f.type))}
+          values={settingsData}
+          onChange={updateSetting}
+          onPickImage={pickSchemaImage}
+        />
       </div>
     );
   };
@@ -5616,12 +5642,17 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
           </div>
         );
 
-      default:
+      default: {
+        const schema = getSectionDefinition(section.type)?.contentSchema;
+        if (schema) {
+          return <SchemaFields schema={schema} values={formData} onChange={updateField} onPickImage={pickSchemaImage} />;
+        }
         return (
           <p className="text-muted-foreground">
             Detailed settings for this section are available in the Design tab.
           </p>
         );
+      }
     }
   };
 
@@ -5637,8 +5668,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         <div className="mb-6 px-4 pt-6">
           <h2 className="text-lg font-semibold">
             Edit{" "}
-            {section.type.charAt(0).toUpperCase() +
-              section.type.slice(1).replace(/_/g, " ")}
+            {section!.type.charAt(0).toUpperCase() +
+              section!.type.slice(1).replace(/_/g, " ")}
           </h2>
         </div>
       )}
@@ -5653,6 +5684,16 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
         </TabsContent>
         <TabsContent value="design" className="space-y-4 px-4 pb-8">
           {renderThemeSettings()}
+          {section!.type !== "header" && (
+            <div className="space-y-3 pt-4">
+              <h3 className="text-sm font-semibold">Layout</h3>
+              <SchemaFields
+                schema={COMMON_SETTINGS_SCHEMA}
+                values={settingsData}
+                onChange={updateSetting}
+              />
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
@@ -5672,7 +5713,13 @@ const SectionEditor: React.FC<SectionEditorProps> = ({
       )}
 
       {/* 3. MEDIA PICKER REMAINS A DIALOG */}
-      <Dialog open={isMediaPickerOpen} onOpenChange={setIsMediaPickerOpen}>
+      <Dialog
+        open={isMediaPickerOpen}
+        onOpenChange={(open) => {
+          if (!open) schemaImageApply.current = null;
+          setIsMediaPickerOpen(open);
+        }}
+      >
         <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0">
           <DialogTitle className="sr-only">Media Library</DialogTitle>
           <DialogDescription className="sr-only">

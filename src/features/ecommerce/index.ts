@@ -26,6 +26,6 @@ export { default as StripeCallbackPage } from './pages/StripeCallbackPage';
 
 
 // Checkout
-export { default as PublicCheckoutPage } from './checkout/PublicCheckoutPage';
-export { default as PublicThankYouPage } from './checkout/PublicThankYouPage';
+export { default as PublicCheckoutPage } from './checkout/CheckoutRoute';
+export { default as PublicThankYouPage } from './checkout/ThankYouRoute';
 export { default as StripeCheckoutForm } from './checkout/StripeCheckoutForm';

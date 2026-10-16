@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { Loader2 } from "lucide-react";
 import ModernLoginLayout from "@/themes/modern/LoginLayout";
+import { CommerceView } from "@/features/ecommerce/components/CommerceView";
 
 // Ensure this matches App.tsx
 const MAIN_DOMAINS = [
@@ -208,8 +209,13 @@ export default function CustomerLoginPage() {
 
   return (
     <>
-      {/* In the future, you could add: theme === 'cupertino' ? <CupertinoLoginLayout ... /> : <ModernLoginLayout ... /> */}
-      <ModernLoginLayout {...layoutProps} />
+      <CommerceView
+        view="LoginLayout"
+        themeId={portfolio.theme_config?.templateId}
+        themeVersion={portfolio.theme_config?.themeVersion}
+        fallback={ModernLoginLayout}
+        {...layoutProps}
+      />
     </>
   );
 }

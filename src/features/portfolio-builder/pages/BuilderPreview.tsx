@@ -2,28 +2,17 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { PortfolioSection } from "@/features/portfolio-builder/types/portfolio";
 import {
-  THEME_REGISTRY,
-  DEFAULT_THEME,
   resolveThemeComponent,
 } from "@/themes/registry";
 import { cn } from "@/lib/utils";
+import { getSectionFrame, getSectionAnchor } from "../sections/frame";
 import { Loader2, AlertTriangle, ShoppingCart } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/supabaseClient";
 import ModernShopLayout from "@/themes/modern/ShopLayout";
 import ModernProductLayout from "@/themes/modern/ProductLayout";
 import ModernLoginLayout from "@/themes/modern/LoginLayout";
 import CartDrawerContainer from "@/features/ecommerce/components/CartDrawerContainer";
 import { useCartStore } from "@/features/ecommerce/store/useCartStore";
-
-// 🚀 AAA+ UPGRADE: We are using the native executor hook, NO BABEL REQUIRED!
-import { usePrecompiledTheme } from "@/features/portfolio-builder";
-
-// --- Helper to convert section type (e.g., 'video_slider') to Component Name ('VideoSlider') ---
-function formatSectionTypeToComponentName(type: string): string {
-  if (type === 'lead_form') return 'LeadForm';
-  return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('');
-}
+import { useActiveTheme } from "../hooks/useActiveTheme";
 
 // --- Helper to convert HEX to HSL for Tailwind ---
 function hexToHSLString(hex: string): string {
@@ -168,28 +157,14 @@ export default function BuilderPreview() {
 
   // 2. Setup Theme Variables
   const themeId = themeConfig.templateId || "modern";
-  
-  // 🚀 NEW: Is this a custom marketplace theme?
-  const isCustomTheme = !!themeId && !THEME_REGISTRY[themeId];
 
-  // 🚀 AAA+ UPGRADE: Fetch ONLY the lightweight compiled bundle!
-  const { data: customThemeData, isLoading: isLoadingTheme, error: fetchError } = useQuery({
-    queryKey: ['customThemeCompiled', themeId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('marketplace_themes')
-        .select('compiled_bundle') // We do not need the heavy 'files' array here
-        .eq('id', themeId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: isCustomTheme,
-    staleTime: 1000 * 60 * 5, // Cache for 5 mins so changing colors is instant
-  });
-
-  // 🚀 AAA+ UPGRADE: Execute natively using the new hook
-  const { compiledComponents } = usePrecompiledTheme(customThemeData?.compiled_bundle);
+  const {
+    theme: ActiveTheme,
+    isCustom: isCustomTheme,
+    isLoading: isLoadingTheme,
+    error: themeError,
+  } = useActiveTheme(themeId, themeConfig.themeVersion);
+  const fetchError = themeError ? { message: themeError } : null;
 
   // 🚀 E-COMMERCE DUMMY DATA FOR PREVIEW MODES
   useEffect(() => {
@@ -236,7 +211,6 @@ export default function BuilderPreview() {
     portfolio: { site_name: "My Awesome Store" }, email: "", setEmail: () => {}, otp: "", setOtp: () => {}, step: "email", isLoading: false, error: null, handleSendCode: (e: any) => e.preventDefault(), handleVerifyCode: (e: any) => e.preventDefault(), navigate: () => {}, shopUrl: "#"
   };
 
-  const ActiveTheme = THEME_REGISTRY[themeId] || DEFAULT_THEME;
   const primaryHsl = themeConfig.primaryColor
     ? hexToHSLString(themeConfig.primaryColor)
     : "259 94% 51%";
@@ -344,7 +318,7 @@ export default function BuilderPreview() {
 
         {!isLoadingTheme && !fetchError && (
           <>
-            <CartDrawerContainer theme={themeId} username="preview" isPreview={true} storeId={portfolioId} />
+            <CartDrawerContainer theme={themeId} themeVersion={themeConfig.themeVersion} username="preview" isPreview={true} storeId={portfolioId} />
             
             {previewMode === 'shop' && <ModernShopLayout {...dummyShopProps as any} />}
             {previewMode === 'product' && <ModernProductLayout {...dummyProductProps as any} />}
@@ -362,18 +336,7 @@ export default function BuilderPreview() {
               .map((section) => {
             
             // 🚀 SMART RENDERER: Pick from Natively Compiled Components OR Local Registry
-            let Component = null;
-            if (isCustomTheme && compiledComponents) {
-               const compName = formatSectionTypeToComponentName(section.type);
-               Component = compiledComponents[compName] || compiledComponents[section.type]; 
-               
-               // Fallback check to 'modern' registry if the developer missed a section block
-               if (!Component && THEME_REGISTRY['modern']) {
-                  Component = resolveThemeComponent(THEME_REGISTRY['modern'], section.type);
-               }
-            } else {
-               Component = resolveThemeComponent(ActiveTheme, section.type);
-            }
+            const Component = resolveThemeComponent(ActiveTheme, section.type);
 
             if (!Component) return null;
 
@@ -388,14 +351,18 @@ export default function BuilderPreview() {
             };
 
             const isHeader = section.type === "header";
+            const frame = isHeader ? { className: "", style: {} } : getSectionFrame(section.settings);
+            const anchor = getSectionAnchor(section.settings);
 
             return (
               <div
                 id={section.id}
                 key={section.id}
+                style={frame.style}
                 className={cn(
                   isHeader ? "sticky top-0 z-50 w-full" : "relative z-0 w-full",
-                  "group hover:ring-2 hover:ring-primary/40 hover:ring-inset transition-all duration-200"
+                  "group hover:ring-2 hover:ring-primary/40 hover:ring-inset transition-all duration-200",
+                  frame.className
                 )}
                 onClickCapture={(e) => {
                   const target = e.target as HTMLElement;
@@ -404,6 +371,7 @@ export default function BuilderPreview() {
                   }
                 }}
               >
+                {anchor && <span id={anchor} aria-hidden className="absolute -top-20" />}
                 <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200 z-[100]">
                   <button
                     type="button"

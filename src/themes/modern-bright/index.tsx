@@ -26,10 +26,8 @@ const DynamicStore = lazy(() =>
   import("./DynamicStore").then((module) => ({ default: module.DynamicStore }))
 );
 
-// Temporary Placeholders (Kept inline because they are tiny and don't need splitting)
-const Stats = () => (
-  <div className="py-20 text-center bg-muted">Stats Section (Coming Soon)</div>
-);
+// Shared with Modern until Bright needs its own variant.
+const Stats = lazy(() => import("../modern/Stats"));
 const Demos = () => (
   <div className="py-20 text-center">Demos Section (Coming Soon)</div>
 );

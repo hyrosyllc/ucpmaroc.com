@@ -33,7 +33,7 @@ Each feature directory below has a dedicated developer guide, linked from `docs/
 - **Role layouts:** `src/layouts/ActorDashboardLayout.tsx`, `AdminDashboardLayout.tsx`, `CustomerDashboardLayout.tsx`.
 - **Cross-feature billing:** `src/config/plans.ts`, `src/context/SubscriptionContext.tsx`, `src/hooks/useBillingData.ts`.
 - **State:** `src/store/useBuilderStore.ts` (builder sections/theme config, undo/redo); `src/features/ecommerce/store/useCartStore.ts` (persisted store-scoped carts/coupons).
-- **Shared services:** `src/supabaseClient.ts`, `src/lib/analytics.ts`, `countries.ts`, `utils.ts`, `ucp-sdk.tsx`.
+- **Shared services:** `src/supabaseClient.ts`, `src/lib/analytics.ts`, `countries.ts`, `utils.ts`, `stripeClient.ts`, `theme-runtime/`.
 - **UCP SDK:** `src/lib/ucp-sdk/` contains exported UI/components, types/declarations, general helpers, and hooks `useCarousel`, `useCart`, `useDeviceSize`, `useGallery`, `useLeadForm`, `useNavigationTree`, `usePricingForm`, `useScrollObserver`, and `useShopOrderForm`.
 - **Marketing/features:** `src/pages/` contains Home, talent/client landing, contact, voice-over, legal-adjacent feature pages, and feature overview pages.
 - **Built-in themes:** `src/themes/registry.ts` and `types.ts`; implementations in `cinematic/`, `cupertino/`, `modern/`, and `modern-bright/`. Each provides a subset of portfolio/storefront views under the common theme contract.
@@ -119,7 +119,6 @@ src/layouts/AdminDashboardLayout.tsx
 src/layouts/CustomerDashboardLayout.tsx
 src/lib/analytics.ts
 src/lib/countries.ts
-src/lib/ucp-sdk.tsx
 src/lib/utils.ts
 src/lib/ucp-sdk/index.ts
 src/lib/ucp-sdk/types.d.ts
@@ -337,8 +336,8 @@ All leaf paths were included in the 255-file tree inventory; these directory sum
 - `src/features/portfolio-builder/components/SectionEditor-backup.tsx` and the payment-intent `index copy.ts` are backup/duplicate sources, not normal route/function entry points.
 - The custom-domain customer dashboard route mounts `CustomerDashboardLayout` without a `:slug`, though the layout consumes it.
 - Live and preview theme palettes explicitly cover only `modern` and `cinematic`; `modern_bright`/`cupertino` currently fall back to Modern values.
-- The `compile-theme` function uses the service-role client, is configured with `verify_jwt=false`, and does not validate caller/admin authorization in its source. Theme compilation/preview executes user code through `new Function`; import restrictions do not create a sandbox. See `docs/features/theme-studio.md`.
-- SDK imports are split: built-in themes use `@ucp/sdk` → `src/lib/ucp-sdk/index.ts`, while compiler/preview imports `@/lib/ucp-sdk` resolve to the sibling legacy `src/lib/ucp-sdk.tsx` (four exports vs eleven). See `docs/PORTFOLIO_ECOMMERCE_THEMES.md`.
+- `compile-theme` requires a JWT and `actors.role='admin'`, validates imports and size, compiles server-side, and no longer auto-approves; code still runs through `new Function` with a module allowlist (reviewed-only policy). See `docs/features/theme-studio.md`.
+- The SDK is a single implementation (`src/lib/ucp-sdk/index.ts`); the legacy sibling file was removed.
 - Billing pages/functions/migrations exist locally, but the route has both `create-checkout-session` and `stripe-billing` calls while a separate `create-subscription` function exists. Remote migration/deployment and end-to-end payment status are unknown; see `docs/BILLING_OPERATIONS.md`.
 - Customer store login and global actor/client auth are distinct identities/data flows (`pro_customers` per portfolio vs `actors`/`clients` global profiles).
 - No test script is declared in the root `package.json`; the two export checks and prompt-specific tests are separate tools.

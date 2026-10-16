@@ -102,27 +102,7 @@ export default function DeveloperHubPage() {
     }
   };
 
-  // 3. Submit for Review
-  const handleSubmitForReview = async (themeId: string) => {
-    if (
-      !confirm("Submit this theme to the AI Auditor for Marketplace approval?")
-    )
-      return;
-
-    const { error } = await supabase
-      .from("marketplace_themes")
-      .update({ status: "pending_review" })
-      .eq("id", themeId);
-
-    if (error) alert("Error submitting theme.");
-    else {
-      alert(
-        "Theme submitted successfully! Our AI and Admin team will review it shortly."
-      );
-      refetch();
-    }
-  };
-
+  // Submission happens in Studio, which validates the files first.
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "approved":
@@ -230,6 +210,9 @@ export default function DeveloperHubPage() {
                   <CardDescription className="line-clamp-2 min-h-[40px]">
                     {theme.description || "No description provided."}
                   </CardDescription>
+                  {theme.status === "rejected" && theme.rejection_reason && (
+                    <p className="mt-1 text-xs text-red-600">Rejected: {theme.rejection_reason}</p>
+                  )}
                 </CardHeader>
                 <CardContent className="py-0 flex-grow">
                   <div className="flex gap-4 text-sm bg-muted/50 p-3 rounded-lg border border-border/50">
@@ -266,7 +249,8 @@ export default function DeveloperHubPage() {
                     <Button
                       variant="outline"
                       className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-400 dark:hover:bg-indigo-950"
-                      onClick={() => handleSubmitForReview(theme.id)}
+                      title="Open Studio to validate and submit"
+                      onClick={() => navigate(`/dashboard/studio?themeId=${theme.id}`)}
                     >
                       <Rocket size={16} />
                     </Button>

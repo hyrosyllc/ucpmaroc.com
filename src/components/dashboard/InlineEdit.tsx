@@ -52,7 +52,7 @@ export const InlineEdit: React.FC<InlineEditProps> = ({
           value: newText,
         },
       },
-      "*"
+      window.location.origin
     );
   };
 

@@ -4,13 +4,13 @@ import React from "react";
 import { useOutletContext } from "react-router-dom";
 import { PortfolioSection } from "@/features/portfolio-builder/types/portfolio";
 import { cn, hexToHSL } from "@/lib/utils";
+import { getSectionFrame, getSectionAnchor } from "../sections/frame";
 import { Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  THEME_REGISTRY,
-  DEFAULT_THEME,
   resolveThemeComponent,
 } from "@/themes/registry";
+import { useActiveTheme } from "../hooks/useActiveTheme";
 
 // 🚀 THE NEW CUSTOM LOADER SYSTEM
 export const CustomLoader = ({ themeConfig, type = "page" }: { themeConfig?: any, type?: "page" | "block" }) => {
@@ -138,13 +138,16 @@ const PortfolioHome: React.FC<PortfolioHomeProps> = ({
     ? editorData
     : outletContext?.portfolio || editorData;
 
-  if (!portfolio) {
-    return <CustomLoader themeConfig={{}} type="page" />;
+  const { theme: ActiveTheme, isLoading: themeLoading } = useActiveTheme(
+    portfolio?.theme_config?.templateId || "modern",
+    portfolio?.theme_config?.themeVersion
+  );
+
+  if (!portfolio || themeLoading) {
+    return <CustomLoader themeConfig={portfolio?.theme_config || {}} type="page" />;
   }
 
   const sections = portfolio.sections as PortfolioSection[];
-  const themeId = portfolio.theme_config?.templateId || "modern";
-  const ActiveTheme = THEME_REGISTRY[themeId] || DEFAULT_THEME;
 
   // 🚀 3. RENDER THE SECTIONS
   const content = (
@@ -183,6 +186,11 @@ const PortfolioHome: React.FC<PortfolioHomeProps> = ({
 
           const zIndexClass =
             section.type === "header" ? "relative z-50" : "relative z-0";
+          const frame =
+            section.type === "header"
+              ? { className: "", style: {} }
+              : getSectionFrame(section.settings);
+          const anchor = getSectionAnchor(section.settings);
 
           const sectionProps = {
             data: section.data,
@@ -198,8 +206,12 @@ const PortfolioHome: React.FC<PortfolioHomeProps> = ({
             <div
               id={section.id}
               key={section.id}
-              className={cn("scroll-mt-20", zIndexClass)}
+              className={cn("scroll-mt-20", zIndexClass, frame.className)}
+              style={frame.style}
             >
+              {anchor && (
+                <span id={anchor} aria-hidden className="absolute -top-20" />
+              )}
               {isPreview ? (
                 <React.Suspense
                   fallback={

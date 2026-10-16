@@ -469,6 +469,7 @@ serve(async (req) => {
       clientSecret: responseData.client_secret,
       client_secret: responseData.client_secret,
       customerId,
+      connectedAccountId,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {
     if (attemptId && !providerObjectCreated && !providerRequestStarted) {

@@ -26,11 +26,11 @@ These come from source scans, not assumptions.
 
 | Area | Finding |
 | --- | --- |
-| Compile pipeline | `compile-theme` writes `marketplace_themes.compiled_bundle`, but only `BuilderPreview` reads it. Live `PortfolioLayout`/`PortfolioHome` resolve only `THEME_REGISTRY`. |
-| Compile security | `compile-theme` has `verify_jwt=false`, uses the service role, and auto-approves with no caller, owner, or admin check. |
-| Code execution | Preview and compiled code run via `new Function`; the module allowlist is not a sandbox. |
-| SDK split | `@ucp/sdk` → `src/lib/ucp-sdk/index.ts` (11 members). `@/lib/ucp-sdk` resolves to legacy `src/lib/ucp-sdk.tsx` (4 members) and is what the compiler/preview hooks import. |
-| Schemas | Built-in editor writes schema controls to `section.settings` (`defaultValue`, many field types). Studio inspector treats schemas as keyed objects, reads `default`, renders few types, writes to `data`. |
+| Compile pipeline | Resolved 2026-10-16: `useActiveTheme` loads approved bundles for the live site, builder preview, and editor. |
+| Compile security | Resolved in code: `compile-theme` requires a JWT and `actors.role='admin'`, validates imports/size, scans risky patterns, and only approves on an explicit admin action. DB guard and private-source policies are in migration `20261016000000` (to apply). |
+| Code execution | Preview and compiled code run via `new Function`; the module allowlist (`src/lib/theme-runtime/modules.ts`) is not a sandbox. Policy: reviewed-only. |
+| SDK split | Resolved: legacy `ucp-sdk.tsx` removed; one SDK. |
+| Schemas | Resolved: both formats normalised (`theme-runtime/schema.ts`); Studio and the builder editor render them with the shared schema renderer. |
 | Inline edit | `InlineEdit` posts `INLINE_EDIT {sectionId, fieldKey, value}`; builder listens for that; Studio listens for `UCP_INLINE_EDIT {field, value}`. |
 | Section types | 17 types, fixed in `SectionType` and `SECTION_COMPONENT_MAP`. Custom bundles can only replace implementations of existing types. |
 | Visibility | `PortfolioHome` filters `isVisible`; `DynamicPage` does not. |
@@ -41,9 +41,17 @@ These come from source scans, not assumptions.
 | Billing | Pages/functions/migrations exist locally; checkout paths (`create-checkout-session`, `stripe-billing`, `create-subscription`) overlap; deployment status unverified. |
 | Quality gates | No `npm test`; ESLint reports ~5,545 errors; production build passes. |
 
-## 4. Decisions Needed From You (before Phase 1)
+## 4. Decisions
 
-Please confirm or change each recommendation.
+**Approved (2026-10-15):**
+- **Commerce styling by custom themes (decision 6):** custom themes may style and restructure all ecommerce pages and components (shop, product, cart, checkout, account, order tracking). UI and UX are theirs; logic is not. Cart, pricing, tax, stock, discounts, checkout, payment, and order behavior stay in platform controllers; themes receive typed view-models and callbacks only (Phase 6).
+- **Booking v1 (decision 5):** in-platform scheduling and Google Calendar sync (OAuth, busy-time read, event write) are both in v1. Microsoft/Apple later.
+- **Isolation (decision 3):** reviewed-only themes with CSP, plus iframe sandbox. Choose per-surface by measured results in Spike 3, without limiting theme capability (e.g., sandbox for unreviewed/untrusted, direct mount for reviewed). Not decided up front.
+- **Order of work:** Sections first (Phase S below), then SDK, Cupertino, default themes, and Theme Studio adjustments follow from the section contracts.
+
+Still open: decisions 1, 2, 4, 7, 8 (recommendations stand unless changed). Decision 4 (section registry) is pulled into Phase S.
+
+Original list, for reference:
 
 1. **Single SDK runtime.** Recommendation: keep `src/lib/ucp-sdk/index.ts` as the only SDK; delete the legacy `ucp-sdk.tsx` after repointing imports. Is the legacy file used anywhere you rely on?
 2. **Theme manifest as the publish unit.** Recommendation: a published theme is `{ manifest, compiled modules, version }`, not loose files. Approve?
@@ -69,7 +77,146 @@ Please confirm or change each recommendation.
 | 8 | Platform hardening (billing, domains, i18n, perf, observability) | parallel from 0 | L |
 | 9 | Launch, migration, and documentation | all | M |
 
+**Revised order:** Phase S (sections first) = Phase 0 safety items + 1.2 section registry + 1.3 schema format + 1.4 typed contracts + Phase 4.1/4.2/4.3/4.5 (shared controls, enrichment, new sections, forms) and the booking section (4.4) with the SDK hooks, then 1.1 SDK unification, 5.3 Cupertino, 5.1/5.2 defaults, and Phase 3 Studio changes for new schemas. Phases 2, 6, 7 follow.
+
 Phases 4 and 8 can run in parallel with 2–3 once Phase 1 lands.
+
+---
+
+## Phase S: Sections First (current)
+
+Verified starting point: a section type is currently defined in `SectionType` ([portfolio.ts](../src/features/portfolio-builder/types/portfolio.ts)), `PortfolioThemeDefinition` ([types.ts](../src/themes/types.ts)), `SECTION_COMPONENT_MAP`, the builder palette, the 5,700-line `SectionEditor.tsx` switch (hand-written JSX per type), `plans.ts`, and each theme. Schema-driven editing exists only for theme `settings` (toggle/select/slider/color).
+
+| Step | Work | Status |
+| --- | --- | --- |
+| S1 | Section registry: one definition per type (label, component key, category, module, default data). Palette, component map, and "add section" defaults derive from it. | Done: [sections/registry.ts](../src/features/portfolio-builder/sections/registry.ts) |
+| S2 | Declarative content schema (`text`, `richtext`, `image`, `link`, `select`, `toggle`, `number`, `color`, `repeater`, `binding`) and one generic editor renderer, so new sections need no hand-written editor JSX. Existing 17 editors stay until migrated one by one. | Done: [schema.ts](../src/features/portfolio-builder/sections/schema.ts), [SchemaFields.tsx](../src/features/portfolio-builder/sections/SchemaFields.tsx), used by `SectionEditor` for any type with a `contentSchema` |
+| S3 | Shared section controls (spacing, background, width, anchor, per-device visibility, animation) in `settings`. | Done: [frame.tsx](../src/features/portfolio-builder/sections/frame.tsx), applied in builder preview, live home, and custom pages; Layout block in the Design tab. Header excluded. |
+| S4 | Registry-driven theme contract: themes may omit a section and fall back to Modern (component and design schema). Plan gating from the registry is still open (`allowedSectionTypes` is not read anywhere today). | Partly done |
+| S5 | FAQ: Modern (raw) and Cupertino (SDK `useFaq`) done: accordion/grid, categories, JSON-LD, ARIA. | Done |
+| S6 | Booking section and in-platform scheduling (4.4 data model, availability, slot holds, payments, `.ics`), then Google Calendar sync, then booking pages. | Built, not deployed. Migration [20261015000000_booking_system.sql](../supabase/migrations/20261015000000_booking_system.sql) (validated on a throwaway Postgres: overlap guard rejects clashes, adjacent slots and cancelled bookings pass; not applied to your project). Edge Functions `booking-availability`, `booking-create`, `booking-manage`, `booking-owner-action`, `google-calendar` plus `_shared/bookingSlots.ts` (6 passing tests incl. DST), `bookingData.ts`, `googleCalendar.ts`. UI in `src/features/booking/` (widget, public `/pro/:slug/book` with `?manage=` links, dashboard `/dashboard/bookings`), Modern `Booking` section. Needs secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `CALENDAR_TOKEN_KEY`, `APP_URL`, `BOOKING_CRON_SECRET`, `BOOKING_TOKEN_SECRET`, `EMAIL_FROM` (and existing `RESEND_API_KEY`, `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLISHABLE_KEY`) and the Google redirect URI `<SUPABASE_URL>/functions/v1/google-calendar`. Schedule `booking-reminders` every ~15 min with header `x-cron-secret`. Not yet: recurring/group sessions, SMS reminders, waitlist. |
+| S7 | Remaining Priority 1 sections (4.3), then enrich existing sections (4.2). | In progress: Modern now has working Stats (animated counters, replaces the placeholder), Features Grid, Steps, Call to Action, Rich Text, Logo Cloud, Testimonials, all registry/schema-driven. Still open: Footer, Blog, Newsletter, Trust badges; enrichment of existing sections. |
+| S8 | SDK hooks/components for the new sections; unify SDK (1.1); upgrade Cupertino; Modern raw; Studio schema support for the registry. | Mostly done: single SDK, rich hooks for every section, Cupertino implements every section type through the SDK (see below). Open: Studio support for registry `contentSchema`, Cinematic/Modern Bright variants. |
+| S9 | Section tests, accessibility checks, docs. | |
+
+Rules for every step: consumer map first (builder, preview, live, Studio, compile), additive changes, `npm run build` green, no `.env.local` changes.
+
+### Cupertino and SDK status (2026-10-16)
+
+The legacy `src/lib/ucp-sdk.tsx` was removed by the owner. Cupertino now implements every section type and holds no data fetching, routing, cart, timers, or storage of its own; all of that comes from the SDK:
+
+| Area | SDK surface |
+| --- | --- |
+| Existing | `Text`, `useScrollObserver`, `useCart`, `useNavigationTree`, `useDeviceSize`, `useGallery`, `useCarousel`, `useLeadForm`, `usePricingForm`, `useShopOrderForm` |
+| New content | `useFaq`, `useCountUp`, `useSlider`, `useVideoGallery`, `useAccordion`, `useHeaderChrome` |
+| New data | `useReviews`, `useServicesShowcase`, `useStoreProducts`, `useProductCard`, `useProductSpotlight` |
+| Booking | `useBookingFlow`, `BookingPayment`, `formatPrice` |
+| Platform components | `HtmlSandbox`, `AudioDemoCard`, `VideoDemoCard`, `ScriptDemoCard` |
+
+All are typed for Theme Studio in `src/lib/ucp-sdk/types.d.ts`. Only presentational `createPortal` targets remain in themes. Cupertino's commerce view (`ProductLayout`) is presentational and receives props from the platform controller. Modern stays raw; Modern Bright and Cinematic still inherit Modern for the new sections.
+
+### Known issues and follow-ups
+
+| # | Issue | Plan |
+| --- | --- | --- |
+| K1 | `npm run build` only bundles; type errors are never checked. About 400 existing unused-import and type errors remain. | Partly fixed: `npm run typecheck` added; `SectionEditor-backup.tsx` and tests excluded in `tsconfig.app.json`. Delete the backup after approval (it holds nothing the current editor lacks). CI gate and ratchet remain (Phase 0.3). |
+| K2 | `UCP.Text` renders owner content with `dangerouslySetInnerHTML` on the live site. | Fixed: sanitised with DOMPurify (inline formatting tags only). |
+| K3 | Store checkout confirmed card payments against the platform Stripe account while the PaymentIntent lives on the seller's connected account. | Fixed: `create-payment-intent` returns `connectedAccountId`; checkout uses `stripeForAccount` ([stripeClient.ts](../src/lib/stripeClient.ts)). Verify with a Stripe test-mode purchase. |
+| K4 | `PublicCheckoutPage` had two real type errors. | Fixed (`clientSecret` null, invalid `colorBorder`). |
+| K5 | Owner cancelling a paid booking does not refund; customers are told refunds are on request. | Refund policy per service (full/partial/none by hours before start), automatic Stripe refund on cancel, recorded on the booking. |
+| K6 | Public booking endpoints have only honeypot and per-email limits. | Per-IP rate limiting (edge KV or `rate_limits` table), optional Turnstile, and abuse alerts. |
+| K7 | `postMessage(..., "*")` in the HTML sandbox bridge and preview protocol. | Fixed for Studio and inline edit (same-origin, source-checked). The HTML sandbox bridge keeps `*` because its iframe is opaque-origin; add a token handshake (1.5). |
+| K8 | Owner "Confirm" on a pending booking that still awaits online payment would confirm it unpaid. | Fixed: shown as "Awaiting payment". |
+| K9 | Cinematic and Modern Bright inherit Modern for the new sections. | Deferred by decision (focus on Theme Studio). |
+| K10 | `modern/index.tsx` had an unused `Demos` placeholder. | Removed. |
+| K11 | `admin-delete-account`, `poll-audo-status`, and `clean-audio` called the shared `corsHeaders` object as a function and would throw. | Fixed with a local wrapper in each; consider origin-aware shared CORS. |
+
+### Email system plan
+
+Today: transactional email is sent straight from Edge Functions through Resend with the shared `orders@resend.dev` sender (store receipts, abandoned carts, bookings); messaging uses EmailJS; there are no templates, branding, languages, retries, or delivery tracking.
+
+| Step | Work |
+| --- | --- |
+| E1 | One shared `_shared/email.ts` (send, reply-to, headers) used by every function; sender from `EMAIL_FROM` on a verified domain. Bookings already use it. |
+| E2 | Template engine with per-site branding (logo, colours, name, footer), `en`/`fr`/`ar` strings with RTL, plain-text alternative, and a preview/test-send screen in the dashboard. |
+| E3 | `email_outbox` table: queued, sent, failed, retries with backoff, idempotency keys, and a cron drain; replaces fire-and-forget calls. |
+| E4 | Resend webhooks for delivered, bounced, complaint; suppression list; unsubscribe and preferences for marketing mail (abandoned cart, review requests). |
+| E5 | Catalog: order confirmation, shipped, refund, booking confirmation (with `.ics` attachment), reminder, reschedule, cancel, review request, welcome, password reset, owner notifications. |
+| E6 | Per-seller sender domains (verified domain per site) and DKIM/SPF guidance in the dashboard. |
+
+Rule: nothing sends mail from a function without going through E1; E3 lands before marketing sends are expanded.
+
+---
+
+## Progress Log and Remaining Work
+
+### Work completed (to 2026-10-16)
+
+| Area | What was delivered |
+| --- | --- |
+| Section system | Section registry as the single source of truth; schema-driven editing with media picker and repeaters; shared layout controls (spacing, background, width, device visibility, animation, anchor); registry-driven theme contract with Modern fallback. |
+| New sections | FAQ, Stats (real animated counters), Features, Steps, Call to Action, Rich Text, Logo Cloud, Testimonials, Booking Calendar. Modern (plain React) and Cupertino (SDK) versions. |
+| Booking | Migration (applied); slot engine with DST tests; public availability/create/manage functions; double-booking prevention in the database; deposits and full payment on the seller's Stripe account with 15-minute holds and automatic refund if the slot is lost; one-step reschedule; 24-hour reminders; Google Calendar connection per seller with calendar picker; seller dashboard (bookings, services, availability, settings); public booking page and customer manage links; `.ics`. |
+| SDK | Single SDK (legacy file removed); new hooks and components covering every section (FAQ, counters, sliders, video, reviews, services, store products, header, accordion, booking, HTML sandbox); typed for Studio; Cupertino implements every section type with no data fetching, routing or storage of its own. |
+| Theme runtime and Studio | Shared runtime with multi-file imports and one module allowlist; Studio file management, all-Cupertino starters, live recompile, per-file errors, design/content test panels, full-page preview of a real test site, working submit-for-review, withdraw-on-edit; origin-checked messaging; live site, builder preview and editor load approved custom themes. |
+| Review and security | `compile-theme` is admin-only with import/size validation, risky-pattern scan, acknowledgement, and reject-with-reason; migration `20261016000000` (to apply) blocks self-approval and bundle injection and keeps source private. |
+| Fixes | Store checkout now confirms cards on the seller's Stripe account; `UCP.Text` sanitised; checkout type errors; unpaid-booking confirm guard; three Edge Functions with a CORS call bug; `typecheck` script; `.env.example` lists every key; docs and `ECOMMERCE_FILES_ROLES.md` refreshed. |
+| Verified | 12 unit tests (slots, runtime); migrations exercised in a throwaway Postgres; production build and `tsc` clean for the new code. Not yet run: Edge Functions under Deno, anything in a browser against the live project. |
+
+### Remaining work (consolidated)
+
+**A. Theme platform**
+
+| # | Item | Notes |
+| --- | --- | --- |
+| A1 | **Immutable theme versions and rollback** (built 2026-10-17, migration `20261017000000_theme_versions.sql` to apply) | Done: `marketplace_theme_versions` snapshots every submission; `submit_theme_version` / `rollback_theme_version` functions; editing while in review withdraws the version; admins review the submitted snapshot and `compile-theme` publishes that version; Studio Versions dialog (history, load files, make live); sites can pin a version via `theme_config.themeVersion` (read by `useActiveTheme`). Backfills existing themes as version 1. Tested in a throwaway Postgres. Still open: nothing for A1. **Built 2026-10-18** (migration `20261018000000_theme_version_hash_deprecation.sql` to apply, redeploy `compile-theme`): bundles are stored content-addressed at `theme-bundles/<theme_id>/<sha256>.json` (public bucket, one-year cache) and `useActiveTheme` fetches by hash with inline fallback; admin `backfill` action on `compile-theme` publishes existing approved versions; Studio can deprecate or reactivate a version (live version cannot be deprecated, deprecated cannot go live); the builder Design tab has a theme version selector (`ThemeVersionPin`) with a deprecation warning, and the section editor honours the pin; the admin review dialog shows a line diff against the live version (`theme-runtime/diff.ts`, tested). |
+| A2 | **Isolation: iframe sandbox and CSP** (started 2026-10-18) | Done: `Content-Security-Policy-Report-Only` and `X-Content-Type-Options` headers in `vercel.json`, violations logged by `api/csp-report.ts` (Vercel log). Next: read the reports for a week, tighten `connect-src`/`script-src`, then switch to enforcing. **Spike 3 findings:** a truly sandboxed iframe (`sandbox="allow-scripts"`, opaque origin) cannot load the current app because Supabase auth uses localStorage and the bundle needs `unsafe-eval`; it needs a separate minimal runtime page (React + theme runtime only, no Supabase client) fed props over `postMessage`, with SDK calls proxied by the parent and SSR/SEO handled by the host rendering a placeholder. Recommended split: reviewed themes mount directly under the CSP; Studio preview and any unreviewed theme use the sandboxed runtime page. **Sandboxed Studio preview built 2026-10-18 (opt-in "Isolated" toggle, needs a browser check before it becomes the default):** `sandbox.html` is a second Vite entry with no app shell; the Studio frames it with `sandbox="allow-scripts"`, an opaque origin trusting only `window.parent`, a strict header CSP, and sample data. Not yet isolated: the builder preview and live site (reviewed themes mount directly), SDK data hooks via a proxy. Also account for height sync and the token handshake (K7). |
+| A3 | Semantic type checking in Studio | Load React and SDK types into Monaco; turn on semantic diagnostics for theme files. |
+| A4 | Theme manifest | Declares sections, supported commerce views, SDK version, required plan; validated on submit; versioned contract. |
+| A5 | Theme acceptance suite | Automated render of every section with sample data, accessibility and performance budgets, run in CI and on submission. |
+| A6 | Marketplace operations | Purchases and licensing review, ratings, revenue share and payouts, developer analytics, takedown, public theme docs and examples. |
+| A7 | Studio polish | Folder tree, search across files, diff against starter, restore starter per file, shareable test data presets. |
+
+**B. Custom themes styling ecommerce (Phase 6, expanded)**
+
+Decision recorded: custom themes may restyle and restructure all ecommerce pages and components; they never own logic.
+
+| # | Item | Notes |
+| --- | --- | --- |
+| B1 | Commerce view contract (started 2026-10-18) | Built: `lib/theme-runtime/commerceViews.ts` defines the view keys (`ShopLayout`, `ProductLayout`, `LoginLayout`: default exports in a theme bundle, props-only; shapes in `product-layouts/types.ts` and the Modern `LoginLayout`), and `features/ecommerce/components/CommerceView.tsx` renders the custom view when present, else the built-in, and falls back to the built-in if the custom view throws. Wired into the shop, product, login, cart drawer, checkout and thank-you pages. **Built 2026-10-18 (second pass):** keys `ShopLayout`, `ProductLayout`, `LoginLayout`, `CartDrawer`, `CheckoutView`, `ThankYouView`; built-in themes provide views through the registry (Cupertino now ships all six, Modern keeps its defaults untouched); `UCP.useCartDrawer` is the SDK hook for the drawer; checkout and thank-you were split in place into a controller (`useCheckoutController`, `useThankYouModel`) plus a default view, exposed to themes as the SDK hooks `UCP.useCheckout(portfolio)` and `UCP.useThankYou(portfolio)` (route elements `CheckoutRoute`/`ThankYouRoute` dispatch to the theme view). The contact form and payment (Stripe, order creation) are platform `slots` a theme positions but cannot replace. Cupertino's views double as Studio starters, and Studio previews every view with sample data (`CommerceViewMock`). Still open: product modal, account/orders views, order tracking, a typed view-model in `types.d.ts`, route chrome (Modern `CheckoutLayout`/`ThankYouLayout` still wrap every theme), checkout form inputs still use platform styling. Cart totals, pricing, tax, stock, discounts, payment and orders stay in platform controllers. |
+| B2 | Theme dispatch | Storefront controllers ask `useActiveTheme` for the view; custom view when present, otherwise the Modern view. Fix the `"minimal"`/`"cupertino"` id mismatch; unify the two shop section models. |
+| B3 | SDK commerce hooks | `useShopController`, `useProductController`, `useCartController`, `useCheckoutController` returning view-models and actions; payment fields rendered by a platform component, never by the theme. |
+| B4 | Studio support | Preview commerce views with mock data in Studio; starters for each view; manifest lists supported views. |
+| B5 | Certification tier | Cart and checkout overrides require an extra review and automated checks (no extra network calls, no field capture, required legal and tax lines present). |
+| B6 | Builder and domains | Builder preview of commerce views; fix the custom-domain customer portal route; parity tests across platform and custom domains. |
+| B7 | Cupertino/Modern commerce parity | All built-in themes use the same controllers and view contract. |
+
+**C. Sections**
+
+- Cinematic and Modern Bright: own variants of the new sections (currently inherit Modern). Deferred by decision.
+- Remaining Priority 1: Footer, Blog/Articles, Newsletter signup, Trust badges. Priority 2: video/audio player, timeline, comparison table, countdown/promo popup, product collection, bundles/upsell, social feed, downloads, events, login/account entry, embed.
+- Enrich existing sections (Hero, About, Team, Reviews, Gallery, Pricing, Contact/LeadForm, Map, Header), shared forms platform, per-section accessibility and SEO audits, section library and global sections, dynamic bindings.
+- Enforce plan gating of section types (`allowedSectionTypes` is defined but unused).
+- Replace hand-written editors for the original 17 types with schemas, one at a time.
+
+**D. Booking follow-ups**
+
+Refund policy and automatic refund on owner cancel (K5); per-IP rate limiting and bot protection (K6); recurring and group sessions, waitlist; SMS/WhatsApp reminders; Microsoft and Apple calendars; staff/resources; per-service landing pages with SEO and an embeddable widget; reports and exports; GDPR export/delete; owner-side manual booking; calendar "push" updates when the seller edits an event in Google.
+
+**E. Email system (E1 to E6)**: shared sender, branded multilingual templates, outbox with retries, delivery webhooks and suppression, full transactional catalog with `.ics`, per-seller sender domains. See the Email system plan above.
+
+**F. Quality and operations (Phase 0, 8)**: CI gate with `typecheck`, lint ratchet and tests; delete `SectionEditor-backup.tsx` after approval; database baseline migration for legacy tables (including `marketplace_themes`) so environments can be rebuilt; secrets rotation; observability and alerting for Edge Functions; origin-aware shared CORS; performance and SEO work; i18n for new UI strings.
+
+**G. Ecommerce enterprise (Phase 7)**: catalog, inventory, promotions, server-side checkout hardening, fulfilment, CRM, marketing, analytics, multi-market and currency, extensibility, AI features. Not started; B must land first.
+
+**H. Launch (Phase 9)**: feature flags, migration of existing sites, rollout and rollback plan.
+
+### Deployment checklist for work already built
+
+1. Apply `20261016000000_theme_studio_hardening.sql`, `20261017000000_theme_versions.sql`, then `20261018000000_theme_version_hash_deprecation.sql`; review any `FOR ALL` policy they report on `marketplace_themes`. After the last one, redeploy `compile-theme` and call it once with `{"action":"backfill"}` as an admin so existing versions get hashed bundles.
+2. Deploy functions: `compile-theme`, `create-payment-intent`, `stripe-connect-webhook`, `booking-availability`, `booking-create`, `booking-manage`, `booking-owner-action`, `booking-reminders`, `google-calendar`, `admin-delete-account`, `poll-audo-status`, `clean-audio`.
+3. Set secrets from `.env.example`; add the Google redirect URI `<SUPABASE_URL>/functions/v1/google-calendar`; schedule `booking-reminders` (about every 15 minutes) with the `x-cron-secret` header.
+4. Manual tests: Stripe test-mode store purchase and a paid booking; Google connect, book, reschedule, cancel; Theme Studio create, submit, admin approve, apply to a site, view live and in the builder.
 
 ---
 
@@ -219,6 +366,8 @@ Implement the approved option from Decision 3:
 ---
 
 ## Phase 3: Theme Studio Completion
+
+**Status (2026-10-16):** working end to end in code. Shared runtime with multi-file relative imports and one module allowlist; Studio has file create/rename/delete, all-Cupertino starters, per-file errors, live recompile, design and content test panels (shared schema renderer), full-page preview of the test site's real sections, origin-checked messaging, working Submit for review with validation and withdraw-on-edit; admin analysis, acknowledgement, and reject-with-reason; live site, builder preview, and editor consume approved bundles. Remaining from this phase: semantic type checking (3.2), immutable versions and rollback (3.4), consumer-facing theme docs beyond the SDK modal (3.5), marketplace operations (3.6), isolation spike.
 
 ### 3.1 Fix the current loop (M)
 - Use the unified SDK in preview; use the shared schema renderer and protocol (Phase 1).

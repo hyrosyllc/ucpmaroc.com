@@ -51,6 +51,7 @@ import {
   AlertTriangle,
   Receipt,
   MessageCircle,
+  Zap,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -223,6 +224,12 @@ const NAV_GROUPS = [
         name: "Billing",
         icon: Receipt,
         description: "Credits, services & payment methods",
+        children: [
+          { to: "/dashboard/billing", name: "Dashboard", icon: BarChart3 },
+          { to: "/dashboard/billing-services", name: "Services & Subscriptions", icon: Package },
+          { to: "/dashboard/billing-payment-methods", name: "Payment Methods", icon: CreditCard },
+          { to: "/dashboard/billing-usage", name: "Usage & Activity", icon: Zap },
+        ],
       },
       {
         to: "/dashboard/profile",
@@ -667,6 +674,8 @@ const ActorDashboardLayout = () => {
                         const isActiveOverride = isProductTab && isShopActive;
                         const isServicesTab = item.to === "/dashboard/services";
                         const isServicesActive = isServicesTab && location.pathname.startsWith("/dashboard/services");
+                        const isBillingTab = item.to === "/dashboard/billing";
+                        const isBillingActive = isBillingTab && location.pathname.startsWith("/dashboard/billing");
 
                         return (
                           <div key={item.name}>
@@ -684,7 +693,7 @@ const ActorDashboardLayout = () => {
                                   isCollapsed
                                     ? "justify-center h-10 w-10 mx-auto"
                                     : "gap-3 px-3 py-2 w-full",
-                                  isActive || isActiveOverride || isServicesActive
+                                  isActive || isActiveOverride || isServicesActive || isBillingActive
                                     ? "bg-primary/10 text-primary"
                                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                 )
@@ -707,12 +716,15 @@ const ActorDashboardLayout = () => {
                                       "ml-auto transition-all",
                                       isActiveOverride ||
                                         isServicesActive ||
+                                        isBillingActive ||
                                         location.pathname === item.to
                                         ? "opacity-100"
                                         : "opacity-0",
-                                      isShopActive &&
-                                        isProductTab &&
-                                        "rotate-90"
+                                      (isShopActive &&
+                                        isProductTab) ||
+                                        (isBillingActive && isBillingTab)
+                                        ? "rotate-90"
+                                        : ""
                                     )}
                                   />
                                 </>
@@ -768,6 +780,28 @@ const ActorDashboardLayout = () => {
                                   >
                                     <service.icon className="h-3.5 w-3.5 opacity-70" />
                                     {service.name}
+                                  </NavLink>
+                                ))}
+                              </div>
+                            )}
+                            {!isCollapsed && isBillingTab && isBillingActive && item.children && (
+                              <div className="ml-9 mt-1 mb-2 flex flex-col space-y-1 border-l-2 border-primary/20 pl-3 animate-in slide-in-from-top-2 duration-200">
+                                {item.children.map((child: any) => (
+                                  <NavLink
+                                    key={child.to}
+                                    to={child.to}
+                                    end
+                                    className={({ isActive }) =>
+                                      cn(
+                                        "flex items-center gap-2 text-sm py-1.5 px-2 rounded-md transition-colors",
+                                        isActive
+                                          ? "text-foreground font-semibold bg-muted/50"
+                                          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                                      )
+                                    }
+                                  >
+                                    <child.icon className="h-3.5 w-3.5 opacity-70" />
+                                    {child.name}
                                   </NavLink>
                                 ))}
                               </div>

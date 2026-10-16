@@ -214,42 +214,6 @@ async function resolveStoreCheckout(supabase: any, input: any) {
   };
 }
 
-async function resolveDomainCheckout(supabase: any, input: any) {
-  const domainId = asUuid(input?.domainId, "domainCheckout.domainId");
-  const option = input?.option;
-  const billingCycle = input?.billingCycle === "yearly" ? "yearly" : "monthly";
-  if (!["buy", "rent_standard", "rent_deal"].includes(option)) {
-    throw new Error("Unknown domain purchase option.");
-  }
-
-  const { data: domain, error } = await supabase
-    .from("store_domains")
-    .select("id, price_buy, price_rent_standard, price_rent_deal, fee_web_dev")
-    .eq("id", domainId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!domain) throw new Error("Domain offer was not found.");
-
-  let amount = 0;
-  let selectedOption = option;
-  if (option === "buy") amount = Number(domain.price_buy);
-  if (option === "rent_deal") {
-    amount = Number(domain.fee_web_dev || 0) + Number(domain.price_rent_deal || 0) * 12;
-  }
-  if (option === "rent_standard" && billingCycle === "yearly") {
-    amount = Math.round(Number(domain.price_rent_standard || 0) * 12 * 0.9);
-    selectedOption = "rent_standard_yearly";
-  } else if (option === "rent_standard") {
-    amount = Number(domain.price_rent_standard);
-    selectedOption = "rent_standard_monthly";
-  }
-  const amountCents = Math.round(amount * 100);
-  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
-    throw new Error("Domain offer has an invalid price.");
-  }
-  return { domainId, selectedOption, amountCents };
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -276,7 +240,6 @@ serve(async (req) => {
       portfolioId,
       topUp,
       storeCheckout,
-      domainCheckout,
     } = payload;
 
     if (!stripeSecretKey) throw new Error("Stripe secret key configuration error.");
@@ -287,7 +250,7 @@ serve(async (req) => {
     ) {
       throw new Error("Reserved platform billing metadata is not accepted.");
     }
-    if (topUp && (portfolioId || orderId || storeCheckout || domainCheckout)) {
+    if (topUp && (portfolioId || orderId || storeCheckout)) {
       throw new Error("Platform Credit top-ups cannot be combined with marketplace payments.");
     }
 
@@ -373,20 +336,6 @@ serve(async (req) => {
       if (storeAttemptError) throw storeAttemptError;
     } else if (portfolioId) {
       throw new Error("Legacy store checkout requests are no longer accepted.");
-    }
-
-    if (domainCheckout) {
-      const domainPurchase = await resolveDomainCheckout(supabaseAdmin, domainCheckout);
-      trustedAmount = domainPurchase.amountCents / 100;
-      trustedCurrency = "mad";
-      trustedEmail = domainCheckout.email;
-      trustedName = domainCheckout.name;
-      trustedMetadata = {
-        payment_scope: "domain_marketplace",
-        domain_id: domainPurchase.domainId,
-        selected_option: domainPurchase.selectedOption,
-        expected_amount_cents: String(domainPurchase.amountCents),
-      };
     }
 
     // Talent marketplace orders are priced from the stored order, not the browser.

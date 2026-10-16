@@ -1,4 +1,10 @@
-STUDIO Logic : 
+# Historical Theme Studio Notes
+
+> These notes are incomplete and include outdated paths. Use the current [feature catalog](../docs/FEATURES.md) and [project architecture](../docs/PROJECT_ARCHITECTURE.md) for the maintained feature map.
+
+## Archived Notes
+
+STUDIO Logic :
 Main Page > ../../ThemeStudioPage
 
 // SDK Files

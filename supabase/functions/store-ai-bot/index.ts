@@ -101,7 +101,45 @@ serve(async (req) => {
       return new Response("AI is disabled for this store", { status: 200 });
     }
 
-    // 5. Fetch Store Product Catalog
+    // 6. Meter Bot+ AI usage before spending on a paid OpenAI call.
+    const actorId = portfolio?.actor_id;
+    if (!actorId) {
+      console.error('Cannot meter Bot+ usage: portfolio has no actor_id', conv.portfolio_id);
+      await markEventCompleted(supabase, visitorMessage.id);
+      return new Response('Store is not linked to an actor', { status: 200 });
+    }
+
+    const usageIdempotencyKey = visitorMessage.id
+      ? `store_ai_bot:${visitorMessage.id}`
+      : `store_ai_bot:${crypto.randomUUID()}`;
+    const { error: usageError } = await supabase.rpc('record_billing_usage', {
+      p_actor_id: actorId,
+      p_product_id: 'bot_plus_action',
+      p_quantity: 1,
+      p_idempotency_key: usageIdempotencyKey,
+      p_source: 'store_ai_bot',
+      p_metadata: { conversation_id: visitorMessage.conversation_id },
+    });
+
+    if (usageError) {
+      const insufficientBalance = Boolean(usageError.message?.includes('Insufficient'));
+      console.error('Bot+ usage charge failed', usageError.message);
+      const fallbackContent = insufficientBalance
+        ? "Hi! Our AI assistant is temporarily unavailable for this store. Please leave your name, email, and question, and the team will follow up personally."
+        : "Hi! Something went wrong starting our AI assistant. Please leave your name, email, and question, and the team will follow up personally.";
+      const { error: fallbackError } = await supabase.from('store_messages').insert({
+        conversation_id: visitorMessage.conversation_id,
+        sender_type: 'ai_bot',
+        content: fallbackContent,
+      });
+      if (!fallbackError) {
+        await supabase.from('store_conversations').update({ updated_at: new Date().toISOString() }).eq('id', visitorMessage.conversation_id);
+      }
+      await markEventCompleted(supabase, visitorMessage.id);
+      return new Response(insufficientBalance ? 'Insufficient Platform Credit balance' : 'Usage metering failed', { status: 200 });
+    }
+
+    // 7. Fetch Store Product Catalog
     const { data: products } = await supabase
       .from('pro_products')
       .select('id, title, short_description, price, compare_at_price, images, slug, delivery_type, stock_count, action_type, checkout_url')

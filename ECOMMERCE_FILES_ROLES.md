@@ -1,4 +1,6 @@
-# 📚 UCP Maroc - E-Commerce & Portfolio Files Reference Guide
+# UCP Maroc E-Commerce and Portfolio File Reference
+
+> **Status:** This quick reference is historical and contains stale descriptions (including sandbox and customer-auth claims). Use [the repository catalog](docs/REPOSITORY_CATALOG.md), [current feature catalog](docs/FEATURES.md), and [feature developer guides](docs/features/) for the checked-out implementation.
 
 This document serves as a "cheat sheet" for the UCP Maroc codebase. Whenever you are lost or need to know where a specific piece of logic lives, use the tables below to find the correct file.
 

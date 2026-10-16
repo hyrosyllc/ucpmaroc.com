@@ -1,4 +1,6 @@
-# 🛍️ E-Commerce Customer Portal Project Plan
+# E-Commerce Customer Portal Project Plan
+
+> **Historical plan:** Customer login, portfolio-scoped `pro_customers`, order history, customer order messaging, and reviews are present in the current source tree. The plan below records the original proposed phases, not remaining work. See [the ecommerce guide](docs/features/ecommerce.md) and [repository catalog](docs/REPOSITORY_CATALOG.md).
 
 ## 🎯 Overview
 The Customer Portal transforms the platform into a comprehensive E-Commerce engine by allowing end-buyers to authenticate into a specific creator's website. Once logged in, customers can track orders, communicate via real-time chat with the store owner, and leave verified product reviews.

@@ -46,8 +46,6 @@ const AdminActorListPage = lazy(() => import("@/features/admin-core/pages/AdminA
 const AdminClientListPage = lazy(() => import("@/features/admin-core/pages/AdminClientListPage"));
 const AdminThemesPage = lazy(() => import("@/features/admin-core/pages/AdminThemesPage"));
 const AdminPayoutsPage = lazy(() => import("@/features/admin-core/pages/AdminPayoutsPage"));
-const AdminDomainListPage = lazy(() => import("@/features/admin-core/pages/AdminDomainListPage"));
-const AdminDomainOrderDetailPage = lazy(() => import("@/features/admin-core/pages/AdminDomainOrderDetailPage"));
 const AdminMarketplaceSettingsPage = lazy(() => import("@/features/admin-core/pages/AdminMarketplaceSettingsPage"));
 
 // --- DASHBOARD IMPORTS ---
@@ -76,10 +74,6 @@ const ClientAuthPage = lazy(() => import("@/features/auth/pages/ClientAuthPage")
 const CreateProfilePromptPage = lazy(() => import("@/features/auth/pages/CreateProfilePromptPage"));
 const MessagesPage = lazy(() => import("@/features/messaging/pages/MessagesPage"));
 const AdminChatSheet = lazy(() => import("@/features/messaging/components/AdminChatSheet").then((module) => ({ default: module.AdminChatSheet || module.default })));
-const DomainMarketplace = lazy(() => import("@/features/domain-marketplace/pages/DomainMarketplace"));
-const DomainCheckout = lazy(() => import("@/features/domain-marketplace/pages/DomainCheckout"));
-const DomainThankYouPage = lazy(() => import("@/features/domain-marketplace/pages/DomainThankYouPage"));
-const DomainOrderPage = lazy(() => import("@/features/domain-marketplace/pages/DomainOrderPage"));
 const AnalyticsPage = lazy(() => import("@/features/ecommerce/pages/AnalyticsPage"));
 const OrdersPage = lazy(() => import("@/features/ecommerce/pages/OrdersPage"));
 const StoreInboxPage = lazy(() => import("@/features/ecommerce/pages/store-inbox/StoreInboxPage"));
@@ -90,7 +84,10 @@ const ProOrderDetailPage = lazy(() => import("@/features/ecommerce/pages/ProOrde
 const PaymentsPage = lazy(() => import("@/features/ecommerce/pages/PaymentsPage"));
 const StripeCallbackPage = lazy(() => import("@/features/ecommerce/pages/StripeCallbackPage"));
 const SettingsPage = lazy(() => import("@/features/portfolio-builder/pages/SettingsPage"));
-const BillingPage = lazy(() => import("@/features/portfolio-builder/pages/BillingPage"));
+const BillingDashboard = lazy(() => import("@/features/portfolio-builder/pages/BillingDashboard"));
+const BillingServicesSubscriptions = lazy(() => import("@/features/portfolio-builder/pages/BillingServicesSubscriptions"));
+const BillingPaymentMethods = lazy(() => import("@/features/portfolio-builder/pages/BillingPaymentMethods"));
+const BillingUsageActivity = lazy(() => import("@/features/portfolio-builder/pages/BillingUsageActivity"));
 const CustomersPage = lazy(() => import("@/features/ecommerce/pages/CustomersPage"));
 const ReviewsPage = lazy(() => import("@/features/ecommerce/pages/ReviewsPage.tsx"));
 const CustomerLoginPage = lazy(() => import("@/features/ecommerce/pages/CustomerLoginPage"));
@@ -380,7 +377,10 @@ function App() {
                       <Route path="leads" element={<LeadsPage />} />
                       <Route path="store-bot" element={<StoreBotSettingsPage />} />
                       <Route path="settings" element={<SettingsPage />} />
-                      <Route path="billing" element={<BillingPage />} />
+                      <Route path="billing" element={<BillingDashboard />} />
+                      <Route path="billing-services" element={<BillingServicesSubscriptions />} />
+                      <Route path="billing-payment-methods" element={<BillingPaymentMethods />} />
+                      <Route path="billing-usage" element={<BillingUsageActivity />} />
                       <Route path="products" element={<ProductsPage />} />
                       <Route path="collections" element={<CollectionsPage />} />
                       <Route path="shipping" element={<ShippingRatesPage />} />
@@ -412,14 +412,6 @@ function App() {
                           path="clients"
                           element={<AdminClientListPage />}
                         />
-                        <Route
-                          path="domains"
-                          element={<AdminDomainListPage />}
-                        />
-                        <Route
-                          path="domains/order/:id"
-                          element={<AdminDomainOrderDetailPage />}
-                        />
                                                 <Route
                           path="themes"
                           element={<AdminThemesPage />}
@@ -433,23 +425,6 @@ function App() {
                       </Route>
                     </Route>
 
-                    {/* MARKETPLACE ROUTES */}
-                    <Route
-                      path="/marketplace/domains"
-                      element={<DomainMarketplace />}
-                    />
-                    <Route
-                      path="/marketplace/domains/:id/checkout"
-                      element={<DomainCheckout />}
-                    />
-                    <Route
-                      path="/marketplace/order/:id/thank-you"
-                      element={<DomainThankYouPage />}
-                    />
-                    <Route
-                      path="/marketplace/order/:id/status"
-                      element={<DomainOrderPage />}
-                    />
                   </>
                 )}
               </Routes>

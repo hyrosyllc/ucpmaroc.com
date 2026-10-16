@@ -43,7 +43,7 @@ async function syncSubscription(
   const price = typeof itemPriceValue === "string"
     ? await stripe.prices.retrieve(itemPriceValue)
     : itemPriceValue;
-  const configured = resolveSubscriptionPriceByStripeId(price.id);
+  const configured = await resolveSubscriptionPriceByStripeId(supabase, price.id);
   validateStripeRecurringPrice(price, configured, false);
 
   const { data: existingByStripe, error: stripeLookupError } = await supabase
@@ -75,7 +75,7 @@ async function syncSubscription(
   const actorId = attempt?.actor_id ?? existingByStripe?.actor_id;
   const portfolioId = attempt?.portfolio_id ?? existingByStripe?.portfolio_id;
   if (!actorId || !portfolioId) throw new Error("Subscription owner is missing.");
-  if (configured.planId !== (attempt?.plan_id ?? existingByStripe?.plan_id)) {
+  if (configured.plan_id !== (attempt?.plan_id ?? existingByStripe?.plan_id)) {
     throw new Error("Stripe Price does not match the purchased platform plan.");
   }
 
@@ -103,10 +103,11 @@ async function syncSubscription(
   if (!subscription.current_period_start || !subscription.current_period_end) {
     throw new Error("Stripe subscription period is incomplete.");
   }
+
   const values = {
     actor_id: actorId,
     portfolio_id: portfolioId,
-    plan_id: configured.planId,
+    plan_id: configured.plan_id,
     status: subscription.status,
     payment_method: "stripe",
     current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
@@ -114,11 +115,12 @@ async function syncSubscription(
     auto_renew: !subscription.cancel_at_period_end,
     cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
     stripe_subscription_id: subscription.id,
+    stripe_price_id: configured.stripe_price_id,
+    duration_months: configured.duration_months,
+    amount_cents: configured.amount_cents,
     metadata: {
       ...(existingByStripe?.metadata ?? {}),
       billing_attempt_id: attempt?.id ?? rawAttemptId ?? null,
-      duration_months: configured.durationMonths,
-      stripe_price_id: configured.stripePriceId,
     },
     updated_at: new Date().toISOString(),
   };
@@ -154,7 +156,7 @@ async function syncSubscription(
       .update({
         status: "succeeded",
         provider_payment_reference: subscription.id,
-        amount_paid_cents: configured.amountCents,
+        amount_paid_cents: configured.amount_cents,
         completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
